@@ -354,13 +354,6 @@ body.dark #header{background:#161616!important;border-color:#222}
 body.dark .logo{color:#e2e8f0!important}
 body.dark .module-card{background:#1a1a1a!important;border-color:#222!important}
 
-
-/* MON PROFIL */
-#profil-screen{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#f1d8a2;z-index:500;overflow-y:auto}
-#profil-screen.open{display:block}
-.profil-header{background:linear-gradient(135deg,#1B4332,#2D6A4F);padding:16px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
-.profil-header h2{color:#fff;font-size:18px;font-weight:800;flex:1}
-.profil-close{background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px}
 </style>
 </head>
 <body>
@@ -1126,10 +1119,10 @@ const DATA = {
         {type:"p",text:"• Plaques pleurales"},
         {type:"h",text:"Durées de validité des diagnostics"},
         {type:"p",text:"• DAV (vente) : ILLIMITÉ si absence de matériaux amiantés — conditioné par rapport à l'état de conservation"},
-        {type:"p",text:"• DAPP (parties privatives copro) : ILLIMITÉ si absence"},
+        {type:"p",text:"• DAPP (location) : ILLIMITÉ si absence — 3 ANS si présence détectée"},
         {type:"p",text:"• DAPP : NON obligatoire pour les maisons individuelles — uniquement les immeubles collectifs"},
         {type:"p",text:"• Avant travaux / démolition : valable pour la durée du chantier"},
-        {type:"p",text:"• DTA : mis à jour tous les 3 ans (contrôle triennal sur les materiaux de la liste A"},
+        {type:"p",text:"• DTA : mis à jour tous les 3 ans (contrôle triennal)"},
       ]},
       {titre:"Listes A, B et C",contenu:[
         {type:"h",text:"LISTE A — Matériaux friables"},
@@ -1155,7 +1148,7 @@ const DATA = {
       {titre:"Types de diagnostics — Avec ou sans mention",contenu:[
         {type:"h",text:"SANS MENTION (certification de base)"},
         {type:"p",text:"1. DAV — Diagnostic Amiante Avant Vente : listes A et B — permis avant 1er juillet 1997"},
-        {type:"p",text:"2. DAPP — Dossier Amiante Parties Privatives: liste A uniquement — immeuble collectif — NE s'applique PAS aux maisons individuelles"},
+        {type:"p",text:"2. DAPP — Dossier Amiante Parties Privatives (location) : liste A uniquement — immeuble collectif — NE s'applique PAS aux maisons individuelles"},
         {type:"h",text:"AVEC MENTION (certification complémentaire obligatoire)"},
         {type:"p",text:"3. DAAT — Avant Travaux : périmètre élargi — tous les matériaux susceptibles d'être perturbés"},
         {type:"p",text:"4. DAAD — Avant Démolition : périmètre exhaustif — sondages destructifs si nécessaire"},
@@ -4018,7 +4011,7 @@ function filterGlossaire(q) {
 
 // ─── TARIFS & DEVIS ───
 const TARIFS_DEFAULT = {
-  DPE: 120, Amiante: 150, Plomb: 100, Electricite: 150, Gaz: 120, Termites: 100, ERP: 30, Carrez: 80, Boutin: 80, 'Frais de déplacement': 0
+  DPE: 120, Amiante: 150, Plomb: 100, Electricite: 150, Gaz: 120, Termites: 100, ERP: 30, Carrez: 80, Boutin: 80, 'Frais déplacement': 50
 };
 
 function openTarif() {
@@ -4067,15 +4060,7 @@ function renderTarifScreen() {
       <div id="devis-result" style="background:#F5F6FA;border-radius:10px;padding:14px;text-align:center;color:#6B7280;font-size:13px">
         Sélectionne les diagnostics pour calculer
       </div>
-      <button onclick="exportDevisPDF()" style="width:100%;padding:12px;border-radius:9px;border:none;background:linear-gradient(135deg,#E8650A,#F4A261);color:#fff;font-weight:700;cursor:pointer;font-family:inherit;margin-top:10px;font-size:14px">&#128229; T&#233;l&#233;charger le devis</button>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-        <button onclick="envoyerDevisEmail()" style="padding:11px;border-radius:9px;border:none;background:#1B4332;color:#fff;font-weight:700;cursor:pointer;font-family:inherit;font-size:13px">
-          &#128231; Email
-        </button>
-        <button onclick="envoyerDevisWhatsApp()" style="padding:11px;border-radius:9px;border:none;background:#25D366;color:#fff;font-weight:700;cursor:pointer;font-family:inherit;font-size:13px">
-          &#128172; WhatsApp
-        </button>
-      </div>
+      <button onclick="exportDevis()" style="width:100%;padding:12px;border-radius:9px;border:none;background:linear-gradient(135deg,#E8650A,#F4A261);color:#fff;font-weight:700;cursor:pointer;font-family:inherit;margin-top:10px">📤 Exporter le devis</button>
     </div>
   `;
   
@@ -5144,101 +5129,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
-
-// PROFIL
-function openProfil() {
-  document.getElementById('profil-screen').classList.add('open');
-  var p = Object.assign({societe:'DELYDIAG',adresse:"1 rue de l'Hotel-Dieu 27100 Le Vaudreuil",tel:'06.50.97.91.31',email:'contact@delydiag.fr',siret:'97799052200012',tva:'TVA non applicable'},JSON.parse(localStorage.getItem('dd_profil')||'{}'));
-  ['nom','societe','adresse','tel','email','siret','tva'].forEach(function(k){var el=document.getElementById('p-'+k);if(el)el.value=p[k]||'';});
-}
-function closeProfil() { document.getElementById('profil-screen').classList.remove('open'); }
-function saveProfil() {
-  var d={};
-  ['nom','societe','adresse','tel','email','siret','tva'].forEach(function(k){var el=document.getElementById('p-'+k);if(el)d[k]=el.value;});
-  localStorage.setItem('dd_profil',JSON.stringify(d));
-  alert('Profil sauvegarde !');
-  closeProfil();
-}
-function getProfil() {
-  return Object.assign({societe:'DELYDIAG',adresse:"1 rue de l'Hotel-Dieu 27100 Le Vaudreuil",tel:'06.50.97.91.31',email:'contact@delydiag.fr',siret:'97799052200012',tva:'TVA non applicable'},JSON.parse(localStorage.getItem('dd_profil')||'{}'));
-}
-
-// DEVIS PDF PRO
-var devisMode='detail';
-function setDevisMode(mode){
-  devisMode=mode;
-  var bd=document.getElementById('btn-detail'),bs=document.getElementById('btn-simple');
-  if(bd)bd.className='devis-toggle-btn'+(mode==='detail'?' active':'');
-  if(bs)bs.className='devis-toggle-btn'+(mode==='simple'?' active':'');
-}
-function exportDevisPDF() {
-  var tarifs=Object.assign({},TARIFS_DEFAULT,JSON.parse(localStorage.getItem('dd_tarifs')||'{}'));
-  var selected=Object.keys(tarifs).filter(function(d){var el=document.getElementById('dv-'+d);return el&&el.checked;});
-  if(selected.length===0){alert('Selectionne au moins un diagnostic !');return;}
-  var total=selected.reduce(function(s,d){return s+(parseFloat(tarifs[d])||0);},0);
-  var lm=missions.length>0?missions[missions.length-1]:null;
-  var today=new Date().toLocaleDateString('fr-FR');
-  var ref='DD-'+Date.now().toString().slice(-6);
-  var pr=getProfil();
-  var nc=lm?((lm.nom||'')+' '+(lm.prenom||'')).trim():'';
-  var ac=lm?(lm.adresse||')':'';
-  var tc=lm?(lm.tel||')':'';
-  var ec=lm?(lm.email||')':'';
-  var ld=selected.map(function(d){return '<tr><td style="padding:9px 14px;border-bottom:1px solid #f0f0f0">'+d+'</td><td style="padding:9px 14px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600">'+(parseFloat(tarifs[d])||0).toFixed(2)+' EUR</td></tr>';}).join('');
-  var ls='<tr><td style="padding:9px 14px;border-bottom:1px solid #f0f0f0">Diagnostics immobiliers<br><span style="font-size:11px;color:#888">('+selected.join(', ')+')</span></td><td style="padding:9px 14px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600">'+total.toFixed(2)+' EUR</td></tr>';
-  var pc='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Devis</title>'
-    +'<style>body{font-family:Arial,sans-serif;padding:30px;color:#1a1a1a}.hdr{display:flex;justify-content:space-between;margin-bottom:30px;padding-bottom:20px;border-bottom:3px solid #1B4332}.ls img{height:55px}.ls h1{font-size:18px;color:#1B4332;margin:5px 0 2px}.ls p{font-size:11px;color:#888;margin:1px 0}.rs{text-align:right;font-size:12px;color:#555}.rs strong{font-size:14px;color:#1B4332}.ttl{font-size:22px;font-weight:bold;color:#1B4332;margin-bottom:20px}.cols{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}.col{background:#fafafa;border-radius:8px;padding:14px;border-left:3px solid #1B4332}.ct{font-size:10px;font-weight:bold;color:#888;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}.cc{font-size:12px;line-height:1.8}table{width:100%;border-collapse:collapse}th{background:#1B4332;color:#fff;padding:10px 14px;text-align:left;font-size:12px}.tr td{background:#1B4332;color:#fff;font-weight:bold;font-size:14px;padding:12px 14px}.ft{margin-top:30px;padding-top:15px;border-top:1px solid #eee;font-size:10px;color:#aaa;text-align:center}</style>'
-    +'</head><body>'
-    +'<div class="hdr"><div class="ls"><img src="'+logo_b64+'" alt="logo"/><h1>'+pr.societe+'</h1><p>'+pr.adresse+'</p><p>Tel : '+pr.tel+' | '+pr.email+'</p><p>SIRET : '+pr.siret+' | '+pr.tva+'</p></div>'
-    +'<div class="rs"><strong>Devis N'+ref+'</strong><br>Date : '+today+'<br>Valable 1 mois</div></div>'
-    +'<div class="ttl">Devis</div>'
-    +'<div class="cols"><div class="col"><div class="ct">Prestataire</div><div class="cc"><strong>'+pr.societe+'</strong><br>'+pr.adresse+'<br>Tel : '+pr.tel+'</div></div>'
-    +'<div class="col"><div class="ct">Client</div><div class="cc">'+(nc?'<strong>'+nc+'</strong><br>':'')+(ac?ac+'<br>':'')+(tc?'Tel : '+tc+'<br>':'')+(ec?ec:'')+'</div></div></div>'
-    +'<table><thead><tr><th>Designation</th><th style="text-align:right">Montant HT</th></tr></thead><tbody>'
-    +(devisMode==='detail'?ld:ls)
-    +'<tr class="tr"><td>TOTAL HT</td><td style="text-align:right">'+total.toFixed(2)+' EUR</td></tr></tbody></table>'
-    +'<div class="ft">'+pr.societe+' | '+pr.tva+' | SIRET : '+pr.siret+'<br>Devis valable 1 mois</div>'
-    +'</body></html>';
-  var blob=new Blob([pc],{type:'text/html;charset=utf-8'});
-  var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');
-  a.href=url;a.download='devis-'+ref+'.html';
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  window._lastDevis={ref:ref,total:total,selected:selected,nc:nc,ac:ac,today:today};
-}
-function envoyerDevisEmail() {
-  var lm=missions.length>0?missions[missions.length-1]:null;
-  var ec=lm?(lm.email||')':'';
-  var nc=lm?((lm.nom||'')+' '+(lm.prenom||'')).trim():'';
-  var d=window._lastDevis||{};var pr=getProfil();
-  var s='Votre devis '+pr.societe+(nc?' - '+nc:'');
-  var b='Bonjour'+(nc?' '+nc:'')+',
-
-Veuillez trouver ci-joint votre devis N'+( d.ref||'')+' du '+(d.today||'')+'
-Total HT : '+(d.total?d.total.toFixed(2):'')+' EUR
-
-Cordialement,
-'+pr.societe+'
-'+pr.tel;
-  window.location.href='mailto:'+ec+'?subject='+encodeURIComponent(s)+'&body='+encodeURIComponent(b);
-}
-function envoyerDevisWhatsApp() {
-  var lm=missions.length>0?missions[missions.length-1]:null;
-  var tc=lm?(lm.tel||'').replace(/[^0-9+]/g,''):'';
-  var nc=lm?((lm.nom||'')+' '+(lm.prenom||'')).trim():'';
-  var d=window._lastDevis||{};var pr=getProfil();
-  var msg='Bonjour'+(nc?' '+nc:'')+',
-
-Devis N'+(d.ref||'')+'
-Date : '+(d.today||'')+'
-Prestations : '+(d.selected||[]).join(', ')+'
-Total HT : '+(d.total?d.total.toFixed(2):'')+' EUR
-
-'+pr.societe+' | '+pr.tel;
-  window.open(tc?'https://wa.me/'+tc+'?text='+encodeURIComponent(msg):'https://wa.me/?text='+encodeURIComponent(msg),'_blank');
-}
-
 </script>
 
 
@@ -5354,54 +5244,6 @@ Total HT : '+(d.total?d.total.toFixed(2):'')+' EUR
   <div style="padding:16px" id="stats-body"></div>
 </div>
 
-
-
-<!-- MON PROFIL -->
-<div id="profil-screen">
-  <div class="profil-header">
-    <span style="font-size:22px">👤</span>
-    <h2>Mon Profil</h2>
-    <button class="profil-close" onclick="closeProfil()">✕</button>
-  </div>
-  <div style="padding:16px">
-    <div style="background:#fff;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.08)">
-      <p style="font-size:12px;color:#6B7280;margin-bottom:16px">Ces informations apparaîtront sur tous tes devis. À remplir une seule fois.</p>
-      
-      <div style="margin-bottom:10px">
-        <label style="font-size:11px;font-weight:700;color:#6B7280;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Nom / Prénom</label>
-        <input id="p-nom" type="text" placeholder="Jean Dupont" class="mission-input"/>
-      </div>
-      <div style="margin-bottom:10px">
-        <label style="font-size:11px;font-weight:700;color:#6B7280;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Nom de la société</label>
-        <input id="p-societe" type="text" placeholder="DELYDIAG" class="mission-input"/>
-      </div>
-      <div style="margin-bottom:10px">
-        <label style="font-size:11px;font-weight:700;color:#6B7280;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Adresse</label>
-        <input id="p-adresse" type="text" placeholder="1 rue de l'Hôtel-Dieu 27100 Le Vaudreuil" class="mission-input"/>
-      </div>
-      <div style="margin-bottom:10px">
-        <label style="font-size:11px;font-weight:700;color:#6B7280;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Téléphone</label>
-        <input id="p-tel" type="tel" placeholder="06.50.97.91.31" class="mission-input"/>
-      </div>
-      <div style="margin-bottom:10px">
-        <label style="font-size:11px;font-weight:700;color:#6B7280;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Email</label>
-        <input id="p-email" type="email" placeholder="contact@delydiag.fr" class="mission-input"/>
-      </div>
-      <div style="margin-bottom:10px">
-        <label style="font-size:11px;font-weight:700;color:#6B7280;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">SIRET</label>
-        <input id="p-siret" type="text" placeholder="97799052200012" class="mission-input"/>
-      </div>
-      <div style="margin-bottom:16px">
-        <label style="font-size:11px;font-weight:700;color:#6B7280;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Mention TVA</label>
-        <input id="p-tva" type="text" placeholder="TVA non applicable" class="mission-input"/>
-      </div>
-      
-      <button onclick="saveProfil()" style="width:100%;padding:14px;border-radius:10px;border:none;background:linear-gradient(135deg,#2D6A4F,#1B4332);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">
-        💾 Sauvegarder mon profil
-      </button>
-    </div>
-  </div>
-</div>
 
 </body>
 </html>
