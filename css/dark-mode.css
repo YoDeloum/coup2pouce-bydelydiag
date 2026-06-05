@@ -1,0 +1,34 @@
+/* ─────────────────────────────────────────────
+   DARK-MODE.CSS — Tous les overrides body.dark
+   ───────────────────────────────────────────── */
+
+body.dark{background:#1A1D2E !important}
+body.dark #header{background:#161616 !important;border-color:#222}
+body.dark .logo{color:#e2e8f0 !important}
+body.dark .logo span{color:#E8650A !important}
+body.dark .logo-sub{color:#9ca3af !important}
+body.dark #home-title{color:#e2e8f0 !important}
+
+/* Cartes modules */
+body.dark .module-card{background:#1a1a1a !important;border-color:#222 !important}
+body.dark .card{background:#252A3A;color:#e2e8f0}
+
+/* Navigation cours */
+body.dark .cours-item{color:#e2e8f0}
+body.dark #tabs{background:#252A3A}
+body.dark .tab-btn{color:#9ca3af}
+body.dark .tab-btn.active{color:#fff}
+
+/* Fiches */
+body.dark .fiche-item{background:#252A3A;border-color:#374151}
+
+/* Module mission */
+body.dark .mission-section{background:#252A3A}
+body.dark .mission-input,
+body.dark .mission-select,
+body.dark .mission-textarea{background:#1A1D2E;color:#e2e8f0;border-color:#374151}
+
+/* Checklist */
+body.dark .cl-module-select{background:#252A3A}
+body.dark .cl-section{background:#252A3A}
+body.dark .cl-item-text{color:#e2e8f0}
