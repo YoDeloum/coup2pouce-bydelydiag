@@ -1,0 +1,67 @@
+/* ─────────────────────────────────────────────
+   MAIN.CSS — Reset global, body, header, layout
+   ───────────────────────────────────────────── */
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#fafaf8 !important;color:#1A1D2E;min-height:100vh}
+a{text-decoration:none}
+
+/* HEADER */
+#header{background:#fff !important;border-bottom:0.5px solid #f0f0f0;padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 1px 6px rgba(0,0,0,.07)}
+.logo{font-size:22px;font-weight:800;letter-spacing:-0.5px;color:#111 !important}
+.logo span{color:#E8650A;font-style:italic}
+.logo-sub{font-size:9px;color:#6B7280;letter-spacing:2px;text-transform:uppercase;font-family:monospace}
+
+/* CONTENEURS PAGES */
+#home,#module{max-width:920px;margin:0 auto;padding:28px 16px}
+#module{max-width:780px;display:none}
+
+/* BARRE DE PROGRESSION GLOBALE */
+.global-prog{background:#fff;border:1px solid #E2E5F0;border-radius:12px;padding:14px 18px;margin-bottom:24px}
+.pbar-wrap{height:2px !important;background:#f0f0f0 !important;border-radius:999px;overflow:hidden}
+.pbar-fill{height:100%;border-radius:999px;transition:width .5s;background:#1B4332 !important}
+
+/* WATERMARK */
+.watermark{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;overflow:hidden}
+.watermark::before{content:'';position:absolute;top:0;left:0;width:100%;height:100%;background-image:repeating-linear-gradient(-45deg,transparent,transparent 120px,rgba(45,106,79,0.045) 120px,rgba(45,106,79,0.045) 121px)}
+.watermark-text{position:absolute;color:rgba(45,106,79,0.07);font-size:22px;font-weight:800;font-family:monospace;letter-spacing:4px;white-space:nowrap;transform:rotate(-35deg);user-select:none}
+
+/* BACK BUTTON */
+#back-btn{background:#fafaf8;border:1px solid #E2E5F0;cursor:pointer;width:30px;height:30px;border-radius:50%;font-size:14px;font-weight:700;display:none;margin-right:10px}
+
+/* BOUTON MODE SOMBRE */
+.dark-toggle{position:fixed;top:14px;right:16px;z-index:999;background:none;border:none;font-size:22px;cursor:pointer;padding:4px}
+
+/* BANNIÈRE ASTUCE */
+#astuce-banner{background:linear-gradient(135deg,#1B4332,#2D6A4F);border-radius:14px;padding:14px 16px;margin-bottom:16px;display:flex;gap:12px;align-items:flex-start;cursor:pointer}
+#astuce-banner .astuce-icon{font-size:24px;flex-shrink:0}
+#astuce-banner .astuce-text{color:#fff;font-size:13px;line-height:1.6;flex:1}
+#astuce-banner .astuce-label{color:rgba(255,255,255,.7);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}
+
+/* BARRE DE RECHERCHE */
+#search-bar-wrap{padding:0 16px 12px;background:transparent}
+#search-bar{width:100%;padding:11px 16px 11px 40px;border-radius:12px;border:1.5px solid #E2E5F0;font-size:14px;font-family:inherit;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='%236B7280'%3E%3Cpath d='M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z' stroke='%236B7280' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat 12px center;box-sizing:border-box;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+#search-bar:focus{outline:none;border-color:#2D6A4F}
+
+/* RÉSULTATS RECHERCHE */
+#search-results{position:fixed;top:0;left:0;width:100%;height:100%;background:#fafaf8;z-index:600;overflow-y:auto;display:none}
+#search-results.open{display:block}
+.search-result-item{padding:14px 16px;border-bottom:1px solid #E2E5F0;background:#fff;cursor:pointer;transition:background .15s}
+.search-result-item:hover{background:#F5F6FA}
+.search-result-module{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px}
+.search-result-title{font-size:14px;font-weight:700;color:#1A1D2E;margin-bottom:2px}
+.search-result-excerpt{font-size:12px;color:#6B7280;line-height:1.5}
+
+/* BOUTON DRIVE */
+.drive-btn{display:flex;align-items:center;gap:10px;padding:13px 16px;background:linear-gradient(135deg,#1967D2,#4285F4);border-radius:12px;text-decoration:none;color:#fff;font-weight:700;font-size:13px;margin-top:16px;box-shadow:0 4px 12px rgba(66,133,244,.35);transition:opacity .2s}
+.drive-btn:hover{opacity:.9}
+.drive-btn svg{flex-shrink:0}
+
+/* BOUTONS ACCUEIL */
+.home-btn{display:flex;align-items:center;justify-content:center;gap:10px;padding:14px 20px;border-radius:14px;text-decoration:none;font-weight:700;font-size:14px;margin-top:10px;transition:opacity .2s;box-shadow:0 4px 12px rgba(0,0,0,.12)}
+.home-btn:hover{opacity:.9}
+.home-btn-phone{background:linear-gradient(135deg,#2D6A4F,#1B4332);color:#fff}
+.home-btn-news{background:linear-gradient(135deg,#1B4332,#2D6A4F);color:#fff}
+
+/* BOITE ASTUCE */
+.tip-box{margin-top:24px;padding:14px 18px;background:#FFF9E6;border:1px solid #E8C54766;border-radius:12px;font-size:13px;line-height:1.7}

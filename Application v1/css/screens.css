@@ -1,0 +1,108 @@
+/* ─────────────────────────────────────────────
+   SCREENS.CSS — Écrans plein page (checklist, mission,
+   glossaire, tarifs, stats, chatbot, mission)
+   ───────────────────────────────────────────── */
+
+/* CHECKLIST */
+#checklist-screen{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#fafaf8;z-index:500;overflow-y:auto}
+#checklist-screen.open{display:block}
+.cl-header{background:linear-gradient(135deg,#2D6A4F,#1B4332);padding:16px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
+.cl-header h2{color:#fff;font-size:18px;font-weight:800;flex:1}
+.cl-close{background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px}
+.cl-body{padding:16px}
+.cl-module-select{background:#fff;border-radius:14px;padding:16px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.cl-module-select h3{font-size:14px;font-weight:700;color:#1B4332;margin-bottom:12px}
+.cl-modules-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cl-mod-btn{padding:10px 8px;border-radius:10px;border:2px solid #E2E5F0;background:#fff;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;text-align:center;transition:all .15s}
+.cl-mod-btn.selected{border-color:#2D6A4F;background:#2D6A4F18;color:#2D6A4F}
+.cl-generate-btn{width:100%;padding:13px;border-radius:10px;border:none;background:linear-gradient(135deg,#E8650A,#F4A261);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:12px}
+.cl-results{margin-top:16px}
+.cl-section{background:#fff;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.cl-section-title{font-size:15px;font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.cl-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F5F5F5;cursor:pointer}
+.cl-item:last-child{border-bottom:none}
+.cl-checkbox{width:22px;height:22px;border-radius:6px;border:2px solid #D1D5DB;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.cl-checkbox.checked{background:#2D6A4F;border-color:#2D6A4F}
+.cl-checkbox.checked::after{content:'✓';color:#fff;font-size:13px;font-weight:700}
+.cl-item-text{font-size:13px;color:#374151;line-height:1.4}
+.cl-item-text.checked{text-decoration:line-through;color:#9CA3AF}
+.cl-reset-btn{width:100%;padding:11px;border-radius:10px;border:2px solid #EF4444;background:#fff;color:#EF4444;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px}
+.cl-progress{background:#E2E5F0;border-radius:999px;height:6px;margin:8px 0 4px}
+.cl-progress-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#2D6A4F,#52B788);transition:width .3s}
+
+/* MISSION */
+#mission-screen{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#fafaf8;z-index:500;overflow-y:auto}
+#mission-screen.open{display:block}
+.mission-header{background:linear-gradient(135deg,#1B4332,#2D6A4F);padding:16px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
+.mission-header h2{color:#fff;font-size:18px;font-weight:800;flex:1}
+.mission-close{background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px}
+.mission-body{padding:16px}
+.mission-section{background:#fff;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.mission-section h3{font-size:13px;font-weight:700;color:#2D6A4F;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.mission-field{margin-bottom:10px}
+.mission-label{font-size:11px;font-weight:600;color:#6B7280;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:4px}
+.mission-input{width:100%;padding:10px 13px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:14px;font-family:inherit;box-sizing:border-box;transition:border-color .2s}
+.mission-input:focus{outline:none;border-color:#2D6A4F}
+.mission-select{width:100%;padding:10px 13px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:14px;font-family:inherit;box-sizing:border-box;background:#fff}
+.mission-textarea{width:100%;padding:10px 13px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:14px;font-family:inherit;box-sizing:border-box;min-height:100px;resize:vertical}
+.diag-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.diag-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;border:1.5px solid #E2E5F0;cursor:pointer;transition:all .15s}
+.diag-item.selected{border-color:#2D6A4F;background:#2D6A4F12}
+.diag-item input{width:16px;height:16px;accent-color:#2D6A4F}
+.mission-save-btn{width:100%;padding:14px;border-radius:10px;border:none;background:linear-gradient(135deg,#2D6A4F,#1B4332);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px}
+.mission-export-btn{width:100%;padding:12px;border-radius:10px;border:2px solid #2D6A4F;background:#fff;color:#2D6A4F;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px}
+.mission-list{margin-top:14px}
+.mission-card{background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;border-left:4px solid #2D6A4F;box-shadow:0 2px 6px rgba(0,0,0,.08);cursor:pointer}
+.mission-card-title{font-weight:700;font-size:14px;color:#1B4332}
+.mission-card-sub{font-size:12px;color:#6B7280;margin-top:3px}
+
+/* GLOSSAIRE */
+#glossaire-screen{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#fafaf8;z-index:500;overflow-y:auto}
+#glossaire-screen.open{display:block}
+.glossaire-header{background:linear-gradient(135deg,#0E7490,#0891B2);padding:16px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
+.glossaire-header h2{color:#fff;font-size:18px;font-weight:800;flex:1}
+.glossaire-close{background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px}
+.glossaire-item{padding:12px 16px;border-bottom:1px solid #E2E5F0;background:#fff}
+.glossaire-item:first-child{border-radius:10px 10px 0 0}
+.glossaire-item:last-child{border-radius:0 0 10px 10px;border-bottom:none}
+.glossaire-term{font-weight:700;color:#0891B2;font-size:14px}
+.glossaire-def{font-size:13px;color:#374151;margin-top:3px;line-height:1.6}
+
+/* TARIFS / DEVIS */
+#tarif-screen{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#fafaf8;z-index:500;overflow-y:auto}
+#tarif-screen.open{display:block}
+.tarif-header{background:linear-gradient(135deg,#1B4332,#2D6A4F);padding:16px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
+.tarif-header h2{color:#fff;font-size:18px;font-weight:800;flex:1}
+.tarif-close{background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px}
+.tarif-body{padding:16px}
+.tarif-section{background:#fff;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.tarif-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F5F5F5}
+.tarif-row:last-child{border-bottom:none}
+.tarif-label{flex:1;font-size:13px;color:#374151}
+.tarif-input-small{width:80px;padding:7px 10px;border-radius:7px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;text-align:center}
+.tarif-total-box{background:linear-gradient(135deg,#2D6A4F,#1B4332);border-radius:14px;padding:20px;text-align:center;margin-bottom:14px}
+
+/* CHATBOT JEFFREY */
+@keyframes jeffrey-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes jeffrey-pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.3);opacity:0.7}}
+#chat-btn{position:fixed;bottom:20px;right:20px;cursor:pointer;z-index:999;display:flex;flex-direction:column;align-items:center;gap:3px}
+#chat-panel{position:fixed;bottom:90px;right:16px;width:340px;max-width:95vw;height:500px;max-height:80vh;background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:998;display:none;flex-direction:column;overflow:hidden;border:1px solid #E2E5F0}
+#chat-panel.open{display:flex}
+#chat-header{background:linear-gradient(135deg,#E8650A,#F59E0B);padding:14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+#chat-header .avatar{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:18px}
+#chat-header .info{flex:1}
+#chat-header .name{color:#fff;font-weight:700;font-size:14px}
+#chat-header .status{color:rgba(255,255,255,.8);font-size:11px}
+#chat-header .close-btn{background:none;border:none;color:#fff;cursor:pointer;font-size:20px;padding:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:background .15s}
+#chat-header .close-btn:hover{background:rgba(255,255,255,.2)}
+#chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:#F9FAFF}
+.msg{max-width:85%;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.6}
+.msg.bot{background:#fff;border:1px solid #E2E5F0;border-radius:4px 12px 12px 12px;align-self:flex-start;color:#1A1D2E}
+.msg.user{background:linear-gradient(135deg,#E8650A,#F59E0B);color:#fff;border-radius:12px 4px 12px 12px;align-self:flex-end}
+.msg.loading{background:#fff;border:1px solid #E2E5F0;color:#6B7280;font-style:italic}
+#chat-input-wrap{padding:12px;border-top:1px solid #E2E5F0;display:flex;gap:8px;flex-shrink:0;background:#fff}
+#chat-input{flex:1;padding:10px 14px;border-radius:20px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;resize:none;height:40px;line-height:1.4;transition:border-color .15s}
+#chat-input:focus{border-color:#E8650A}
+#chat-send{width:40px;height:40px;border-radius:50%;border:none;background:linear-gradient(135deg,#E8650A,#F59E0B);color:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity .15s}
+#chat-send:hover{opacity:.9}
+#chat-send:disabled{opacity:.5;cursor:default}
