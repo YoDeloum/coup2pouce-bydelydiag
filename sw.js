@@ -1,29 +1,19 @@
-const CACHE_NAME = "coup2pouce-v2";
-const ASSETS = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png"];
+// Service Worker — Coup 2 Pouce DELY DIAG
+const CACHE = 'coup2pouce-v5';
 
-self.addEventListener("install", event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)));
+self.addEventListener('install', function(e) {
   self.skipWaiting();
 });
 
-self.addEventListener("activate", event => {
-  event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
+self.addEventListener('activate', function(e) {
+  e.waitUntil(
+    caches.keys().then(function(keys) {
+      return Promise.all(keys.filter(function(k) { return k !== CACHE; }).map(function(k) { return caches.delete(k); }));
+    })
   );
-  self.clients.claim();
 });
 
-self.addEventListener("fetch", event => {
-  // Network first strategy - always try network first for fresh content
-  event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-        return response;
-      })
-      .catch(() => caches.match(event.request))
-  );
+self.addEventListener('fetch', function(e) {
+  // Pass-through : pas de cache agressif, réseau prioritaire
+  e.respondWith(fetch(e.request).catch(function() { return caches.match(e.request); }));
 });

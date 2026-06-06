@@ -235,13 +235,13 @@ function renderDevisForm(body) {
 
     <!-- ── Actions ── -->
     <button class="devis-btn-primary" onclick="saveDevisForm()">💾 Enregistrer le devis</button>
-    <button onclick="if(_devisEdit!==null && getAllDevis()[_devisEdit]) genererPDFDevis(getAllDevis()[_devisEdit])" style="width:100%;padding:12px;border-radius:10px;border:2px solid #059669;background:#fff;color:#059669;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px" ${_devisEdit===null?'disabled style="opacity:.4;cursor:not-allowed"':''}>📄 Générer PDF devis</button>
-    <button onclick="if(_devisEdit!==null && getAllDevis()[_devisEdit]) envoyerMailDevis(getAllDevis()[_devisEdit])" style="width:100%;padding:12px;border-radius:10px;border:2px solid #0891B2;background:#fff;color:#0891B2;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px" ${_devisEdit===null?'disabled style="opacity:.4"':''}>✉️ Envoyer par mail</button>
-    <button onclick="if(_devisEdit!==null) openSignature(_devisEdit)" style="width:100%;padding:12px;border-radius:10px;border:2px solid #1B4332;background:#fff;color:#1B4332;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px" ${_devisEdit===null?'disabled style="opacity:.4"':''}>✍️ Signature / Acceptation client</button>
-    <button onclick="convertirEnFacture()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #5B21B6;background:#fff;color:#5B21B6;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px" ${_devisEdit===null?'disabled style="opacity:.4"':''}>📋 Convertir en facture</button>
-    <button onclick="convertirEnMission()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #E8650A;background:#fff;color:#E8650A;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px" ${_devisEdit===null?'disabled style="opacity:.4"':''}>🏠 Créer une mission depuis ce devis</button>
-    <button onclick="ouvrirRelance()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #6366F1;background:#fff;color:#6366F1;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px" ${_devisEdit===null?'disabled style="opacity:.4"':''}>📨 Relancer le client</button>
-    <button onclick="ouvrirEnvoiDocuments()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #0891B2;background:#fff;color:#0891B2;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px" ${_devisEdit===null?'disabled style="opacity:.4"':''}>📄 Envoyer les documents réglementaires</button>
+    <button onclick="if(_devisEdit!==null && getAllDevis()[_devisEdit]) genererPDFDevis(getAllDevis()[_devisEdit])" style="width:100%;padding:12px;border-radius:10px;border:2px solid #059669;background:#fff;color:#059669;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>📄 Générer PDF devis</button>
+    <button onclick="if(_devisEdit!==null && getAllDevis()[_devisEdit]) envoyerMailDevis(getAllDevis()[_devisEdit])" style="width:100%;padding:12px;border-radius:10px;border:2px solid #0891B2;background:#fff;color:#0891B2;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>✉️ Envoyer par mail</button>
+    <button onclick="if(_devisEdit!==null) openSignature(_devisEdit)" style="width:100%;padding:12px;border-radius:10px;border:2px solid #1B4332;background:#fff;color:#1B4332;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>✍️ Signature / Acceptation client</button>
+    <button onclick="convertirEnFacture()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #5B21B6;background:#fff;color:#5B21B6;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>📋 Convertir en facture</button>
+    <button onclick="convertirEnMission()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #E8650A;background:#fff;color:#E8650A;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>🏠 Créer une mission depuis ce devis</button>
+    <button onclick="ouvrirRelance()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #6366F1;background:#fff;color:#6366F1;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>📨 Relancer le client</button>
+    <button onclick="ouvrirEnvoiDocuments()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #0891B2;background:#fff;color:#0891B2;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>📄 Envoyer les documents réglementaires</button>
     <button onclick="ouvrirOCR()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #D97706;background:#fff;color:#D97706;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">📷 Préremplir depuis une photo</button>
     ${p.lien_paiement ? '<button onclick="window.open(\'' + p.lien_paiement + '\',\'_blank\')" style="width:100%;padding:12px;border-radius:10px;border:2px solid #0891B2;background:linear-gradient(135deg,#0891B2,#0E7490);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">💳 Lien de paiement en ligne</button>' : ''}
     ${_devisEdit !== null ? '<button onclick="supprimerDevis()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #EF4444;background:#fff;color:#EF4444;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🗑️ Supprimer ce devis</button>' : ''}`;
@@ -293,4 +293,127 @@ function updateDevisTotal() {
   if (rLine) rLine.style.display = remiseEur > 0 ? '' : 'none';
 }
 
-f
+function updateDevisRemisePct() {
+  var subtotal  = 0;
+  document.querySelectorAll('#dv-diags-grid .diag-item.selected').forEach(function(el) {
+    var inp = el.querySelector('.dv-tarif-input');
+    subtotal += inp ? (parseFloat(inp.value) || 0) : 0;
+  });
+  var pct = parseFloat(document.getElementById('dv-remise-pct')?.value) || 0;
+  var eur = subtotal * pct / 100;
+  var eurInp = document.getElementById('dv-remise-eur');
+  if (eurInp) eurInp.value = eur.toFixed(2);
+  updateDevisTotal();
+}
+
+function updateDevisRemiseEur() {
+  var subtotal = 0;
+  document.querySelectorAll('#dv-diags-grid .diag-item.selected').forEach(function(el) {
+    var inp = el.querySelector('.dv-tarif-input');
+    subtotal += inp ? (parseFloat(inp.value) || 0) : 0;
+  });
+  var eur = parseFloat(document.getElementById('dv-remise-eur')?.value) || 0;
+  var pct = subtotal > 0 ? (eur / subtotal * 100) : 0;
+  var pctInp = document.getElementById('dv-remise-pct');
+  if (pctInp) pctInp.value = pct.toFixed(1);
+  updateDevisTotal();
+}
+
+// ─── LECTURE FORMULAIRE ───
+function getDevisFormData() {
+  var p       = getCompanyProfile();
+  var selDiags = Array.from(document.querySelectorAll('#dv-diags-grid .diag-item.selected')).map(function(el) {
+    return el.querySelector('span.diag-name, span').textContent;
+  });
+  var selDeps = Array.from(document.querySelectorAll('#dv-deps-grid .deps-item.selected')).map(function(el) {
+    return el.getAttribute('data-dep');
+  });
+  // Tarifs manuels par diagnostic
+  var tarifs_manuels = {};
+  document.querySelectorAll('#dv-diags-grid .dv-tarif-input').forEach(function(inp) {
+    tarifs_manuels[inp.dataset.diag] = parseFloat(inp.value) || 0;
+  });
+  // Calculs avec tarifs manuels
+  var totalBrut = selDiags.reduce(function(s, d) { return s + (tarifs_manuels[d] !== undefined ? tarifs_manuels[d] : 0); }, 0);
+  var remise_pct = parseFloat(document.getElementById('dv-remise-pct')?.value) || 0;
+  var remise_eur = parseFloat(document.getElementById('dv-remise-eur')?.value) || 0;
+  var totalHt   = Math.max(0, totalBrut - remise_eur);
+  return {
+    numero:               document.getElementById('dv-numero')?.value              || '',
+    date:                 document.getElementById('dv-date')?.value                || '',
+    date_mission:         document.getElementById('dv-date_mission')?.value        || '',
+    statut:               document.getElementById('dv-statut')?.value              || 'Devis',
+    client_nom:           document.getElementById('dv-client_nom')?.value          || '',
+    client_prenom:        document.getElementById('dv-client_prenom')?.value       || '',
+    client_tel:           document.getElementById('dv-client_tel')?.value          || '',
+    client_email:         document.getElementById('dv-client_email')?.value        || '',
+    bien_adresse:         document.getElementById('dv-bien_adresse')?.value        || '',
+    bien_type:            document.getElementById('dv-bien_type')?.value           || '',
+    statut_fiscal:        document.getElementById('dv-statut_fiscal')?.value       || p.statut_fiscal || 'HT',
+    periode_construction: document.getElementById('dv-periode_construction')?.value || '',
+    nb_pieces:            document.getElementById('dv-nb_pieces')?.value            || '',
+    dependances:          selDeps,
+    dep_custom:           (document.getElementById('dv-dep-custom')?.value || '').trim(),
+    taux_tva:             p.taux_tva || 20,
+    diagnostics:          selDiags,
+    tarifs_manuels:       tarifs_manuels,
+    total_ht_brut:        totalBrut,
+    remise_pct:           remise_pct,
+    remise_eur:           remise_eur,
+    total_ht:             totalHt,
+    total_ttc:            totalHt * (1 + (p.taux_tva || 20) / 100),
+    savedAt:              new Date().toISOString(),
+    signature:            (_devisEdit !== null ? (getAllDevis()[_devisEdit]?.signature || null) : null),
+    mission_creee:        (_devisEdit !== null ? (getAllDevis()[_devisEdit]?.mission_creee || false) : false),
+  };
+}
+
+// ─── SAUVEGARDE ───
+function saveDevisForm() {
+  var data = getDevisFormData();
+  var list = getAllDevis();
+  if (_devisEdit !== null) list[_devisEdit] = data;
+  else { list.push(data); _devisEdit = list.length - 1; }
+  saveAllDevis(list);
+  var btn = document.querySelector('.devis-btn-primary');
+  if (btn) { btn.textContent = '✅ Enregistré !'; btn.style.background = '#22C55E'; }
+  setTimeout(function() { renderDevisScreen('form'); }, 1200);
+}
+
+// ─── SUPPRESSION ───
+function supprimerDevis() {
+  if (!confirm('Supprimer ce devis définitivement ?')) return;
+  var list = getAllDevis();
+  list.splice(_devisEdit, 1);
+  saveAllDevis(list);
+  _devisEdit = null;
+  renderDevisScreen('list');
+}
+
+// ─── CONVERTIR EN FACTURE ───
+function convertirEnFacture() {
+  var devis = getAllDevis()[_devisEdit];
+  if (!devis) return;
+  _factureFromDevis = devis;
+  _factureEdit = null;
+  closeDevis();
+  openFacture();
+}
+
+// ─── CONVERTIR EN MISSION ───
+function convertirEnMission() {
+  var devis = getAllDevis()[_devisEdit];
+  if (!devis) { alert('Enregistre d\'abord le devis avant de créer une mission.'); return; }
+  if (devis.mission_creee) {
+    if (!confirm('Une mission a déjà été créée depuis ce devis.\nEn créer une nouvelle quand même ?')) return;
+  }
+  // Marquer le devis comme "transformé en mission"
+  var list = getAllDevis();
+  if (list[_devisEdit].statut === 'Devis') list[_devisEdit].statut = 'Accepté';
+  list[_devisEdit].mission_creee = true;
+  saveAllDevis(list);
+  // Passer les données au module mission
+  window._devisToMission = devis;
+  closeDevis();
+  openMission();
+}

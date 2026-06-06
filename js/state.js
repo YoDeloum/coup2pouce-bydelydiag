@@ -50,3 +50,15 @@ var _gz = {};
     }
   } catch(e) {}
 })();
+
+// Migration: Electricite (sans accent) -> Electricite (avec accent)
+(function migrateTarifs() {
+  try {
+    var t = JSON.parse(localStorage.getItem('dd_tarifs') || '{}');
+    if (t['Electricite'] !== undefined && t['Électricité'] === undefined) {
+      t['Électricité'] = t['Electricite'];
+      delete t['Electricite'];
+      localStorage.setItem('dd_tarifs', JSON.stringify(t));
+    }
+  } catch(e) {}
+})();

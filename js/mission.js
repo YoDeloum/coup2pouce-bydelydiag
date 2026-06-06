@@ -326,4 +326,13 @@ function openAvisGoogle() {
   document.body.appendChild(modal);
 }
 
-f
+function sendAvisGoogle() {
+  var lien = document.getElementById('avis-lien').value.trim();
+  var msg  = document.getElementById('avis-msg').value;
+  var tel  = document.getElementById('avis-tel').value.replace(/ /g,'');
+  localStorage.setItem('dd_avis_lien', lien);
+  localStorage.setItem('dd_avis_msg', msg);
+  var smsUrl = tel ? 'sms:'+tel+'?body='+encodeURIComponent(msg) : 'sms:?body='+encodeURIComponent(msg);
+  document.getElementById('avis-modal').remove();
+  window.location.href = smsUrl;
+}
