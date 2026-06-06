@@ -4,11 +4,17 @@
 
 function openMission() {
   document.getElementById('mission-screen').classList.add('open');
+  // Si on vient d'un devis, aller directement au formulaire vide pré-rempli
+  if (window._devisToMission) {
+    currentMissionIdx = null;
+    missionView = 'form';
+  }
   renderMissionScreen();
 }
 
 function closeMission() {
   document.getElementById('mission-screen').classList.remove('open');
+  window._devisToMission = null;
 }
 
 function renderMissionScreen() {
@@ -24,15 +30,22 @@ function renderMissionList(body) {
       ➕ Nouvelle mission
     </button>
     ${sorted.length === 0 ? '<div style="text-align:center;padding:40px;color:#6B7280;font-size:14px">Aucune mission enregistrée</div>' : ''}
-    ${sorted.map((m, i) => `
-      <div class="mission-card" onclick="editMission(${missions.length-1-i})">
-        <div class="mission-card-title">${m.nom||'Sans nom'} ${m.prenom||''}</div>
-        <div class="mission-card-sub">📍 ${m.adresse||'Adresse non renseignée'}</div>
-        <div class="mission-card-sub">🏠 ${m.typeBien||'-'} • ${m.date||'-'}</div>
-        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-          ${(m.diags||[]).map(d=>'<span style="font-size:10px;padding:2px 8px;border-radius:999px;background:#2D6A4F18;color:#2D6A4F;font-weight:600">'+d+'</span>').join('')}
-        </div>
-      </div>`).join('')}`;
+    ${sorted.map(function(m, i) {
+      var realIdx = missions.length - 1 - i;
+      return `
+        <div class="mission-card" onclick="editMission(${realIdx})">
+          <div class="mission-card-title">${m.nom||'Sans nom'} ${m.prenom||''}</div>
+          <div class="mission-card-sub">📍 ${m.adresse||'Adresse non renseignée'}</div>
+          <div class="mission-card-sub">🏠 ${m.typeBien||'-'} • ${m.date||'-'}</div>
+          ${m.devis_ref ? '<div class="mission-card-sub" style="color:#059669;font-weight:600">📄 Devis réf. ' + m.devis_ref + '</div>' : ''}
+          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+            ${(m.diags||[]).map(function(d) {
+              var isTravel = d === 'Frais déplacement';
+              return '<span style="font-size:10px;padding:2px 8px;border-radius:999px;background:' + (isTravel ? '#FEF3C718' : '#2D6A4F18') + ';color:' + (isTravel ? '#B45309' : '#2D6A4F') + ';font-weight:600">' + d + '</span>';
+            }).join('')}
+          </div>
+        </div>`;
+    }).join('')}`;
 }
 
 function newMission() {
@@ -43,16 +56,45 @@ function newMission() {
 
 function editMission(idx) {
   currentMissionIdx = idx;
+  window._devisToMission = null; // On édite une mission existante, pas de pré-remplissage
   missionView = 'form';
   renderMissionScreen();
 }
 
 function renderMissionForm(body) {
-  var m     = currentMissionIdx !== null ? missions[currentMissionIdx] : {};
-  var diags = ['DPE','Amiante','Plomb','Électricité','Gaz','Termites','ERP','Carrez','Boutin'];
+  // ── Pré-remplissage depuis un devis si applicable ──
+  var src = (currentMissionIdx === null && window._devisToMission) ? window._devisToMission : null;
+  var m   = currentMissionIdx !== null ? (missions[currentMissionIdx] || {}) : {};
+
+  if (src) {
+    // Pré-remplir depuis le devis
+    m = {
+      nom:                  src.client_nom   || '',
+      prenom:               src.client_prenom|| '',
+      tel:                  src.client_tel   || '',
+      email:                src.client_email || '',
+      adresse:              src.bien_adresse || '',
+      typeBien:             src.bien_type    || '',
+      date:                 src.date_mission || new Date().toISOString().split('T')[0],
+      diags:                src.diagnostics  || [],
+      devis_ref:            src.numero       || '',
+      periode_construction: src.periode_construction || '',
+      nb_pieces:            src.nb_pieces    || '',
+    };
+    window._devisToMission = null; // Consommé
+  }
+
+  var diags = ['DPE','Amiante','Plomb','Électricité','Gaz','Termites','ERP','Carrez','Boutin','Frais déplacement'];
 
   body.innerHTML = `
     <button onclick="missionView='list';renderMissionScreen()" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:#2D6A4F;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:16px;font-family:inherit">← Retour</button>
+
+    ${m.devis_ref || src ? `<div style="background:#D1FAE5;border:1px solid #6EE7B7;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#065F46;font-weight:600">
+      📄 Mission créée depuis le devis N° ${m.devis_ref||''}
+    </div>` : ''}
+
+    <input type="hidden" id="m-devis_ref" value="${m.devis_ref||''}"/>
+
     <div class="mission-section">
       <h3>👤 Client</h3>
       <div class="mission-field"><label class="mission-label">Nom</label><input class="mission-input" id="m-nom" type="text" value="${m.nom||''}" placeholder="Dupont"/></div>
@@ -60,12 +102,14 @@ function renderMissionForm(body) {
       <div class="mission-field"><label class="mission-label">Téléphone</label><input class="mission-input" id="m-tel" type="tel" value="${m.tel||''}" placeholder="06 00 00 00 00"/></div>
       <div class="mission-field"><label class="mission-label">Email</label><input class="mission-input" id="m-email" type="email" value="${m.email||''}" placeholder="email@exemple.fr"/></div>
     </div>
+
     <div class="mission-section">
       <h3>🏠 Le Bien</h3>
       <div class="mission-field">
         <label class="mission-label">Adresse complète</label>
         <input class="mission-input" id="m-adresse" type="text" value="${m.adresse||''}" placeholder="12 rue des Lilas, 75001 Paris" oninput="updateMapsBtn(this.value)"/>
         <a id="maps-btn" href="#" target="_blank" onclick="openMaps()" style="display:${(m.adresse||'').length>5?'flex':'none'};align-items:center;gap:8px;margin-top:8px;padding:9px 14px;background:#4285F4;border-radius:8px;color:#fff;font-size:12px;font-weight:700;text-decoration:none">📍 Voir sur Google Maps</a>
+        <a href="https://gorenove.fr/adresse" target="_blank" style="display:flex;align-items:center;gap:8px;margin-top:6px;padding:9px 14px;background:linear-gradient(135deg,#0E7490,#0891B2);border-radius:8px;color:#fff;font-size:12px;font-weight:700;text-decoration:none">🏡 Vérifier sur Gorenove</a>
       </div>
       <div class="mission-field">
         <label class="mission-label">Type de bien</label>
@@ -77,8 +121,18 @@ function renderMissionForm(body) {
         </select>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="mission-field"><label class="mission-label">Année construction</label><input class="mission-input" id="m-annee" type="number" value="${m.annee||''}" placeholder="1985"/></div>
+        <div class="mission-field"><label class="mission-label">Période construction</label>
+          <select class="mission-select" id="m-periode_construction">
+            <option value="" ${!m.periode_construction?'selected':''}>— Non renseignée —</option>
+            <option value="Avant 1949"  ${m.periode_construction==='Avant 1949' ?'selected':''}>Avant 1949</option>
+            <option value="1949-1997"   ${m.periode_construction==='1949-1997'  ?'selected':''}>1949 — 1997</option>
+            <option value="1997-2011"   ${m.periode_construction==='1997-2011'  ?'selected':''}>1997 — 2011</option>
+            <option value="Après 2011"  ${m.periode_construction==='Après 2011' ?'selected':''}>À partir de 2012</option>
+          </select>
+        </div>
+        <div class="mission-field"><label class="mission-label">Nb de pièces</label><input class="mission-input" id="m-nb_pieces" type="number" min="1" max="99" value="${m.nb_pieces||''}" placeholder="4"/></div>
         <div class="mission-field"><label class="mission-label">Surface approx.</label><input class="mission-input" id="m-surface" type="number" value="${m.surface||''}" placeholder="85 m²"/></div>
+        <div class="mission-field"><label class="mission-label">Année construction</label><input class="mission-input" id="m-annee" type="number" value="${m.annee||''}" placeholder="1985"/></div>
       </div>
       <div class="mission-field">
         <label class="mission-label">Description</label>
@@ -87,17 +141,27 @@ function renderMissionForm(body) {
       </div>
       <div class="mission-field"><label class="mission-label">Date de mission</label><input class="mission-input" id="m-date" type="date" value="${m.date||new Date().toISOString().split('T')[0]}"/></div>
     </div>
+
     <div class="mission-section">
       <h3>📋 Diagnostics à réaliser</h3>
       <div class="diag-grid">
-        ${diags.map(d=>`<div class="diag-item ${(m.diags||[]).includes(d)?'selected':''}" onclick="toggleDiag(this,'${d}')"><input type="checkbox" ${(m.diags||[]).includes(d)?'checked':''} readonly/><span style="font-size:13px">${d}</span></div>`).join('')}
+        ${diags.map(function(d) {
+          var isSel = (m.diags||[]).includes(d);
+          var isTravel = d === 'Frais déplacement';
+          return '<div class="diag-item ' + (isSel?'selected':'') + '" onclick="toggleDiag(this,\'' + d + '\')">'
+            + '<input type="checkbox" ' + (isSel?'checked':'') + ' readonly/>'
+            + '<span style="font-size:13px' + (isTravel?';color:#B45309;font-weight:600':'') + '">' + d + '</span>'
+            + '</div>';
+        }).join('')}
       </div>
     </div>
+
     <div class="mission-section">
       <h3>📝 Notes terrain</h3>
       <textarea class="mission-textarea" id="m-notes" placeholder="Notes libres, observations, anomalies...">${m.notes||''}</textarea>
       <button id="vocal-notes-btn" class="vocal-btn idle" onclick="startVoiceDescription('m-notes','vocal-notes-btn')" style="margin-top:8px">🎤 Dicter les notes</button>
     </div>
+
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
       <button onclick="addToCalendar()" style="padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#0891B2,#0E7490);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">📅 Agenda</button>
       <button onclick="setMissionRappel()" style="padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">🔔 Rappel</button>
@@ -114,21 +178,24 @@ function toggleDiag(el, diag) {
 }
 
 function getMissionFormData() {
-  var diags = Array.from(document.querySelectorAll('.diag-item.selected')).map(function(el) {
+  var diags = Array.from(document.querySelectorAll('.diag-grid .diag-item.selected')).map(function(el) {
     return el.querySelector('span').textContent;
   });
   return {
-    nom:        document.getElementById('m-nom')?.value         || '',
-    prenom:     document.getElementById('m-prenom')?.value      || '',
-    tel:        document.getElementById('m-tel')?.value         || '',
-    email:      document.getElementById('m-email')?.value       || '',
-    adresse:    document.getElementById('m-adresse')?.value     || '',
-    typeBien:   document.getElementById('m-typeBien')?.value    || '',
-    annee:      document.getElementById('m-annee')?.value       || '',
-    surface:    document.getElementById('m-surface')?.value     || '',
-    description:document.getElementById('m-description')?.value || '',
-    date:       document.getElementById('m-date')?.value        || '',
-    notes:      document.getElementById('m-notes')?.value       || '',
+    nom:                  document.getElementById('m-nom')?.value              || '',
+    prenom:               document.getElementById('m-prenom')?.value           || '',
+    tel:                  document.getElementById('m-tel')?.value              || '',
+    email:                document.getElementById('m-email')?.value            || '',
+    adresse:              document.getElementById('m-adresse')?.value          || '',
+    typeBien:             document.getElementById('m-typeBien')?.value         || '',
+    periode_construction: document.getElementById('m-periode_construction')?.value || '',
+    nb_pieces:            document.getElementById('m-nb_pieces')?.value        || '',
+    annee:                document.getElementById('m-annee')?.value            || '',
+    surface:              document.getElementById('m-surface')?.value          || '',
+    description:          document.getElementById('m-description')?.value      || '',
+    date:                 document.getElementById('m-date')?.value             || '',
+    notes:                document.getElementById('m-notes')?.value            || '',
+    devis_ref:            document.getElementById('m-devis_ref')?.value        || '',
     diags,
     savedAt: new Date().toISOString()
   };
@@ -153,16 +220,26 @@ function deleteMission() {
   renderMissionScreen();
 }
 
+// Normalisation 'Electricite' → 'Électricité' pour le lookup tarifs
+function _normTarifs(t) {
+  if (!t['Électricité'] && t['Electricite']) t['Électricité'] = t['Electricite'];
+  return t;
+}
+
 function exportMission() {
   var m    = getMissionFormData();
   var text = '📋 MISSION DELY DIAG\n─────────────────────\n'
     + '👤 CLIENT\nNom : ' + m.nom + ' ' + m.prenom
     + '\nTél : ' + m.tel + '\nEmail : ' + m.email
     + '\n🏠 LE BIEN\nAdresse : ' + m.adresse
-    + '\nType : ' + m.typeBien + '\nAnnée : ' + m.annee
-    + '\nSurface : ' + m.surface + ' m²\nDate mission : ' + m.date
+    + '\nType : ' + m.typeBien
+    + (m.periode_construction ? '\nPériode construction : ' + m.periode_construction : '')
+    + (m.nb_pieces ? '\nNombre de pièces : ' + m.nb_pieces : '')
+    + '\nAnnée : ' + m.annee + '\nSurface : ' + m.surface + ' m²'
+    + '\nDate mission : ' + m.date
     + '\n📝 DESCRIPTION\n' + m.description
     + '\n🔬 DIAGNOSTICS\n' + m.diags.join(', ')
+    + (m.devis_ref ? '\n📄 Devis réf. : ' + m.devis_ref : '')
     + '\n📌 NOTES TERRAIN\n' + m.notes
     + '\n─────────────────────\nDELY DIAG — Diagnostics Immobiliers';
   if (navigator.share) navigator.share({title: 'Mission DELY DIAG', text});

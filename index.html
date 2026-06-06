@@ -22,6 +22,13 @@
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/screens.css">
   <link rel="stylesheet" href="css/dark-mode.css">
+  <link rel="stylesheet" href="css/profil.css">
+  <link rel="stylesheet" href="css/devis.css">
+  <link rel="stylesheet" href="css/course-buttons.css">
+  <link rel="stylesheet" href="css/signature.css">
+
+  <!-- jsPDF — génération PDF côté client -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <!-- ═══════════════════════════════════════
        FIREBASE SDK
@@ -37,19 +44,6 @@
   </script>
 </head>
 <body>
-
-<!-- ═══════════════════════════════════════
-     FILIGRANE DELYDIAG
-════════════════════════════════════════ -->
-<div class="watermark" aria-hidden="true">
-  <span class="watermark-text" style="top:8%;left:-5%">DELYDIAG</span>
-  <span class="watermark-text" style="top:22%;left:30%">DELYDIAG</span>
-  <span class="watermark-text" style="top:36%;left:-10%">DELYDIAG</span>
-  <span class="watermark-text" style="top:50%;left:40%">DELYDIAG</span>
-  <span class="watermark-text" style="top:64%;left:5%">DELYDIAG</span>
-  <span class="watermark-text" style="top:78%;left:55%">DELYDIAG</span>
-  <span class="watermark-text" style="top:90%;left:15%">DELYDIAG</span>
-</div>
 
 <!-- ═══════════════════════════════════════
      LOGIN
@@ -145,11 +139,25 @@
     </div>
   </button>
 
+  <!-- Bouton Profil société (accès rapide en haut) -->
+  <button onclick="openProfil()" style="display:flex;align-items:center;gap:12px;width:100%;margin-top:10px;padding:14px 20px;background:linear-gradient(135deg,#6B7280,#374151);border:none;border-radius:14px;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.15)">
+    <span style="font-size:22px">🏢</span>
+    <div style="text-align:left">
+      <div style="color:#fff;font-weight:700;font-size:14px">Mon Profil Société</div>
+      <div style="color:rgba(255,255,255,.75);font-size:12px">Coordonnées, certification, facturation</div>
+    </div>
+  </button>
+
+  <!-- Boutons devis + facture -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
-    <button onclick="openGlossaire()" style="padding:13px 10px;border-radius:12px;border:none;background:linear-gradient(135deg,#0E7490,#0891B2);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">📖 Glossaire</button>
-    <button onclick="openTarif()" style="padding:13px 10px;border-radius:12px;border:none;background:linear-gradient(135deg,#059669,#10B981);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">💶 Tarifs & Devis</button>
+    <button onclick="openDevis()" style="padding:14px 10px;border-radius:12px;border:none;background:linear-gradient(135deg,#059669,#10B981);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 3px 10px rgba(5,150,105,.3)">📄 Mes Devis</button>
+    <button onclick="openFacture()" style="padding:14px 10px;border-radius:12px;border:none;background:linear-gradient(135deg,#1B4332,#2D6A4F);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 3px 10px rgba(27,67,50,.3)">📋 Mes Factures</button>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+    <button onclick="openTarif()" style="padding:13px 10px;border-radius:12px;border:none;background:linear-gradient(135deg,#B45309,#D97706);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">⚙️ Tarifs</button>
     <button onclick="openStats()" style="padding:13px 10px;border-radius:12px;border:none;background:linear-gradient(135deg,#6366F1,#8B5CF6);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">📊 Mes Stats</button>
-    <button onclick="toggleDark()" style="padding:13px 10px;border-radius:12px;border:none;background:linear-gradient(135deg,#374151,#1F2937);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">🌙 Mode sombre</button>
+    <button onclick="toggleDark()" style="padding:13px 10px;border-radius:12px;border:none;background:linear-gradient(135deg,#374151,#1F2937);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;grid-column:1/-1">🌙 Mode sombre</button>
   </div>
 
   <a href="https://chat.whatsapp.com/Ly9zyvqGsrl7u9DtxxVsfi" target="_blank"
@@ -340,12 +348,61 @@
 </div>
 
 <!-- ═══════════════════════════════════════
+     PROFIL SOCIÉTÉ
+════════════════════════════════════════ -->
+<div id="profil-screen">
+  <div class="profil-header">
+    <span style="font-size:22px">🏢</span>
+    <h2>Mon Profil Société</h2>
+    <button class="profil-close" onclick="closeProfil()">✕</button>
+  </div>
+  <div class="profil-body" id="profil-body"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     DEVIS
+════════════════════════════════════════ -->
+<div id="devis-screen">
+  <div class="devis-header">
+    <span style="font-size:22px">📄</span>
+    <h2>Mes Devis</h2>
+    <button class="devis-close" onclick="closeDevis()">✕</button>
+  </div>
+  <div class="devis-body" id="devis-body"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     FACTURES
+════════════════════════════════════════ -->
+<div id="facture-screen">
+  <div class="facture-header">
+    <span style="font-size:22px">📋</span>
+    <h2>Mes Factures</h2>
+    <button class="facture-close" onclick="closeFacture()">✕</button>
+  </div>
+  <div class="facture-body" id="facture-body"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SIGNATURE ÉLECTRONIQUE
+════════════════════════════════════════ -->
+<div id="signature-screen">
+  <div class="sig-header">
+    <span style="font-size:22px">✍️</span>
+    <h2>Acceptation du devis</h2>
+    <button class="sig-close" onclick="closeSignature()">✕</button>
+  </div>
+  <div class="sig-body" id="signature-body"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
      DONNÉES — chargées depuis /data/
 ════════════════════════════════════════ -->
 <script src="data/modules.js"></script>
 <script src="data/glossaire.js"></script>
 <script src="data/checklist.js"></script>
 <script src="data/astuces.js"></script>
+<script src="data/company-profile.js"></script>
 
 <!-- ═══════════════════════════════════════
      SCHÉMAS SVG — chargés depuis /schemas/
@@ -373,6 +430,12 @@
 <script src="js/certif.js"></script>
 <script src="js/astuces.js"></script>
 <script src="js/cours.js"></script>
+<script src="js/mail.js"></script>
+<script src="js/profil.js"></script>
+<script src="js/pdf-generator.js"></script>
+<script src="js/devis.js"></script>
+<script src="js/facture.js"></script>
+<script src="js/signature.js"></script>
 <script src="js/app.js"></script>
 
 </body>
