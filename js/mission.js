@@ -34,7 +34,7 @@ function renderMissionList(body) {
       var realIdx = missions.length - 1 - i;
       return `
         <div class="mission-card" onclick="editMission(${realIdx})">
-          <div class="mission-card-title">${m.nom||'Sans nom'} ${m.prenom||''}${m.tel ? ' — <a href="tel:'+m.tel+'" onclick="event.stopPropagation()" style="color:#059669;font-weight:600;font-size:13px;text-decoration:none">📞 '+m.tel+'</a>' : ''}</div>
+          <div class="mission-card-title">${m.nom||'Sans nom'} ${m.prenom||''}</div>
           <div class="mission-card-sub">📍 ${m.adresse||'Adresse non renseignée'}</div>
           <div class="mission-card-sub">🏠 ${m.typeBien||'-'} • ${m.date||'-'}</div>
           ${m.devis_ref ? '<div class="mission-card-sub" style="color:#059669;font-weight:600">📄 Devis réf. ' + m.devis_ref + '</div>' : ''}
@@ -84,7 +84,7 @@ function renderMissionForm(body) {
     window._devisToMission = null; // Consommé
   }
 
-  var diags = ['DPE','Amiante','Plomb','Électricité','Gaz','Termites','ERP','Carrez','Boutin','Avant travaux','Avant démolition','Frais déplacement'];
+  var diags = ['DPE','Amiante','Plomb','Électricité','Gaz','Termites','ERP','Carrez','Boutin','Frais déplacement'];
 
   body.innerHTML = `
     <button onclick="missionView='list';renderMissionScreen()" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:#2D6A4F;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:16px;font-family:inherit">← Retour</button>
@@ -110,7 +110,6 @@ function renderMissionForm(body) {
         <input class="mission-input" id="m-adresse" type="text" value="${m.adresse||''}" placeholder="12 rue des Lilas, 75001 Paris" oninput="updateMapsBtn(this.value)"/>
         <a id="maps-btn" href="#" target="_blank" onclick="openMaps()" style="display:${(m.adresse||'').length>5?'flex':'none'};align-items:center;gap:8px;margin-top:8px;padding:9px 14px;background:#4285F4;border-radius:8px;color:#fff;font-size:12px;font-weight:700;text-decoration:none">📍 Voir sur Google Maps</a>
         <a href="https://gorenove.fr/adresse" target="_blank" style="display:flex;align-items:center;gap:8px;margin-top:6px;padding:9px 14px;background:linear-gradient(135deg,#0E7490,#0891B2);border-radius:8px;color:#fff;font-size:12px;font-weight:700;text-decoration:none">🏡 Vérifier sur Gorenove</a>
-        <a href="https://termite.com.fr/rechercher/" target="_blank" style="display:inline-flex;align-items:center;gap:4px;margin-top:5px;font-size:11px;color:#059669;font-weight:600;text-decoration:none">🐜 Vérifier zone termites</a>
       </div>
       <div class="mission-field">
         <label class="mission-label">Type de bien</label>
@@ -119,9 +118,6 @@ function renderMissionForm(body) {
           <option ${m.typeBien==='Appartement'?'selected':''}>Appartement</option>
           <option ${m.typeBien==='Local commercial'?'selected':''}>Local commercial</option>
           <option ${m.typeBien==='Immeuble'?'selected':''}>Immeuble</option>
-          <option ${m.typeBien==='Partie commune'?'selected':''}>Partie commune</option>
-          <option ${m.typeBien==='Cave / Box'?'selected':''}>Cave / Box</option>
-          <option ${m.typeBien==='Dépendance'?'selected':''}>Dépendance</option>
         </select>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -222,6 +218,12 @@ function deleteMission() {
   currentMissionIdx = null;
   missionView = 'list';
   renderMissionScreen();
+}
+
+// Normalisation 'Electricite' → 'Électricité' pour le lookup tarifs
+function _normTarifs(t) {
+  if (!t['Électricité'] && t['Electricite']) t['Électricité'] = t['Electricite'];
+  return t;
 }
 
 function exportMission() {
@@ -326,4 +328,13 @@ function openAvisGoogle() {
   document.body.appendChild(modal);
 }
 
-f
+function sendAvisGoogle() {
+  var lien = document.getElementById('avis-lien').value.trim();
+  var msg  = document.getElementById('avis-msg').value;
+  var tel  = document.getElementById('avis-tel').value.replace(/ /g,'');
+  localStorage.setItem('dd_avis_lien', lien);
+  localStorage.setItem('dd_avis_msg', msg);
+  var smsUrl = tel ? 'sms:'+tel+'?body='+encodeURIComponent(msg) : 'sms:?body='+encodeURIComponent(msg);
+  document.getElementById('avis-modal').remove();
+  window.location.href = smsUrl;
+}

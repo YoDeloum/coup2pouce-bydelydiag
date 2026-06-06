@@ -2,7 +2,7 @@
 // DEVIS.JS — Système de devis complet
 // ─────────────────────────────────────────────
 
-var DEVIS_DIAGNOSTICS_LIST = ['DPE','Amiante','Plomb','Électricité','Gaz','Termites','ERP','Carrez','Boutin','Avant travaux','Avant démolition','Frais déplacement'];
+var DEVIS_DIAGNOSTICS_LIST = ['DPE','Amiante','Plomb','Électricité','Gaz','Termites','ERP','Carrez','Boutin','Frais déplacement'];
 
 var DEVIS_DEPS_LIST = ['Garage','Cave','Grenier','Box','Parking','Local annexe','Sous-sol','Dépendance extérieure'];
 
@@ -61,7 +61,7 @@ function renderDevisList(body) {
         + '<div class="devis-card-title">Devis N° '+(d.numero||'')+'</div>'
         + '<span class="statut-badge '+statutClass+'">'+(d.statut||'Devis')+'</span>'
         + '</div>'
-        + '<div class="devis-card-sub">👤 '+(d.client_prenom||'')+' '+(d.client_nom||'')+''+(d.client_tel ? ' — <a href="tel:'+d.client_tel+'" onclick="event.stopPropagation()" style="color:#059669;font-weight:600;text-decoration:none">📞 '+d.client_tel+'</a>' : '')+'</div>'
+        + '<div class="devis-card-sub">👤 '+(d.client_prenom||'')+' '+(d.client_nom||'')+'</div>'
         + '<div class="devis-card-sub">📍 '+(d.bien_adresse||'')+'</div>'
         + (d.mission_creee ? '<div class="devis-card-sub" style="color:#2D6A4F;font-weight:600">🏠 Mission créée</div>' : '')
         + (d.signature && d.signature.accepte ? '<div class="devis-card-sub" style="color:#1B4332;font-weight:600">✍️ Signé par '+d.signature.signataire+'</div>' : '')
@@ -136,12 +136,11 @@ function renderDevisForm(body) {
         <div class="devis-field" style="grid-column:1/-1">
           <label class="devis-label">Adresse du bien</label>
           <input class="devis-input" id="dv-bien_adresse" type="text" value="${devis.bien_adresse||''}" placeholder="12 rue des Acacias, 75001 Paris"/>
-          <a href="https://termite.com.fr/rechercher/" target="_blank" style="display:inline-flex;align-items:center;gap:4px;margin-top:5px;font-size:11px;color:#059669;font-weight:600;text-decoration:none">🐜 Vérifier zone termites</a>
         </div>
         <div class="devis-field">
           <label class="devis-label">Type de bien</label>
           <select class="devis-select" id="dv-bien_type">
-            ${['Maison','Appartement','Local commercial','Immeuble','Partie commune','Cave / Box','Dépendance'].map(function(t) { return '<option ' + ((devis.bien_type||'Maison')===t?'selected':'') + '>' + t + '</option>'; }).join('')}
+            ${['Maison','Appartement','Local commercial','Immeuble'].map(function(t) { return '<option ' + ((devis.bien_type||'Maison')===t?'selected':'') + '>' + t + '</option>'; }).join('')}
           </select>
         </div>
         <div class="devis-field">
@@ -200,36 +199,16 @@ function renderDevisForm(body) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="dv-diags-grid">
         ${DEVIS_DIAGNOSTICS_LIST.map(function(d) {
           var isSel = sel.includes(d);
-          var tarif_manuel = devis.tarifs_manuels && devis.tarifs_manuels[d] !== undefined ? devis.tarifs_manuels[d] : (tarifs[d]||0);
           return '<div class="diag-item ' + (isSel?'selected':'') + '" onclick="toggleDevisDiag(this,\'' + d + '\')" style="' + (isSel?'border-color:#059669;background:#05966912':'') + '">'
             + '<input type="checkbox" ' + (isSel?'checked':'') + ' readonly style="accent-color:#059669;pointer-events:none"/>'
-            + '<span style="font-size:13px;flex:1">' + d + '</span>'
-            + '<input type="number" class="dv-tarif-input" data-diag="' + d + '" value="' + tarif_manuel + '" min="0" step="5" onclick="event.stopPropagation()" onchange="updateDevisTotal()" style="width:52px;font-size:11px;color:#059669;font-weight:700;text-align:right;border:none;border-bottom:1px dashed #A7F3D0;background:transparent;outline:none;padding:0 2px"/>'
-            + '<span style="font-size:11px;color:#9ca3af;margin-left:1px">€</span>'
+            + '<span style="font-size:13px">' + d + '</span>'
+            + '<span style="font-size:11px;color:#059669;font-weight:700;margin-left:auto">' + (tarifs[d]||0) + '€</span>'
             + '</div>';
         }).join('')}
       </div>
-      <div style="margin-top:6px;font-size:11px;color:#9ca3af;text-align:right">✏️ Prix modifiable par diagnostic pour ce devis uniquement</div>
-      <div style="margin-top:10px;padding:14px;background:#F0FDF4;border-radius:10px;border:1px solid #BBF7D0">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <span style="font-size:13px;font-weight:700;color:#065F46">Sous-total HT</span>
-          <span id="dv-subtotal-display" style="font-size:15px;font-weight:800;color:#059669">${parseFloat(devis.total_ht_brut||devis.total_ht||0).toFixed(2)} €</span>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-          <span style="font-size:12px;color:#6B7280;white-space:nowrap">🏷️ Remise</span>
-          <input id="dv-remise-pct" type="number" min="0" max="100" step="1" value="${devis.remise_pct||0}" onchange="updateDevisRemisePct()" style="width:54px;padding:5px 7px;border-radius:6px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;text-align:center;outline:none"/>
-          <span style="font-size:12px;color:#6B7280">%</span>
-          <span style="font-size:12px;color:#9ca3af">ou</span>
-          <input id="dv-remise-eur" type="number" min="0" step="1" value="${parseFloat(devis.remise_eur||0).toFixed(2)}" onchange="updateDevisRemiseEur()" style="width:64px;padding:5px 7px;border-radius:6px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;text-align:center;outline:none"/>
-          <span style="font-size:12px;color:#6B7280">€</span>
-        </div>
-        <div id="dv-remise-line" style="${(devis.remise_eur||0)>0?'':'display:none'};font-size:12px;color:#EF4444;text-align:right;margin-bottom:4px">
-          - <span id="dv-remise-display">${parseFloat(devis.remise_eur||0).toFixed(2)}</span> € de remise
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid #BBF7D0">
-          <span style="font-size:14px;font-weight:700;color:#065F46">Total HT</span>
-          <span id="dv-total-display" style="font-size:18px;font-weight:800;color:#059669">${parseFloat(devis.total_ht||0).toFixed(2)} €</span>
-        </div>
+      <div style="margin-top:14px;padding:14px;background:#F0FDF4;border-radius:10px;border:1px solid #BBF7D0;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:14px;font-weight:700;color:#065F46">Total HT</span>
+        <span id="dv-total-display" style="font-size:18px;font-weight:800;color:#059669">${parseFloat(devis.total_ht||0).toFixed(2)} €</span>
       </div>
     </div>
 
@@ -240,9 +219,6 @@ function renderDevisForm(body) {
     <button onclick="if(_devisEdit!==null) openSignature(_devisEdit)" style="width:100%;padding:12px;border-radius:10px;border:2px solid #1B4332;background:#fff;color:#1B4332;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px" ${_devisEdit===null?'disabled style="opacity:.4"':''}>✍️ Signature / Acceptation client</button>
     <button onclick="convertirEnFacture()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #5B21B6;background:#fff;color:#5B21B6;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px" ${_devisEdit===null?'disabled style="opacity:.4"':''}>📋 Convertir en facture</button>
     <button onclick="convertirEnMission()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #E8650A;background:#fff;color:#E8650A;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px" ${_devisEdit===null?'disabled style="opacity:.4"':''}>🏠 Créer une mission depuis ce devis</button>
-    <button onclick="ouvrirRelance()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #6366F1;background:#fff;color:#6366F1;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px" ${_devisEdit===null?'disabled style="opacity:.4"':''}>📨 Relancer le client</button>
-    <button onclick="ouvrirEnvoiDocuments()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #0891B2;background:#fff;color:#0891B2;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px" ${_devisEdit===null?'disabled style="opacity:.4"':''}>📄 Envoyer les documents réglementaires</button>
-    <button onclick="ouvrirOCR()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #D97706;background:#fff;color:#D97706;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">📷 Préremplir depuis une photo</button>
     ${p.lien_paiement ? '<button onclick="window.open(\'' + p.lien_paiement + '\',\'_blank\')" style="width:100%;padding:12px;border-radius:10px;border:2px solid #0891B2;background:linear-gradient(135deg,#0891B2,#0E7490);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">💳 Lien de paiement en ligne</button>' : ''}
     ${_devisEdit !== null ? '<button onclick="supprimerDevis()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #EF4444;background:#fff;color:#EF4444;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🗑️ Supprimer ce devis</button>' : ''}`;
 
@@ -267,30 +243,110 @@ function toggleDevisDep(el) {
   el.style.background  = isSel ? '#05966912' : '';
 }
 
-// ─── CALCUL TOTAL ───
-function updateDevisTotal() {
-  // Calcule le sous-total en lisant les prix manuels des inputs
-  var subtotal = 0;
-  document.querySelectorAll('#dv-diags-grid .diag-item.selected').forEach(function(el) {
-    var inp = el.querySelector('.dv-tarif-input');
-    subtotal += inp ? (parseFloat(inp.value) || 0) : 0;
-  });
-  var remisePct  = parseFloat(document.getElementById('dv-remise-pct')?.value) || 0;
-  var remiseEur  = subtotal * remisePct / 100;
-  // Si l'utilisateur a saisi une remise en € manuellement, l'utiliser
-  var remiseEurInput = parseFloat(document.getElementById('dv-remise-eur')?.value) || 0;
-  if (document.activeElement && document.activeElement.id === 'dv-remise-eur') {
-    remiseEur = remiseEurInput;
-  }
-  var total = Math.max(0, subtotal - remiseEur);
-  var sub   = document.getElementById('dv-subtotal-display');
-  var disp  = document.getElementById('dv-total-display');
-  var rDisp = document.getElementById('dv-remise-display');
-  var rLine = document.getElementById('dv-remise-line');
-  if (sub)   sub.textContent  = subtotal.toFixed(2) + ' €';
-  if (disp)  disp.textContent = total.toFixed(2) + ' €';
-  if (rDisp) rDisp.textContent = remiseEur.toFixed(2);
-  if (rLine) rLine.style.display = remiseEur > 0 ? '' : 'none';
+// ─── NORMALISATION TARIFS ───
+// TARIFS_DEFAULT utilise 'Electricite' (sans accent) mais les listes utilisent 'Électricité'
+function _normaliseTarifs(tarifs) {
+  if (!tarifs['Électricité'] && tarifs['Electricite']) tarifs['Électricité'] = tarifs['Electricite'];
+  return tarifs;
 }
 
-f
+// ─── CALCUL TOTAL ───
+function updateDevisTotal() {
+  var tarifs   = _normaliseTarifs(Object.assign({}, TARIFS_DEFAULT, JSON.parse(localStorage.getItem('dd_tarifs') || '{}')));
+  var selDiags = Array.from(document.querySelectorAll('#dv-diags-grid .diag-item.selected')).map(function(el) {
+    return el.querySelector('span').textContent;
+  });
+  var total = selDiags.reduce(function(s, d) { return s + (parseFloat(tarifs[d]) || 0); }, 0);
+  var disp  = document.getElementById('dv-total-display');
+  if (disp) disp.textContent = total.toFixed(2) + ' €';
+}
+
+// ─── LECTURE FORMULAIRE ───
+function getDevisFormData() {
+  var tarifs   = _normaliseTarifs(Object.assign({}, TARIFS_DEFAULT, JSON.parse(localStorage.getItem('dd_tarifs') || '{}')));
+  var selDiags = Array.from(document.querySelectorAll('#dv-diags-grid .diag-item.selected')).map(function(el) {
+    return el.querySelector('span').textContent;
+  });
+  var selDeps = Array.from(document.querySelectorAll('#dv-deps-grid .deps-item.selected')).map(function(el) {
+    return el.getAttribute('data-dep');
+  });
+  var totalHt = selDiags.reduce(function(s, d) { return s + (parseFloat(tarifs[d]) || 0); }, 0);
+  var p       = getCompanyProfile();
+  return {
+    numero:               document.getElementById('dv-numero')?.value              || '',
+    date:                 document.getElementById('dv-date')?.value                || '',
+    date_mission:         document.getElementById('dv-date_mission')?.value        || '',
+    statut:               document.getElementById('dv-statut')?.value              || 'Devis',
+    client_nom:           document.getElementById('dv-client_nom')?.value          || '',
+    client_prenom:        document.getElementById('dv-client_prenom')?.value       || '',
+    client_tel:           document.getElementById('dv-client_tel')?.value          || '',
+    client_email:         document.getElementById('dv-client_email')?.value        || '',
+    bien_adresse:         document.getElementById('dv-bien_adresse')?.value        || '',
+    bien_type:            document.getElementById('dv-bien_type')?.value           || '',
+    statut_fiscal:        document.getElementById('dv-statut_fiscal')?.value       || p.statut_fiscal || 'HT',
+    periode_construction: document.getElementById('dv-periode_construction')?.value || '',
+    nb_pieces:            document.getElementById('dv-nb_pieces')?.value            || '',
+    dependances:          selDeps,
+    dep_custom:           (document.getElementById('dv-dep-custom')?.value || '').trim(),
+    taux_tva:             p.taux_tva || 20,
+    diagnostics:          selDiags,
+    total_ht:             totalHt,
+    total_ttc:            totalHt * (1 + (p.taux_tva || 20) / 100),
+    savedAt:              new Date().toISOString(),
+    // Conserver les champs existants si en édition
+    signature:            (_devisEdit !== null ? (getAllDevis()[_devisEdit]?.signature || null) : null),
+    mission_creee:        (_devisEdit !== null ? (getAllDevis()[_devisEdit]?.mission_creee || false) : false),
+  };
+}
+
+// ─── SAUVEGARDE ───
+function saveDevisForm() {
+  var data = getDevisFormData();
+  var list = getAllDevis();
+  if (_devisEdit !== null) list[_devisEdit] = data;
+  else { list.push(data); _devisEdit = list.length - 1; }
+  saveAllDevis(list);
+  var btn = document.querySelector('.devis-btn-primary');
+  if (btn) { btn.textContent = '✅ Enregistré !'; btn.style.background = '#22C55E'; }
+  setTimeout(function() { renderDevisScreen('form'); }, 1200);
+}
+
+// ─── SUPPRESSION ───
+function supprimerDevis() {
+  if (!confirm('Supprimer ce devis définitivement ?')) return;
+  var list = getAllDevis();
+  list.splice(_devisEdit, 1);
+  saveAllDevis(list);
+  _devisEdit = null;
+  renderDevisScreen('list');
+}
+
+// ─── CONVERTIR EN FACTURE ───
+function convertirEnFacture() {
+  var devis = getAllDevis()[_devisEdit];
+  if (!devis) return;
+  _factureFromDevis = devis;
+  _factureEdit = null;
+  closeDevis();
+  openFacture();
+}
+
+// ─── CONVERTIR EN MISSION ───
+function convertirEnMission() {
+  var devis = getAllDevis()[_devisEdit];
+  if (!devis) { alert('Enregistre d\'abord le devis avant de créer une mission.'); return; }
+  if (devis.mission_creee) {
+    if (!confirm('Une mission a déjà été créée depuis ce devis.\nEn créer une nouvelle quand même ?')) return;
+  }
+  // Marquer le devis comme "transformé en mission"
+  var list = getAllDevis();
+  if (list[_devisEdit].statut === 'Devis') list[_devisEdit].statut = 'Accepté';
+  list[_devisEdit].mission_creee = true;
+  saveAllDevis(list);
+  // Passer les données au module mission
+  window._devisToMission = devis;
+  closeDevis();
+  openMission();
+}
+
+  // Marquer             
