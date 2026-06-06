@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Coup 2 Pouce">
+  <meta name="application-name" content="Coup 2 Pouce">
+  <meta name="theme-color" content="#2D6A4F">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="assets/icons/icon-180.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="assets/icons/icon-512.png">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Coup 2 Pouce — by DELY DIAG</title>
+
+  <!-- ═══════════════════════════════════════
+       CSS — chargés depuis /css/
+  ════════════════════════════════════════ -->
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/screens.css">
+  <link rel="stylesheet" href="css/dark-mode.css">
+  <link rel="stylesheet" href="css/profil.css">
+  <link rel="stylesheet" href="css/devis.css">
+  <link rel="stylesheet" href="css/course-buttons.css">
+  <link rel="stylesheet" href="css/signature.css">
+
+  <!-- jsPDF — génération PDF côté client -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- ═══════════════════════════════════════
+       FIREBASE SDK
+  ════════════════════════════════════════ -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4",
+      authDomain: "coup2pouce-by-delydiag.firebaseapp.com"
+    };
+    firebase.initializeApp(firebaseConfig);
+  </script>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     LOGIN
+════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <img src="data:image/jpeg;base64,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" style="height:50px;object-fit:contain" alt="DELY DIAG"/>
+    </div>
+    <div class="login-title">Coup 2 Pouce</div>
+    <div class="login-subtitle">Application réservée aux licenciés DELY DIAG</div>
+    <input id="login-email" type="email" placeholder="Votre email"
+      style="width:100%;padding:12px 16px;border-radius:10px;border:1.5px solid #E2E5F0;font-size:15px;font-family:inherit;box-sizing:border-box;margin-bottom:10px;outline:none"
+      autocomplete="email"/>
+    <input id="login-password" type="password" placeholder="Votre mot de passe"
+      style="width:100%;padding:12px 16px;border-radius:10px;border:1.5px solid #E2E5F0;font-size:15px;font-family:inherit;box-sizing:border-box;margin-bottom:10px;outline:none"
+      autocomplete="current-password"/>
+    <button class="login-btn" onclick="firebaseLogin()">Accéder →</button>
+    <div id="login-error" class="login-error"></div>
+  </div>
+  <div class="login-footer">© DELY DIAG — Accès licenciés uniquement</div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     HEADER
+════════════════════════════════════════ -->
+<div id="header">
+  <div style="display:flex;align-items:center">
+    <button id="back-btn" onclick="showHome()">←</button>
+    <div style="display:flex;align-items:center;gap:10px">
+      <img src="data:image/jpeg;base64,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" style="height:42px;object-fit:contain" alt="DELY DIAG"/>
+      <div style="border-left:1px solid #E2E5F0;padding-left:10px">
+        <div class="logo" style="font-size:20px;font-weight:600;letter-spacing:-0.5px">Coup <span>2</span> Pouce</div>
+        <div class="logo-sub" style="color:#aaa">by DELY DIAG</div>
+      </div>
+    </div>
+  </div>
+  <div id="header-right" style="font-size:11px;color:#6B7280">0/10 modules</div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     PAGE D'ACCUEIL
+════════════════════════════════════════ -->
+<div id="home">
+  <div style="margin-bottom:28px">
+    <div id="certif-banner" style="display:none;background:#FEF3C7;border:1px solid #F59E0B;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:#92400E;line-height:1.8"></div>
+    <div id="bonjour-msg" style="display:none;font-size:16px;font-weight:700;color:#2D6A4F;margin-bottom:6px"></div>
+    <h1 id="home-title" style="font-size:42px;font-weight:800;margin-bottom:4px;line-height:1.05;color:#1A1D2E">Coup <span style="color:#E8650A;font-style:italic">2</span> Pouce</h1>
+    <p style="font-size:11px;color:#6B7280;font-weight:600;letter-spacing:1.5px;margin-bottom:10px;font-family:monospace">by DELY DIAG</p>
+    <p style="color:#6B7280;font-size:14px;line-height:1.7;max-width:500px">Maîtrisez tous les diagnostics immobiliers obligatoires.</p>
+  </div>
+
+  <!-- Astuce bannière -->
+  <div id="astuce-banner" onclick="newAstuce()">
+    <div class="astuce-icon">💡</div>
+    <div class="astuce-text">
+      <div class="astuce-label">Astuce du jour</div>
+      <span id="astuce-content"></span>
+    </div>
+  </div>
+
+  <!-- Barre de recherche -->
+  <div id="search-bar-wrap">
+    <input id="search-bar" type="text" placeholder="🔍 Rechercher dans tous les modules..." oninput="searchGlobal(this.value)"/>
+  </div>
+
+  <!-- Progression globale -->
+  <div id="global-prog-wrap" style="display:none" class="global-prog">
+    <div style="display:flex;justify-content:space-between;margin-bottom:7px">
+      <span style="font-size:13px;font-weight:700">Progression globale</span>
+      <span id="global-pct" style="font-size:13px;color:#E8650A;font-weight:700">0%</span>
+    </div>
+    <div class="pbar-wrap" style="height:6px"><div id="global-pbar" class="pbar-fill" style="width:0%"></div></div>
+  </div>
+
+  <!-- Grille de modules -->
+  <div class="grid" id="cards-grid"></div>
+
+  <!-- Boutons fonctionnalités -->
+  <button onclick="openMission()" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;margin-top:16px;padding:16px 20px;background:linear-gradient(135deg,#E8650A,#F4A261);border:none;border-radius:14px;cursor:pointer;box-shadow:0 4px 14px rgba(232,101,10,.35)">
+    <span style="font-size:24px">📋</span>
+    <div style="text-align:left">
+      <div style="color:#fff;font-weight:700;font-size:15px">Mes Missions</div>
+      <div style="color:rgba(255,255,255,.8);font-size:12px">Gérer mes interventions terrain</div>
+    </div>
+  </button>
+
+  <button onclick="openChecklist()" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;margin-top:16px;padding:16px 20px;background:linear-gradient(135deg,#1B4332,#2D6A4F);border:none;border-radius:14px;cursor:pointer;box-shadow:0 4px 14px rgba(27,67,50,.35)">
+    <span style="font-size:24px">✅</span>
+    <div style="text-align:left">
+      <div style="color:#fff;font-weight:700;font-size:15px">Ma Checklist Terrain</div>
+      <div style="color:rgba(255,255,255,.8);font-size:12px">Génère ta checklist du jour</div>
+    </div>
+  </button>
+
+  <!-- Bouton Profil société (accès rapide en haut) -->
+  <button onclick="openProfil()" style="display:flex;align-items:center;gap:12px;width:100%;margin-top:10px;padding:14px 20px;background:linear-gradient(135deg,#6B7280,#374151);border:none;border-radius:14px;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.15)">
+    <span style="font-size:22px">🏢</span>
+    <div style="text-align:left">
+      <div style="color:#fff;font-weight:700;font-size:14px">Mon Profil Société</div>
+      <div style="color:rgba(255,255,255,.75);font-size:12px">Coordonnées, certification, facturation</div>
+    </div>
+  </button>
+
+  <!-- Boutons devis + facture -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+    <button onclick="openDevis()" style="padding:14px 10px;border-radius:12px;border:none;background:linear-gradient(135deg,#059669,#10B981);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 3px 10px rgba(5,150,105,.3)">📄 Mes Devis</button>
+    <button onclick="openFacture()" style="padding:14px 10px;border-radius:12px;border:none;background:linear-gradient(135deg,#1B4332,#2D6A4F);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 3px 10px rgba(27,67,50,.3)">📋 Mes Factures</button>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+    <button onclick="openTarif()" style="padding:13px 10px;border-radius:12px;border:none;background:linear-gradient(135deg,#B45309,#D97706);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">⚙️ Tarifs</button>
+    <button onclick="openStats()" style="padding:13px 10px;border-radius:12px;border:none;background:linear-gradient(135deg,#6366F1,#8B5CF6);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">📊 Mes Stats</button>
+    <button onclick="toggleDark()" style="padding:13px 10px;border-radius:12px;border:none;background:linear-gradient(135deg,#374151,#1F2937);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;grid-column:1/-1">🌙 Mode sombre</button>
+  </div>
+
+  <a href="https://chat.whatsapp.com/Ly9zyvqGsrl7u9DtxxVsfi" target="_blank"
+    style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:16px;padding:16px 20px;background:#25D366;border-radius:14px;text-decoration:none;box-shadow:0 4px 14px rgba(37,211,102,.35)">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+    <div>
+      <div style="color:#fff;font-weight:700;font-size:15px">Rejoindre la communauté DELY DIAG</div>
+      <div style="color:rgba(255,255,255,.8);font-size:12px">Cliquez pour rejoindre le groupe WhatsApp</div>
+    </div>
+  </a>
+
+  <a href="tel:0176400107" class="home-btn home-btn-phone">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>
+    📞 Le Centre F. — Formation
+  </a>
+
+  <a href="https://www.quotidiag.fr/" target="_blank" class="home-btn home-btn-news">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h12v2H6zm0 4h8v2H6z"/></svg>
+    📰 Actualités Diagnostics
+  </a>
+
+  <label style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;margin-top:10px;padding:14px 20px;background:linear-gradient(135deg,#0E7490,#0891B2);border-radius:14px;cursor:pointer;box-shadow:0 4px 12px rgba(14,116,144,.3)">
+    <input type="file" accept="image/*" capture="environment" style="display:none" onchange="handleCameraPhoto(this)"/>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M12 15.2A3.2 3.2 0 0 1 8.8 12 3.2 3.2 0 0 1 12 8.8 3.2 3.2 0 0 1 15.2 12 3.2 3.2 0 0 1 12 15.2M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9m3 15a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5z"/></svg>
+    <div style="text-align:left">
+      <div style="color:#fff;font-weight:700;font-size:15px">📷 Appareil Photo</div>
+      <div style="color:rgba(255,255,255,.8);font-size:12px">Ouvrir la caméra directement</div>
+    </div>
+  </label>
+</div>
+
+<!-- ═══════════════════════════════════════
+     VUE MODULE
+════════════════════════════════════════ -->
+<div id="module">
+  <div id="tabs">
+    <button class="tab-btn active" id="tab-cours"  onclick="showTab('cours')">📖 Cours</button>
+    <button class="tab-btn"        id="tab-fiches" onclick="showTab('fiches')">📋 Fiches</button>
+  </div>
+  <div id="tab-content-cours"></div>
+  <div id="tab-content-fiches" style="display:none"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     CHATBOT JEFFREY
+════════════════════════════════════════ -->
+<div id="chat-btn" onclick="toggleChat()" title="Jeffrey - Assistant DELY DIAG">
+  <div style="position:relative">
+    <svg width="58" height="58" viewBox="0 0 58 58" style="filter:drop-shadow(0 4px 12px rgba(0,0,0,0.25));animation:jeffrey-bounce 2.5s ease-in-out infinite">
+      <circle cx="29" cy="29" r="28" fill="url(#jeffGrad)" stroke="#fff" stroke-width="2"/>
+      <defs><radialGradient id="jeffGrad" cx="40%" cy="35%"><stop offset="0%" stop-color="#52B788"/><stop offset="100%" stop-color="#2D6A4F"/></radialGradient></defs>
+      <ellipse cx="22" cy="24" rx="3.5" ry="4" fill="#fff"/><ellipse cx="36" cy="24" rx="3.5" ry="4" fill="#fff"/>
+      <circle cx="23" cy="25" r="2" fill="#1B4332"/><circle cx="37" cy="25" r="2" fill="#1B4332"/>
+      <circle cx="24" cy="23.5" r="0.8" fill="#fff"/><circle cx="38" cy="23.5" r="0.8" fill="#fff"/>
+      <path d="M 20 34 Q 29 42 38 34" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M 10 22 Q 14 8 29 7 Q 44 8 48 22" fill="#E8650A" opacity=".9"/>
+      <rect x="8" y="20" width="42" height="5" rx="2.5" fill="#E8650A"/>
+    </svg>
+    <div style="position:absolute;top:-2px;right:-2px;width:14px;height:14px;background:#E8650A;border-radius:50%;border:2px solid #fff;animation:jeffrey-pulse 1.5s ease-in-out infinite"></div>
+  </div>
+  <div style="background:#2D6A4F;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;font-family:monospace;letter-spacing:1px;box-shadow:0 2px 6px rgba(0,0,0,0.2)">JEFFREY</div>
+</div>
+
+<div id="chat-panel">
+  <div id="chat-header">
+    <div style="width:38px;height:38px;flex-shrink:0">
+      <svg width="38" height="38" viewBox="0 0 58 58">
+        <circle cx="29" cy="29" r="28" fill="url(#jeffGrad2)" stroke="#ffffff44" stroke-width="2"/>
+        <defs><radialGradient id="jeffGrad2" cx="40%" cy="35%"><stop offset="0%" stop-color="#74C69D"/><stop offset="100%" stop-color="#2D6A4F"/></radialGradient></defs>
+        <ellipse cx="22" cy="24" rx="3.5" ry="4" fill="#fff"/><ellipse cx="36" cy="24" rx="3.5" ry="4" fill="#fff"/>
+        <circle cx="23" cy="25" r="2" fill="#1B4332"/><circle cx="37" cy="25" r="2" fill="#1B4332"/>
+        <path d="M 20 34 Q 29 42 38 34" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <path d="M 10 22 Q 14 8 29 7 Q 44 8 48 22" fill="#E8650A" opacity=".9"/><rect x="8" y="20" width="42" height="5" rx="2.5" fill="#E8650A"/>
+      </svg>
+    </div>
+    <div class="info"><div class="name">Jeffrey</div><div class="status">Assistant DELY DIAG • Diagnostics immobiliers</div></div>
+    <button class="close-btn" onclick="toggleChat()">✕</button>
+  </div>
+  <div id="chat-messages"><div class="msg bot">👋 Salut, moi c'est Jeffrey !<br>Dis-moi tout 😊</div></div>
+  <div id="chat-input-wrap">
+    <input id="chat-input" type="text" placeholder="Pose ta question à Jeffrey..." onkeydown="if(event.key==='Enter')sendMsg()"/>
+    <button id="chat-send" onclick="sendMsg()">➤</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MODALS
+════════════════════════════════════════ -->
+<div id="prenom-modal" class="hidden">
+  <div class="prenom-box">
+    <div style="font-size:40px;margin-bottom:12px">👋</div>
+    <h2 style="font-size:20px;font-weight:800;color:#1B4332;margin-bottom:8px">Bienvenue !</h2>
+    <p style="font-size:14px;color:#6B7280;margin-bottom:20px">Comment tu t'appelles ?<br>Jeffrey te répondra par ton prénom 😊</p>
+    <input id="prenom-input" type="text" placeholder="Ton prénom..." style="width:100%;padding:12px 16px;border-radius:10px;border:2px solid #E2E5F0;font-size:16px;font-family:inherit;text-align:center;box-sizing:border-box;margin-bottom:14px"/>
+    <button onclick="savePrenom()" style="width:100%;padding:13px;border-radius:10px;border:none;background:linear-gradient(135deg,#2D6A4F,#1B4332);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">C'est parti ! 🚀</button>
+  </div>
+</div>
+
+<div id="avatar-modal" class="hidden">
+  <div class="avatar-box">
+    <h2 style="font-size:18px;font-weight:800;color:#1B4332;text-align:center;margin-bottom:4px">👤 Mon Avatar</h2>
+    <p style="font-size:13px;color:#6B7280;text-align:center;margin-bottom:16px">Choisis ton avatar</p>
+    <div id="avatar-preview-big" class="avatar-preview">😊</div>
+    <div class="avatar-grid" id="avatar-grid"></div>
+    <div style="margin-top:12px">
+      <label style="font-size:12px;font-weight:600;color:#6B7280;display:block;margin-bottom:6px">Couleur de fond</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="avatar-colors"></div>
+    </div>
+    <button onclick="saveAvatar()" style="width:100%;padding:13px;border-radius:10px;border:none;background:linear-gradient(135deg,#2D6A4F,#1B4332);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:16px">✅ Sauvegarder</button>
+    <button onclick="document.getElementById('avatar-modal').classList.add('hidden')" style="width:100%;padding:11px;border-radius:10px;border:2px solid #E2E5F0;background:#fff;color:#6B7280;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:8px">Annuler</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     ÉCRANS OVERLAY
+════════════════════════════════════════ -->
+<div id="checklist-screen">
+  <div class="cl-header">
+    <span style="font-size:22px">✅</span>
+    <h2>Ma Checklist Terrain</h2>
+    <button class="cl-close" onclick="closeChecklist()">✕</button>
+  </div>
+  <div class="cl-body">
+    <div class="cl-module-select">
+      <h3>📋 Sélectionne tes modules du jour</h3>
+      <div class="cl-modules-grid">
+        <button class="cl-mod-btn" data-mod="Amiante"  onclick="toggleMod(this)">🔬 Amiante</button>
+        <button class="cl-mod-btn" data-mod="Elec"     onclick="toggleMod(this)">⚡ Électricité</button>
+        <button class="cl-mod-btn" data-mod="Gaz"      onclick="toggleMod(this)">🔥 Gaz</button>
+        <button class="cl-mod-btn" data-mod="Termites" onclick="toggleMod(this)">🪲 Termites</button>
+        <button class="cl-mod-btn" data-mod="Plomb"    onclick="toggleMod(this)">⚠️ Plomb</button>
+      </div>
+      <button class="cl-generate-btn" onclick="generateChecklist()">🚀 Générer ma checklist</button>
+    </div>
+    <div id="cl-results" class="cl-results"></div>
+  </div>
+</div>
+
+<div id="mission-screen">
+  <div class="mission-header">
+    <span style="font-size:22px">📋</span>
+    <h2>Mes Missions</h2>
+    <button class="mission-close" onclick="closeMission()">✕</button>
+  </div>
+  <div class="mission-body" id="mission-body"></div>
+</div>
+
+<div id="glossaire-screen">
+  <div class="glossaire-header">
+    <span style="font-size:22px">📖</span>
+    <h2>Glossaire</h2>
+    <button class="glossaire-close" onclick="closeGlossaire()">✕</button>
+  </div>
+  <div style="padding:16px">
+    <input type="text" placeholder="🔍 Rechercher un terme..."
+      style="width:100%;padding:12px;border-radius:10px;border:1.5px solid #E2E5F0;font-size:14px;font-family:inherit;box-sizing:border-box;margin-bottom:12px"
+      oninput="filterGlossaire(this.value)"/>
+    <div id="glossaire-list" style="border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)"></div>
+  </div>
+</div>
+
+<div id="tarif-screen">
+  <div class="tarif-header">
+    <span style="font-size:22px">💶</span>
+    <h2>Tarifs & Devis</h2>
+    <button class="tarif-close" onclick="closeTarif()">✕</button>
+  </div>
+  <div class="tarif-body" id="tarif-body"></div>
+</div>
+
+<div id="stats-screen" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#fafaf8;z-index:500;overflow-y:auto">
+  <div style="background:linear-gradient(135deg,#6366F1,#8B5CF6);padding:16px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10">
+    <span style="font-size:22px">📊</span>
+    <h2 style="color:#fff;font-size:18px;font-weight:800;flex:1">Mes Statistiques</h2>
+    <button style="background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px" onclick="document.getElementById('stats-screen').style.display='none'">✕</button>
+  </div>
+  <div style="padding:16px" id="stats-body"></div>
+</div>
+
+<div id="search-results">
+  <div style="background:linear-gradient(135deg,#2D6A4F,#1B4332);padding:14px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10">
+    <button onclick="closeSearch()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;flex-shrink:0">←</button>
+    <input id="search-bar-results" type="text" placeholder="Rechercher..."
+      style="flex:1;padding:9px 14px;border-radius:8px;border:none;font-size:14px;font-family:inherit"
+      oninput="searchGlobal(this.value)"/>
+  </div>
+  <div id="search-results-list" style="padding:12px"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     PROFIL SOCIÉTÉ
+════════════════════════════════════════ -->
+<div id="profil-screen">
+  <div class="profil-header">
+    <span style="font-size:22px">🏢</span>
+    <h2>Mon Profil Société</h2>
+    <button class="profil-close" onclick="closeProfil()">✕</button>
+  </div>
+  <div class="profil-body" id="profil-body"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     DEVIS
+════════════════════════════════════════ -->
+<div id="devis-screen">
+  <div class="devis-header">
+    <span style="font-size:22px">📄</span>
+    <h2>Mes Devis</h2>
+    <button class="devis-close" onclick="closeDevis()">✕</button>
+  </div>
+  <div class="devis-body" id="devis-body"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     FACTURES
+════════════════════════════════════════ -->
+<div id="facture-screen">
+  <div class="facture-header">
+    <span style="font-size:22px">📋</span>
+    <h2>Mes Factures</h2>
+    <button class="facture-close" onclick="closeFacture()">✕</button>
+  </div>
+  <div class="facture-body" id="facture-body"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SIGNATURE ÉLECTRONIQUE
+════════════════════════════════════════ -->
+<div id="signature-screen">
+  <div class="sig-header">
+    <span style="font-size:22px">✍️</span>
+    <h2>Acceptation du devis</h2>
+    <button class="sig-close" onclick="closeSignature()">✕</button>
+  </div>
+  <div class="sig-body" id="signature-body"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     DONNÉES — chargées depuis /data/
+════════════════════════════════════════ -->
+<script src="data/modules.js"></script>
+<script src="data/glossaire.js"></script>
+<script src="data/checklist.js"></script>
+<script src="data/astuces.js"></script>
+<script src="data/company-profile.js"></script>
+
+<!-- ═══════════════════════════════════════
+     SCHÉMAS SVG — chargés depuis /schemas/
+════════════════════════════════════════ -->
+<script src="schemas/schemas.js"></script>
+
+<!-- ═══════════════════════════════════════
+     JAVASCRIPT — chargés depuis /js/
+     Ordre important : state → modules indépendants → app
+════════════════════════════════════════ -->
+<script src="js/state.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/dark-mode.js"></script>
+<script src="js/prenom.js"></script>
+<script src="js/avatar.js"></script>
+<script src="js/voice.js"></script>
+<script src="js/search.js"></script>
+<script src="js/glossaire.js"></script>
+<script src="js/tarifs.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/checklist.js"></script>
+<script src="js/mission.js"></script>
+<script src="js/chatbot.js"></script>
+<script src="js/carrez.js"></script>
+<script src="js/certif.js"></script>
+<script src="js/astuces.js"></script>
+<script src="js/cours.js"></script>
+<script src="js/mail.js"></script>
+<script src="js/profil.js"></script>
+<script src="js/pdf-generator.js"></script>
+<script src="js/devis.js"></script>
+<script src="js/facture.js"></script>
+<script src="js/signature.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>

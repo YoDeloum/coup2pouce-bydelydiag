@@ -1,0 +1,143 @@
+/* ─────────────────────────────────────────────
+   SIGNATURE.CSS — Écran d'acceptation du devis
+   ───────────────────────────────────────────── */
+
+#signature-screen {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: #fafaf8;
+  z-index: 600;
+  overflow-y: auto;
+}
+#signature-screen.open { display: block; }
+
+.sig-header {
+  background: linear-gradient(135deg, #1B4332, #2D6A4F);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: 0; z-index: 10;
+}
+.sig-header h2 { color: #fff; font-size: 18px; font-weight: 800; flex: 1; }
+.sig-close {
+  background: rgba(255,255,255,.2);
+  border: none; color: #fff;
+  width: 32px; height: 32px;
+  border-radius: 50%; cursor: pointer; font-size: 18px;
+}
+
+.sig-body { padding: 16px; }
+
+/* ─── INFO BOX ─── */
+.sig-info-box {
+  background: #fff;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.07);
+}
+.sig-info-box h3 { font-size: 14px; font-weight: 800; color: #1B4332; margin-bottom: 6px; }
+.sig-info-box p  { font-size: 12px; color: #6B7280; margin: 3px 0; }
+
+.sig-already-signed {
+  background: #D1FAE5;
+  border: 1px solid #6EE7B7;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: #065F46;
+  font-weight: 600;
+}
+
+/* ─── CANVAS ─── */
+.sig-canvas-wrap {
+  background: #fff;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.07);
+}
+.sig-canvas-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6B7280;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  display: block;
+}
+#sig-canvas {
+  width: 100%;
+  border: 2px dashed #B7E4C7;
+  border-radius: 10px;
+  cursor: crosshair;
+  touch-action: none;
+  display: block;
+  background: #F9FAFB;
+  height: 150px;
+}
+.sig-clear-btn {
+  margin-top: 8px;
+  padding: 7px 14px;
+  border-radius: 7px;
+  border: 1.5px solid #E2E5F0;
+  background: #fff;
+  color: #6B7280;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* ─── CHAMP NOM ─── */
+.sig-field { margin-bottom: 12px; }
+.sig-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  display: block;
+  margin-bottom: 5px;
+}
+.sig-input {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 9px;
+  border: 1.5px solid #E2E5F0;
+  font-size: 14px;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color .2s;
+}
+.sig-input:focus { outline: none; border-color: #2D6A4F; }
+
+/* ─── BOUTON VALIDER ─── */
+.sig-save-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #1B4332, #2D6A4F);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  margin-bottom: 10px;
+  transition: opacity .2s;
+}
+.sig-save-btn:hover { opacity: .9; }
+
+/* ─── MODE SOMBRE ─── */
+body.dark #signature-screen        { background: #1A1D2E; }
+body.dark .sig-info-box            { background: #252A3A; }
+body.dark .sig-canvas-wrap         { background: #252A3A; }
+body.dark #sig-canvas              { background: #1A1D2E; border-color: #374151; }
+body.dark .sig-input               { background: #1A1D2E; color: #e2e8f0; border-color: #374151; }
+body.dark .sig-clear-btn           { background: #252A3A; color: #9ca3af; border-color: #374151; }
