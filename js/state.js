@@ -38,3 +38,15 @@ var _gz = {};
 
 // Sous-dossier DPE actif
 // window.dpeSd — géré dans router.js
+
+// ─── Migration données : 'Electricite' → 'Électricité' ───────────────────────
+(function migrateTarifs() {
+  try {
+    var t = JSON.parse(localStorage.getItem('dd_tarifs') || '{}');
+    if (t['Electricite'] !== undefined && t['Électricité'] === undefined) {
+      t['Électricité'] = t['Electricite'];
+      delete t['Electricite'];
+      localStorage.setItem('dd_tarifs', JSON.stringify(t));
+    }
+  } catch(e) {}
+})();
