@@ -28,16 +28,16 @@ function envoyerMailMission(mission) {
   var subject = 'Confirmation de rendez-vous — ' + societe;
   var body    = 'Bonjour ' + (mission.prenom || '') + ',\n\n'
     + 'Votre rendez-vous de diagnostic immobilier est confirmé.\n\n'
-    + '📍 Bien : ' + (mission.adresse || '') + '\n'
-    + '📅 Date : ' + (mission.date || '') + '\n'
-    + '🔬 Diagnostics : ' + diags + '\n\n'
+    + 'Bien : ' + (mission.adresse || '') + '\n'
+    + 'Date : ' + (mission.date || '') + '\n'
+    + 'Diagnostics : ' + diags + '\n\n'
     + 'En cas de question, n\'hésitez pas à nous contacter.\n\n'
     + 'Cordialement,\n'
     + (p.nom_responsable || p.nom_societe || societe) + '\n'
     + (p.telephone || '') + '\n'
     + (p.email || '');
 
-  ouvrirMail({ to: mission.email || '', subject, body });
+  ouvrirMail({ to: mission.email || '', subject: subject, body: body });
 }
 
 /**
@@ -52,16 +52,22 @@ function envoyerMailDevis(devis) {
   var body    = 'Bonjour ' + (devis.client_prenom || '') + ',\n\n'
     + 'Veuillez trouver ci-joint votre devis pour la réalisation des diagnostics immobiliers '
     + 'relatifs au bien situé au ' + (devis.bien_adresse || '') + '.\n\n'
-    + '💶 Montant : ' + (devis.total_ttc || devis.total_ht || 0) + ' €\n'
-    + '📅 Valable jusqu\'au : ' + getDevisExpiry(devis.date) + '\n\n'
+    + 'Montant : ' + (function() {
+        var htBase = devis.prix_final && devis.prix_final > 0 ? parseFloat(devis.prix_final) : parseFloat(devis.total_ht || 0);
+        var taux = (devis.taux_tva || 20) / 100;
+        return devis.statut_fiscal === 'TTC'
+          ? (htBase * (1 + taux)).toFixed(2) + ' EUR TTC'
+          : htBase.toFixed(2) + ' EUR HT';
+      })() + '\n'
+    + 'Valable jusqu\'au : ' + getDevisExpiry(devis.date) + '\n\n'
     + 'Pour accepter ce devis, il vous suffit de nous répondre à ce mail ou de nous contacter.\n\n'
-    + (p.lien_paiement ? '💳 Payer en ligne : ' + p.lien_paiement + '\n\n' : '')
+    + (p.lien_paiement ? 'Payer en ligne : ' + p.lien_paiement + '\n\n' : '')
     + 'Cordialement,\n'
     + (p.nom_responsable || societe) + '\n'
     + (p.telephone || '') + '\n'
     + (p.email || '');
 
-  ouvrirMail({ to: devis.client_email || '', subject, body });
+  ouvrirMail({ to: devis.client_email || '', subject: subject, body: body });
 }
 
 /**
@@ -76,16 +82,22 @@ function envoyerMailFacture(facture) {
   var body    = 'Bonjour ' + (facture.client_prenom || '') + ',\n\n'
     + 'Veuillez trouver ci-joint votre facture suite à la réalisation des diagnostics immobiliers '
     + 'au ' + (facture.bien_adresse || '') + '.\n\n'
-    + '💶 Montant total : ' + (facture.total_ttc || facture.total_ht || 0) + ' €\n'
-    + '📋 Conditions : ' + (p.conditions_paiement || 'Paiement à réception') + '\n\n'
-    + (p.rib_iban ? '🏦 IBAN : ' + p.rib_iban + '\n' : '')
-    + (p.lien_paiement ? '💳 Payer en ligne : ' + p.lien_paiement + '\n' : '')
+    + 'Montant total : ' + (function() {
+        var htBase = facture.prix_final && facture.prix_final > 0 ? parseFloat(facture.prix_final) : parseFloat(facture.total_ht || 0);
+        var taux = (facture.taux_tva || 20) / 100;
+        return facture.statut_fiscal === 'TTC'
+          ? (htBase * (1 + taux)).toFixed(2) + ' EUR TTC'
+          : htBase.toFixed(2) + ' EUR HT';
+      })() + '\n'
+    + 'Conditions : ' + (p.conditions_paiement || 'Paiement à réception') + '\n\n'
+    + (p.rib_iban ? 'IBAN : ' + p.rib_iban + '\n' : '')
+    + (p.lien_paiement ? 'Payer en ligne : ' + p.lien_paiement + '\n' : '')
     + '\nCordialement,\n'
     + (p.nom_responsable || societe) + '\n'
     + (p.telephone || '') + '\n'
     + (p.email || '');
 
-  ouvrirMail({ to: facture.client_email || '', subject, body });
+  ouvrirMail({ to: facture.client_email || '', subject: subject, body: body });
 }
 
 // Utilitaire : date d'expiration devis (30 jours)

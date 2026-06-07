@@ -33,7 +33,7 @@ function renderStats() {
 
   // ── Calculs devis ──
   var totalDevis  = devisList.length;
-  var caDevisTotal = devisList.reduce(function(s, d) { return s + parseFloat(d.total_ht || 0); }, 0);
+  var caDevisTotal = devisList.reduce(function(s, d) { return s + parseFloat(d.prix_final && d.prix_final > 0 ? d.prix_final : (d.total_ht || 0)); }, 0);
   var devisParStatut = {};
   devisList.forEach(function(d) {
     var s = d.statut || 'Devis';
@@ -42,9 +42,9 @@ function renderStats() {
 
   // ── Calculs factures ──
   var totalFactures = facturesList.length;
-  var caFacture     = facturesList.reduce(function(s, f) { return s + parseFloat(f.total_ht || 0); }, 0);
+  var caFacture     = facturesList.reduce(function(s, f) { return s + parseFloat(f.prix_final && f.prix_final > 0 ? f.prix_final : (f.total_ht || 0)); }, 0);
   var caPaye        = facturesList.filter(function(f) { return f.statut === 'Payé'; })
-                        .reduce(function(s, f) { return s + parseFloat(f.total_ht || 0); }, 0);
+                        .reduce(function(s, f) { return s + parseFloat(f.prix_final && f.prix_final > 0 ? f.prix_final : (f.total_ht || 0)); }, 0);
   var factParStatut = {};
   facturesList.forEach(function(f) {
     var s = f.statut || 'Facturé';

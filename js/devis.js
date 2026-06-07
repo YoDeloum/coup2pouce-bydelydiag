@@ -172,6 +172,14 @@ function renderDevisForm(body) {
           <label class="devis-label">Nombre de pièces</label>
           <input class="devis-input" id="dv-nb_pieces" type="number" min="1" max="99" value="${devis.nb_pieces||''}" placeholder="Ex : 4"/>
         </div>
+        <div class="devis-field" style="grid-column:1/-1">
+          <label class="devis-label">Type de transaction</label>
+          <select class="devis-select" id="dv-type_transaction">
+            <option value="" ${!devis.type_transaction?'selected':''}>— Non renseigné —</option>
+            <option value="Vente" ${devis.type_transaction==='Vente'?'selected':''}>Vente</option>
+            <option value="Location" ${devis.type_transaction==='Location'?'selected':''}>Location</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -229,6 +237,17 @@ function renderDevisForm(body) {
         <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid #BBF7D0">
           <span style="font-size:14px;font-weight:700;color:#065F46">Total HT</span>
           <span id="dv-total-display" style="font-size:18px;font-weight:800;color:#059669">${parseFloat(devis.total_ht||0).toFixed(2)} €</span>
+        </div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #BBF7D0">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:#6B7280;white-space:nowrap;font-weight:600">Prix forfaitaire</span>
+            <input id="dv-prix_final" type="number" min="0" step="1"
+              value="${devis.prix_final && devis.prix_final > 0 ? parseFloat(devis.prix_final) : ''}"
+              placeholder="Vide = calcul auto"
+              style="flex:1;padding:5px 7px;border-radius:6px;border:1.5px solid #BBF7D0;font-size:13px;font-family:inherit;outline:none;color:#059669;font-weight:700"/>
+            <span style="font-size:12px;color:#6B7280">€ HT</span>
+          </div>
+          <div style="font-size:10px;color:#9ca3af;margin-top:3px">Si renseigné, remplace le total dans le PDF et l'e-mail</div>
         </div>
       </div>
     </div>
@@ -352,6 +371,7 @@ function getDevisFormData() {
     statut_fiscal:        document.getElementById('dv-statut_fiscal')?.value       || p.statut_fiscal || 'HT',
     periode_construction: document.getElementById('dv-periode_construction')?.value || '',
     nb_pieces:            document.getElementById('dv-nb_pieces')?.value            || '',
+    type_transaction:     document.getElementById('dv-type_transaction')?.value     || '',
     dependances:          selDeps,
     dep_custom:           (document.getElementById('dv-dep-custom')?.value || '').trim(),
     taux_tva:             p.taux_tva || 20,
@@ -362,6 +382,7 @@ function getDevisFormData() {
     remise_eur:           remise_eur,
     total_ht:             totalHt,
     total_ttc:            totalHt * (1 + (p.taux_tva || 20) / 100),
+    prix_final:           parseFloat(document.getElementById('dv-prix_final')?.value) || 0,
     savedAt:              new Date().toISOString(),
     signature:            (_devisEdit !== null ? (getAllDevis()[_devisEdit]?.signature || null) : null),
     mission_creee:        (_devisEdit !== null ? (getAllDevis()[_devisEdit]?.mission_creee || false) : false),

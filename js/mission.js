@@ -80,6 +80,7 @@ function renderMissionForm(body) {
       devis_ref:            src.numero       || '',
       periode_construction: src.periode_construction || '',
       nb_pieces:            src.nb_pieces    || '',
+      type_transaction:     src.type_transaction || '',
     };
     window._devisToMission = null; // Consommé
   }
@@ -137,6 +138,14 @@ function renderMissionForm(body) {
         <div class="mission-field"><label class="mission-label">Nb de pièces</label><input class="mission-input" id="m-nb_pieces" type="number" min="1" max="99" value="${m.nb_pieces||''}" placeholder="4"/></div>
         <div class="mission-field"><label class="mission-label">Surface approx.</label><input class="mission-input" id="m-surface" type="number" value="${m.surface||''}" placeholder="85 m²"/></div>
         <div class="mission-field"><label class="mission-label">Année construction</label><input class="mission-input" id="m-annee" type="number" value="${m.annee||''}" placeholder="1985"/></div>
+        <div class="mission-field" style="grid-column:1/-1">
+          <label class="mission-label">Type de transaction</label>
+          <select class="mission-select" id="m-type_transaction">
+            <option value="" ${!m.type_transaction?'selected':''}>— Non renseigné —</option>
+            <option value="Vente" ${m.type_transaction==='Vente'?'selected':''}>Vente</option>
+            <option value="Location" ${m.type_transaction==='Location'?'selected':''}>Location</option>
+          </select>
+        </div>
       </div>
       <div class="mission-field">
         <label class="mission-label">Description</label>
@@ -200,6 +209,7 @@ function getMissionFormData() {
     date:                 document.getElementById('m-date')?.value             || '',
     notes:                document.getElementById('m-notes')?.value            || '',
     devis_ref:            document.getElementById('m-devis_ref')?.value        || '',
+    type_transaction:     document.getElementById('m-type_transaction')?.value || '',
     diags,
     savedAt: new Date().toISOString()
   };

@@ -97,14 +97,14 @@ function genererPDFDevis(devis) {
   pdfText(doc, 'CLIENT', 122, y + 6, {bold:true, size:9, color:[107, 114, 128]});
   pdfText(doc, (devis.client_prenom||'') + ' ' + (devis.client_nom||''), 122, y + 13, {bold:true, size:11, color:[30,30,30]});
   pdfText(doc, devis.bien_adresse || '', 122, y + 20, {size:9, color:[80,80,80]});
-  if (devis.client_tel) pdfText(doc, '📞 ' + devis.client_tel, 122, y + 27, {size:9, color:[80,80,80]});
-  if (devis.client_email) pdfText(doc, '✉ ' + devis.client_email, 122, y + 34, {size:9, color:[80,80,80]});
+  if (devis.client_tel) pdfText(doc, 'Tel : ' + devis.client_tel, 122, y + 27, {size:9, color:[80,80,80]});
+  if (devis.client_email) pdfText(doc, 'Email : ' + devis.client_email, 122, y + 34, {size:9, color:[80,80,80]});
 
   // ── Objet ──
   pdfText(doc, 'Objet de la mission :', 15, y + 6, {bold:true, size:9, color:[45,106,79]});
   pdfText(doc, 'Réalisation de diagnostics immobiliers', 15, y + 13, {size:10, color:[30,30,30]});
   pdfText(doc, 'Bien : ' + (devis.bien_adresse || ''), 15, y + 20, {size:9, color:[80,80,80]});
-  pdfText(doc, 'Type : ' + (devis.bien_type || ''), 15, y + 27, {size:9, color:[80,80,80]});
+  pdfText(doc, 'Type : ' + (devis.bien_type || '') + (devis.type_transaction ? ' — ' + devis.type_transaction : ''), 15, y + 27, {size:9, color:[80,80,80]});
   pdfText(doc, 'Date prévue : ' + (devis.date_mission ? new Date(devis.date_mission).toLocaleDateString('fr-FR') : 'À définir'), 15, y + 34, {size:9, color:[80,80,80]});
 
   y += 48;
@@ -120,16 +120,15 @@ function genererPDFDevis(devis) {
   var tarifs_manuels = devis.tarifs_manuels || {};
   diags.forEach(function(d, i) {
     if (i % 2 === 0) pdfRect(doc, 15, y - 1, 180, 8, [249, 250, 251]);
-    pdfText(doc, '✓  ' + d, 18, y + 5, {size:9, color:[30,30,30]});
-    var prix = tarifs_manuels[d] !== undefined ? tarifs_manuels[d] : 0;
-    pdfText(doc, prix > 0 ? prix.toFixed(2) + ' €' : '✓', 193, y + 5, {size:9, color:[45,106,79], align:'right'});
+    pdfText(doc, '- ' + d, 18, y + 5, {size:9, color:[30,30,30]});
+    pdfText(doc, 'incl.', 193, y + 5, {size:9, color:[45,106,79], align:'right'});
     y += 8;
   });
 
   // Ligne remise si applicable
   if (devis.remise_eur && parseFloat(devis.remise_eur) > 0) {
     y += 2;
-    pdfText(doc, '🏷️  Remise' + (devis.remise_pct > 0 ? ' (' + parseFloat(devis.remise_pct).toFixed(1) + '%)' : ''), 18, y + 5, {size:9, color:[220,50,50]});
+    pdfText(doc, 'Remise' + (devis.remise_pct > 0 ? ' (' + parseFloat(devis.remise_pct).toFixed(1) + '%)' : ''), 18, y + 5, {size:9, color:[220,50,50]});
     pdfText(doc, '- ' + parseFloat(devis.remise_eur).toFixed(2) + ' €', 193, y + 5, {size:9, color:[220,50,50], align:'right'});
     y += 8;
   }
@@ -141,7 +140,7 @@ function genererPDFDevis(devis) {
   // ── Total ──
   var isHT    = (devis.statut_fiscal || 'HT') === 'HT';
   var taux    = parseFloat(devis.taux_tva || 20) / 100;
-  var ht      = parseFloat(devis.total_ht || 0);
+  var ht      = parseFloat(devis.prix_final && devis.prix_final > 0 ? devis.prix_final : (devis.total_ht || 0));
   var tva_mt  = Math.round(ht * taux * 100) / 100;
   var ttc     = Math.round((ht + tva_mt) * 100) / 100;
 
@@ -171,7 +170,7 @@ function genererPDFDevis(devis) {
 
   // ── Conditions de paiement ──
   y += 4;
-  pdfText(doc, '💳 Conditions de paiement', 15, y, {bold:true, size:9, color:[45,106,79]});
+  pdfText(doc, 'Conditions de paiement', 15, y, {bold:true, size:9, color:[45,106,79]});
   y += 6;
   pdfText(doc, p.conditions_paiement || 'Paiement à réception de facture', 15, y, {size:9, color:[80,80,80]});
   y += 5;
@@ -180,7 +179,7 @@ function genererPDFDevis(devis) {
   // ── Certification ──
   if (p.num_certif || p.organisme_certif) {
     y += 8;
-    pdfText(doc, '🔬 Certification', 15, y, {bold:true, size:9, color:[45,106,79]});
+    pdfText(doc, 'Certification', 15, y, {bold:true, size:9, color:[45,106,79]});
     y += 6;
     if (p.organisme_certif) pdfText(doc, 'Certifié par : ' + p.organisme_certif, 15, y, {size:9, color:[80,80,80]});
     y += 5;
@@ -248,8 +247,8 @@ function genererPDFFacture(facture) {
   pdfText(doc, 'FACTURÉ À', 122, y + 6, {bold:true, size:9, color:[107,114,128]});
   pdfText(doc, (facture.client_prenom||'') + ' ' + (facture.client_nom||''), 122, y + 13, {bold:true, size:11, color:[30,30,30]});
   pdfText(doc, facture.bien_adresse || '', 122, y + 20, {size:9, color:[80,80,80]});
-  if (facture.client_tel)   pdfText(doc, '📞 ' + facture.client_tel,   122, y + 27, {size:9, color:[80,80,80]});
-  if (facture.client_email) pdfText(doc, '✉ ' + facture.client_email, 122, y + 34, {size:9, color:[80,80,80]});
+  if (facture.client_tel)   pdfText(doc, 'Tel : ' + facture.client_tel,   122, y + 27, {size:9, color:[80,80,80]});
+  if (facture.client_email) pdfText(doc, 'Email : ' + facture.client_email, 122, y + 34, {size:9, color:[80,80,80]});
 
   pdfText(doc, 'Objet :', 15, y + 6, {bold:true, size:9, color:[27,67,50]});
   pdfText(doc, 'Réalisation de diagnostics immobiliers', 15, y + 13, {size:10, color:[30,30,30]});
@@ -268,8 +267,8 @@ function genererPDFFacture(facture) {
 
   (facture.diagnostics || []).forEach(function(d, i) {
     if (i % 2 === 0) pdfRect(doc, 15, y - 1, 180, 8, [249, 250, 251]);
-    pdfText(doc, '✓  ' + d, 18, y + 5, {size:9, color:[30,30,30]});
-    pdfText(doc, '✓', 193, y + 5, {size:9, color:[27,67,50], align:'right'});
+    pdfText(doc, '- ' + d, 18, y + 5, {size:9, color:[30,30,30]});
+    pdfText(doc, 'OK', 193, y + 5, {size:9, color:[27,67,50], align:'right'});
     y += 8;
   });
 
@@ -306,7 +305,7 @@ function genererPDFFacture(facture) {
 
   // Paiement
   y += 4;
-  pdfText(doc, '💳 Modalités de règlement', 15, y, {bold:true, size:9, color:[27,67,50]});
+  pdfText(doc, 'Modalites de reglement', 15, y, {bold:true, size:9, color:[27,67,50]});
   y += 6;
   pdfText(doc, p.conditions_paiement || 'Paiement à réception de facture', 15, y, {size:9, color:[80,80,80]});
   y += 5;

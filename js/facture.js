@@ -151,6 +151,17 @@ function renderFactureForm(body) {
         <span style="font-size:14px;font-weight:700;color:#065F46">Total HT</span>
         <span id="fc-total-display" style="font-size:18px;font-weight:800;color:#1B4332">${parseFloat(src.total_ht||0).toFixed(2)} €</span>
       </div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #BBF7D0">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:#6B7280;white-space:nowrap;font-weight:600">Prix forfaitaire</span>
+          <input id="fc-prix_final" type="number" min="0" step="1"
+            value="${src.prix_final && src.prix_final > 0 ? parseFloat(src.prix_final) : ''}"
+            placeholder="Vide = calcul auto"
+            style="flex:1;padding:5px 7px;border-radius:6px;border:1.5px solid #BBF7D0;font-size:13px;font-family:inherit;outline:none;color:#1B4332;font-weight:700"/>
+          <span style="font-size:12px;color:#6B7280">€ HT</span>
+        </div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:3px">Si renseigné, remplace le total dans le PDF et l'e-mail</div>
+      </div>
     </div>
 
     <button class="facture-btn-primary" onclick="saveFactureForm()">💾 Enregistrer la facture</button>
@@ -211,6 +222,7 @@ function getFactureFormData() {
     diagnostics:          sel,
     total_ht:             totalHt,
     total_ttc:            totalHt * (1 + (p.taux_tva || 20) / 100),
+    prix_final:           parseFloat(document.getElementById('fc-prix_final')?.value) || 0,
     savedAt:              new Date().toISOString(),
   };
 }
