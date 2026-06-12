@@ -29,8 +29,16 @@ function firebaseLogin() {
   .then(function(data) {
     if (data.idToken) {
       localStorage.setItem('fb_token', data.idToken);
+      localStorage.setItem('fb_uid',   data.localId);
       localStorage.setItem('fb_email', email);
-      document.getElementById('login-screen').classList.add('hidden');
+      // Sync depuis Firestore avant d'afficher l'app
+      if (typeof syncFromFirestore === 'function') {
+        syncFromFirestore(function() {
+          document.getElementById('login-screen').classList.add('hidden');
+        });
+      } else {
+        document.getElementById('login-screen').classList.add('hidden');
+      }
     } else {
       var msg = '❌ Email ou mot de passe incorrect';
       if (data.error && data.error.message === 'TOO_MANY_ATTEMPTS_TRY_LATER') {
@@ -43,16 +51,4 @@ function firebaseLogin() {
     }
   })
   .catch(function() {
-    errorEl.textContent = '❌ Erreur réseau. Vérifie ta connexion.';
-    errorEl.style.display = 'block';
-    btn.textContent = 'Accéder →';
-    btn.disabled = false;
-  });
-}
-
-function checkLogin() {
-  var token = localStorage.getItem('fb_token');
-  if (token) {
-    document.getElementById('login-screen').classList.add('hidden');
-  }
-}
+    errorEl.textContent = '❌ E
