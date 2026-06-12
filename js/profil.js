@@ -184,6 +184,20 @@ function renderProfilScreen() {
       <p style="font-size:11px;color:#9ca3af;margin-top:4px">⚠️ Les PDF sont stockés localement dans le navigateur. Taille max recommandée : 2 Mo par fichier.</p>
     </div>
 
+    <!-- ── Sauvegarde / Restauration ── -->
+    <div class="profil-section" style="border:2px solid #FCD34D;background:#FFFBEB">
+      <div class="profil-section-title" style="color:#92400E">💾 Sauvegarde des données</div>
+      <p style="font-size:12px;color:#78350F;margin-bottom:14px">Exporte toutes tes données (profil, devis, missions, factures, tarifs) dans un fichier JSON. Conserve ce fichier précieusement — il permet de tout restaurer en cas de perte.</p>
+      <button onclick="exporterDonnees()" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#059669,#10B981);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">
+        ⬇️ Exporter mes données (JSON)
+      </button>
+      <label style="display:block;width:100%;box-sizing:border-box;padding:12px;border-radius:10px;border:2px solid #059669;background:#fff;color:#059669;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;margin-bottom:4px">
+        ⬆️ Importer / Restaurer mes données
+        <input type="file" accept=".json,application/json" style="display:none" onchange="importerDonnees(event)"/>
+      </label>
+      <p style="font-size:10px;color:#9ca3af;text-align:center">L'import restaure toutes les données après confirmation. Les données actuelles seront remplacées.</p>
+    </div>
+
     <button class="profil-save-btn" onclick="saveProfilForm()">💾 Enregistrer le profil</button>
     <div id="profil-success" style="display:none;text-align:center;padding:12px;background:#D1FAE5;border-radius:10px;color:#065F46;font-weight:700;margin-bottom:16px">✅ Profil sauvegardé !</div>`;
 }
@@ -253,4 +267,85 @@ function removeLogo() {
   p.logo = '';
   saveCompanyProfile(p);
   renderProfilScreen();
+}
+
+// ─────────────────────────────────────────────
+// EXPORT / IMPORT JSON — Sauvegarde complète
+// ─────────────────────────────────────────────
+
+function exporterDonnees() {
+  var cles = [
+    'dd_company_profile',
+    'dd_tarifs',
+    'dd_devis_list',
+    'dd_missions',
+    'dd_factures_list',
+    'dd_docs_reglementaires',
+    'dd_avatar',
+    'dd_avatar_color',
+    'dd_prenom',
+    'dd_avis_lien',
+    'dd_avis_msg',
+    'certif_planning',
+    'dd_dark'
+  ];
+  var backup = {
+    version: '1.0',
+    date: new Date().toISOString(),
+    application: 'Coup 2 Pouce — DELY DIAG',
+    donnees: {}
+  };
+  cles.forEach(function(cle) {
+    var val = localStorage.getItem(cle);
+    if (val !== null) {
+      try { backup.donnees[cle] = JSON.parse(val); }
+      catch(e) { backup.donnees[cle] = val; }
+    }
+  });
+  var json   = JSON.stringify(backup, null, 2);
+  var blob   = new Blob([json], { type: 'application/json' });
+  var url    = URL.createObjectURL(blob);
+  var today  = new Date().toISOString().split('T')[0];
+  var a      = document.createElement('a');
+  a.href     = url;
+  a.download = 'coup2pouce-backup-' + today + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function importerDonnees(event) {
+  var file = event.target.files && event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var backup = JSON.parse(e.target.result);
+      // Validation minimale
+      if (!backup || !backup.donnees || typeof backup.donnees !== 'object') {
+        alert('Fichier invalide. Ce fichier ne semble pas être une sauvegarde Coup 2 Pouce.');
+        return;
+      }
+      var nbCles = Object.keys(backup.donnees).length;
+      var dateBackup = backup.date ? new Date(backup.date).toLocaleDateString('fr-FR') : 'inconnue';
+      var msg = 'Sauvegarde du ' + dateBackup + ' - ' + nbCles + ' blocs de donnees.\n\n' + 'Cette operation va remplacer TOUTES vos donnees actuelles (profil, devis, missions, factures, tarifs).\n\n' + 'Voulez-vous continuer ?';
+      var confirm1 = confirm(msg);
+      if (!confirm1) return;
+      // Restauration
+      Object.keys(backup.donnees).forEach(function(cle) {
+        var val = backup.donnees[cle];
+        try {
+          localStorage.setItem(cle, typeof val === 'string' ? val : JSON.stringify(val));
+        } catch(err) {
+          console.warn('Impossible de restaurer la clé : ' + cle, err);
+        }
+      });
+      alert('Restauration terminee. L\'application va se recharger.');
+      window.location.reload();
+    } catch(err) {
+      alert('Erreur de lecture du fichier. Vérifiez que le fichier est bien un JSON valide.');
+    }
+  };
+  reader.readAsText(file);
 }
