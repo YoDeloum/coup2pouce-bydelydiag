@@ -61,8 +61,15 @@
     <input id="login-password" type="password" placeholder="Votre mot de passe"
       style="width:100%;padding:12px 16px;border-radius:10px;border:1.5px solid #E2E5F0;font-size:15px;font-family:inherit;box-sizing:border-box;margin-bottom:10px;outline:none"
       autocomplete="current-password"/>
-    <button class="login-btn" onclick="firebaseLogin()">Accéder →</button>
+    <input id="login-confirm-password" type="password" placeholder="Confirmer le mot de passe"
+      style="width:100%;padding:12px 16px;border-radius:10px;border:1.5px solid #E2E5F0;font-size:15px;font-family:inherit;box-sizing:border-box;margin-bottom:10px;outline:none;display:none"
+      autocomplete="new-password"/>
+    <button class="login-btn" onclick="handleAuthSubmit()">Accéder →</button>
     <div id="login-error" class="login-error"></div>
+    <div style="text-align:center;margin-top:14px">
+      <span id="login-toggle-text" style="font-size:13px;color:#6B7280">Pas encore de compte ?</span>
+      <button onclick="toggleAuthMode()" style="background:none;border:none;color:#059669;font-size:13px;cursor:pointer;font-weight:600;padding-left:4px;text-decoration:underline" id="login-toggle-btn">Créer mon compte</button>
+    </div>
   </div>
   <div class="login-footer">© DELY DIAG — Accès licenciés uniquement</div>
 </div>
@@ -422,23 +429,4 @@
 <script src="js/voice.js"></script>
 <script src="js/search.js"></script>
 <script src="js/glossaire.js"></script>
-<script src="js/tarifs.js"></script>
-<script src="js/stats.js"></script>
-<script src="js/checklist.js"></script>
-<script src="js/mission.js"></script>
-<script src="js/chatbot.js"></script>
-<script src="js/carrez.js"></script>
-<script src="js/certif.js"></script>
-<script src="js/astuces.js"></script>
-<script src="js/cours.js"></script>
-<script src="js/mail.js"></script>
-<script src="js/profil.js"></script>
-<script src="js/pdf-generator.js"></script>
-<script src="js/devis.js"></script>
-<script src="js/relances.js"></script>
-<script src="js/document-sender.js"></script>
-<script src="js/ocr-reader.js"></script>
-<script src="js/facture.js"></script>
-<script src="js/signature.js"></script>
-<script src="js/app.js"></script>
-<script src="js/address-aut
+<script src="js/tarifs.js"></script
