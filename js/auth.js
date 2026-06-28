@@ -133,6 +133,15 @@ function firebaseRegister() {
   });
 }
 
+// ─── Déconnexion ───
+function deconnexion() {
+  if (!confirm('Se déconnecter ?')) return;
+  localStorage.removeItem('fb_token');
+  localStorage.removeItem('fb_uid');
+  localStorage.removeItem('fb_email');
+  document.getElementById('login-screen').classList.remove('hidden');
+}
+
 // ─── Vérification session existante ───
 function checkLogin() {
   var token = localStorage.getItem('fb_token');

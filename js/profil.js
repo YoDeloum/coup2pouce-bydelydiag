@@ -400,7 +400,7 @@ function changerEmailConnexion() {
         var code = data.error.message || '';
         if (code === 'EMAIL_EXISTS')       msg = 'Cet email est déjà utilisé.';
         else if (code === 'INVALID_EMAIL') msg = 'Email invalide.';
-        else if (code === 'CREDENTIAL_TOO_OLD_LOGIN_AGAIN' || code === 'TOKEN_EXPIRED') msg = 'Session expirée — déconnecte-toi et reconnecte-toi.';
+        else if (code === 'CREDENTIAL_TOO_OLD_LOGIN_AGAIN' || code === 'TOKEN_EXPIRED' || code === 'INVALID_ID_TOKEN') msg = 'Session expirée — déconnecte-toi et reconnecte-toi.';
         else msg = 'Erreur Firebase : ' + code;
       }
       msgEl.textContent = msg;
@@ -410,7 +410,7 @@ function changerEmailConnexion() {
     }
   })
   .catch(function() {
-    msgEl.textContent = 'Erreur réseau.';
+    msgEl.textContent = 'Erreur reseau.';
     msgEl.style.background = '#FEE2E2';
     msgEl.style.color = '#991B1B';
     msgEl.style.display = 'block';
