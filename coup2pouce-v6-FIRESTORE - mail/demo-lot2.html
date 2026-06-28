@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Démo Lot 2 — Remise, Tarif manuel, Avant travaux, Relance</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f4f1; color: #1a1a1a; }
+  .header { background: linear-gradient(135deg,#1B4332,#2D6A4F); padding: 20px 24px; color: #fff; }
+  .header h1 { font-size: 20px; font-weight: 800; }
+  .header p  { font-size: 13px; opacity: .75; margin-top: 4px; }
+  .page { max-width: 600px; margin: 0 auto; padding: 20px 16px 60px; }
+  .card { background: #fff; border-radius: 14px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+  .card-title { font-size: 13px; font-weight: 800; color: #2D6A4F; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1.5px solid #e8f5ee; display: flex; align-items: center; gap: 8px; }
+  .badge { background: #D1FAE5; color: #065F46; font-size: 10px; padding: 2px 8px; border-radius: 999px; font-weight: 700; }
+  .badge.new { background: #FEF3C7; color: #92400E; }
+  label { display: block; font-size: 11px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: .7px; margin-bottom: 5px; margin-top: 12px; }
+  label:first-child { margin-top: 0; }
+  input[type=text], input[type=tel], input[type=email], input[type=number], select, textarea {
+    width: 100%; padding: 10px 13px; border-radius: 8px; border: 1.5px solid #E2E5F0;
+    font-size: 14px; font-family: inherit; outline: none; transition: border-color .2s;
+  }
+  input:focus, select:focus, textarea:focus { border-color: #2D6A4F; }
+  .btn { width:100%; padding:12px; border-radius:10px; border:none; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; margin-bottom:8px; transition: opacity .15s; }
+  .btn:hover { opacity: .88; }
+  .btn-primary { background: linear-gradient(135deg,#2D6A4F,#1B4332); color:#fff; }
+  .btn-outline { background:#fff; border:2px solid currentColor; }
+
+  /* Grille diagnostics */
+  .diags-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px; }
+  .diag-item { border:1.5px solid #E2E5F0; border-radius:8px; padding:8px 10px; cursor:pointer; display:flex; align-items:center; gap:6px; transition: all .15s; user-select:none; }
+  .diag-item.selected { border-color:#059669; background:#05966912; }
+  .diag-item input[type=checkbox] { accent-color:#059669; pointer-events:none; flex-shrink:0; }
+  .diag-item .diag-name { font-size:13px; flex:1; }
+  .diag-item .tarif-input {
+    width:50px; font-size:11px; color:#059669; font-weight:700; text-align:right;
+    border:none; border-bottom:1px dashed #A7F3D0; background:transparent; outline:none; padding:0 2px;
+  }
+  .diag-item .tarif-eur { font-size:11px; color:#9ca3af; margin-left:1px; }
+  .diag-new { border-color: #FCD34D !important; background: #FFFBEB !important; }
+  .diag-new .diag-name { color: #92400E; font-weight: 600; }
+
+  /* Total block */
+  .total-block { background:#F0FDF4; border-radius:10px; border:1px solid #BBF7D0; padding:14px; margin-top:10px; }
+  .total-row { display:flex; justify-content:space-between; align-items:center; }
+  .total-row + .total-row { margin-top:8px; }
+  .remise-row { display:flex; gap:8px; align-items:center; margin: 10px 0; flex-wrap:wrap; }
+  .remise-row label { margin:0; white-space:nowrap; font-size:12px; }
+  .remise-row input { width:56px; padding:5px 7px; font-size:13px; text-align:center; }
+  .remise-line { font-size:12px; color:#EF4444; text-align:right; margin-bottom:4px; display:none; }
+  .total-final { display:flex; justify-content:space-between; align-items:center; padding-top:8px; border-top:1px solid #BBF7D0; margin-top:4px; }
+
+  /* Modal */
+  .modal-bg { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.55); z-index:999; display:flex; align-items:center; justify-content:center; padding:16px; }
+  .modal { background:#fff; border-radius:16px; padding:20px; width:100%; max-width:420px; max-height:90vh; overflow-y:auto; }
+  .modal h3 { font-size:16px; font-weight:800; color:#1B4332; margin-bottom:14px; }
+  .modal-tabs { display:flex; gap:6px; margin-bottom:14px; }
+  .modal-tab { flex:1; padding:9px; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition: all .15s; }
+  textarea { min-height:100px; resize:vertical; }
+  .info-box { background:#F0FDF4; border-radius:10px; padding:10px 12px; font-size:13px; color:#065F46; margin-bottom:12px; }
+  .history-item { font-size:12px; color:#374151; padding:5px 0; border-bottom:1px solid #F0F2F8; }
+  .hint { font-size:11px; color:#9ca3af; text-align:center; margin-top:6px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🧪 Démo — Vérification Lot 2</h1>
+  <p>Remise · Tarif manuel · Avant travaux/démolition · Relance client</p>
+</div>
+
+<div class="page">
+
+<!-- ══════════════════════════════════════════ -->
+<!-- #3 AVANT TRAVAUX / AVANT DÉMOLITION       -->
+<!-- ══════════════════════════════════════════ -->
+<div class="card">
+  <div class="card-title">🔨 Fix #3 — Avant travaux / Avant démolition <span class="badge new">Nouveau</span></div>
+  <p style="font-size:13px;color:#374151;margin-bottom:14px">Ces deux diagnostics apparaissent maintenant dans la liste des prestations (devis + mission) et dans la grille tarifaire. Leur prix est à 0 par défaut — à configurer dans <strong>Tarifs</strong>.</p>
+
+  <div class="diags-grid">
+    <div class="diag-item selected" onclick="toggleDiag(this)">
+      <input type="checkbox" checked readonly/><span class="diag-name">DPE</span>
+      <input class="tarif-input" type="number" value="120" onclick="event.stopPropagation()"/>
+      <span class="tarif-eur">€</span>
+    </div>
+    <div class="diag-item selected" onclick="toggleDiag(this)">
+      <input type="checkbox" checked readonly/><span class="diag-name">Amiante</span>
+      <input class="tarif-input" type="number" value="150" onclick="event.stopPropagation()"/>
+      <span class="tarif-eur">€</span>
+    </div>
+    <div class="diag-item diag-new" onclick="toggleDiag(this)" title="NOUVEAU">
+      <input type="checkbox" readonly/><span class="diag-name">🆕 Avant travaux</span>
+      <input class="tarif-input" type="number" value="0" onclick="event.stopPropagation()"/>
+      <span class="tarif-eur">€</span>
+    </div>
+    <div class="diag-item diag-new" onclick="toggleDiag(this)" title="NOUVEAU">
+      <input type="checkbox" readonly/><span class="diag-name">🆕 Avant démolition</span>
+      <input class="tarif-input" type="number" value="0" onclick="event.stopPropagation()"/>
+      <span class="tarif-eur">€</span>
+    </div>
+    <div class="diag-item" onclick="toggleDiag(this)">
+      <input type="checkbox" readonly/><span class="diag-name">Plomb</span>
+      <input class="tarif-input" type="number" value="100" onclick="event.stopPropagation()"/>
+      <span class="tarif-eur">€</span>
+    </div>
+    <div class="diag-item" onclick="toggleDiag(this)">
+      <input type="checkbox" readonly/><span class="diag-name">Frais déplacement</span>
+      <input class="tarif-input" type="number" value="50" onclick="event.stopPropagation()"/>
+      <span class="tarif-eur">€</span>
+    </div>
+  </div>
+  <div style="font-size:11px;color:#9ca3af;text-align:right;margin-top:4px">✏️ Prix modifiable par diagnostic pour ce devis uniquement</div>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- #6 TARIF MANUEL + #5 REMISE               -->
+<!-- ══════════════════════════════════════════ -->
+<div class="card">
+  <div class="card-title">💶 Fix #6 + #5 — Tarif manuel &amp; Remise <span class="badge new">Nouveau</span></div>
+  <p style="font-size:13px;color:#374151;margin-bottom:14px">
+    <strong>Tarif manuel :</strong> clique sur le prix (en vert) d'un diagnostic pour le modifier. Ne change que ce devis.<br/>
+    <strong>Remise :</strong> saisis un % ou un montant en €, le total se met à jour automatiquement.
+  </p>
+
+  <div class="diags-grid" id="demo-grid">
+    <div class="diag-item selected" onclick="toggleDiag(this)">
+      <input type="checkbox" checked readonly/><span class="diag-name">DPE</span>
+      <input class="tarif-input" type="number" value="120" onclick="event.stopPropagation()" onchange="recalcul()"/>
+      <span class="tarif-eur">€</span>
+    </div>
+    <div class="diag-item selected" onclick="toggleDiag(this)">
+      <input type="checkbox" checked readonly/><span class="diag-name">Amiante</span>
+      <input class="tarif-input" type="number" value="150" onclick="event.stopPropagation()" onchange="recalcul()"/>
+      <span class="tarif-eur">€</span>
+    </div>
+    <div class="diag-item selected" onclick="toggleDiag(this)">
+      <input type="checkbox" checked readonly/><span class="diag-name">Électricité</span>
+      <input class="tarif-input" type="number" value="150" onclick="event.stopPropagation()" onchange="recalcul()"/>
+      <span class="tarif-eur">€</span>
+    </div>
+    <div class="diag-item" onclick="toggleDiag(this)">
+      <input type="checkbox" readonly/><span class="diag-name">Plomb</span>
+      <input class="tarif-input" type="number" value="100" onclick="event.stopPropagation()" onchange="recalcul()"/>
+      <span class="tarif-eur">€</span>
+    </div>
+  </div>
+  <div style="font-size:11px;color:#9ca3af;text-align:right;margin-top:4px;margin-bottom:8px">✏️ Cliquer sur le prix pour le modifier</div>
+
+  <div class="total-block">
+    <div class="total-row">
+      <span style="font-size:13px;font-weight:700;color:#065F46">Sous-total HT</span>
+      <span id="subtotal" style="font-size:15px;font-weight:800;color:#059669">420,00 €</span>
+    </div>
+    <div class="remise-row">
+      <label>🏷️ Remise</label>
+      <input type="number" id="remise-pct" min="0" max="100" step="1" value="0" oninput="remisePctChanged()" style="width:56px"/>
+      <span style="font-size:12px;color:#6B7280">%</span>
+      <span style="font-size:12px;color:#9ca3af">ou</span>
+      <input type="number" id="remise-eur" min="0" step="1" value="0" oninput="remiseEurChanged()" style="width:64px"/>
+      <span style="font-size:12px;color:#6B7280">€</span>
+    </div>
+    <div class="remise-line" id="remise-line">− <span id="remise-display">0,00</span> € de remise</div>
+    <div class="total-final">
+      <span style="font-size:14px;font-weight:700;color:#065F46">Total HT</span>
+      <span id="total-final" style="font-size:18px;font-weight:800;color:#059669">420,00 €</span>
+    </div>
+  </div>
+
+  <div style="margin-top:12px;font-size:12px;color:#6B7280;background:#F9FAFB;border-radius:8px;padding:10px 12px">
+    💡 <strong>Essaie :</strong> modifie le prix du DPE (ex: 90 €) → le sous-total change.<br/>
+    Saisis 10% de remise → le montant en € se calcule automatiquement, et inversement.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- #9 RELANCE                                -->
+<!-- ══════════════════════════════════════════ -->
+<div class="card">
+  <div class="card-title">📨 Fix #9 — Bouton Relance <span class="badge new">Nouveau</span></div>
+  <p style="font-size:13px;color:#374151;margin-bottom:14px">
+    Dans la fiche devis, un bouton <strong>"📨 Relancer le client"</strong> apparaît dans les actions. Il ouvre un modal avec deux onglets : <strong>Mail</strong> et <strong>WhatsApp</strong>.<br/>
+    Le message est prérempli avec les infos du client et du devis. L'historique des relances est enregistré.
+  </p>
+
+  <!-- Simuler les boutons d'action -->
+  <button class="btn btn-outline" style="color:#5B21B6;margin-bottom:8px">📋 Convertir en facture</button>
+  <button class="btn btn-outline" style="color:#E8650A;margin-bottom:8px">🏠 Créer une mission</button>
+  <button class="btn btn-outline" style="color:#6366F1" onclick="openRelanceDemo()">📨 Relancer le client ← NOUVEAU</button>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- RÉSUMÉ                                    -->
+<!-- ══════════════════════════════════════════ -->
+<div class="card">
+  <div class="card-title">✅ Récapitulatif Lot 2</div>
+  <ul style="list-style:none">
+    <li style="padding:9px 0;border-bottom:1px solid #F0F2F8;display:flex;gap:10px;font-size:14px">
+      <span style="font-size:18px">🔨</span>
+      <div><strong style="display:block;font-size:13px">Avant travaux &amp; Avant démolition</strong>
+      <small style="color:#6B7280;font-size:12px">Disponibles dans Devis, Mission, Tarifs, Facture et Statistiques</small></div>
+    </li>
+    <li style="padding:9px 0;border-bottom:1px solid #F0F2F8;display:flex;gap:10px;font-size:14px">
+      <span style="font-size:18px">✏️</span>
+      <div><strong style="display:block;font-size:13px">Tarif manuel par diagnostic</strong>
+      <small style="color:#6B7280;font-size:12px">Modifiable uniquement sur ce devis — grille tarifaire générale inchangée</small></div>
+    </li>
+    <li style="padding:9px 0;border-bottom:1px solid #F0F2F8;display:flex;gap:10px;font-size:14px">
+      <span style="font-size:18px">🏷️</span>
+      <div><strong style="display:block;font-size:13px">Remise en % ou en €</strong>
+      <small style="color:#6B7280;font-size:12px">Calcul automatique · Affiché dans le PDF · Total brut conservé</small></div>
+    </li>
+    <li style="padding:9px 0;display:flex;gap:10px;font-size:14px">
+      <span style="font-size:18px">📨</span>
+      <div><strong style="display:block;font-size:13px">Relance Mail &amp; WhatsApp</strong>
+      <small style="color:#6B7280;font-size:12px">Message prérempli · Historique enregistré sur le devis</small></div>
+    </li>
+  </ul>
+</div>
+
+</div><!-- /page -->
+
+<!-- MODAL RELANCE DÉMO -->
+<div id="relance-modal-bg" class="modal-bg" style="display:none" onclick="if(event.target===this)closeRelance()">
+  <div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h3>📨 Relance — Devis N° 2024-001</h3>
+      <button onclick="closeRelance()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9ca3af;line-height:1">✕</button>
+    </div>
+
+    <div class="info-box">
+      👤 <strong>Jean Dupont</strong> — 📞 06 12 34 56 78<br/>
+      ✉️ jean.dupont@email.fr
+    </div>
+
+    <!-- Historique simulé -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px">Historique des relances</div>
+      <div class="history-item">✉️ mail — 15/05/2025</div>
+      <div id="history-new"></div>
+    </div>
+
+    <div class="modal-tabs">
+      <button class="modal-tab" id="tab-mail" onclick="switchTab('mail')" style="border:2px solid #0891B2;background:#0891B2;color:#fff">✉️ Mail</button>
+      <button class="modal-tab" id="tab-wa"   onclick="switchTab('wa')"   style="border:2px solid #25D366;background:#fff;color:#25D366">💬 WhatsApp</button>
+    </div>
+
+    <div id="panel-mail">
+      <label>Email du client</label>
+      <input type="email" value="jean.dupont@email.fr" style="margin-bottom:10px"/>
+      <label>Message</label>
+      <textarea id="msg-mail" style="margin-bottom:12px;font-size:12px">Objet : Relance — Devis N° 2024-001
+
+Bonjour Jean Dupont,
+
+Je me permets de revenir vers vous concernant le devis N° 2024-001 établi le 01/05/2025 pour le bien situé au 12 rue des Acacias, 75001 Paris.
+
+Ce devis d'un montant de 420,00 € HT est toujours disponible et je reste à votre disposition pour toute question.
+
+Dans l'attente de votre retour,
+Cordialement,
+
+Dely Diag — 06 00 00 00 00</textarea>
+      <button class="btn" onclick="simulerEnvoi('mail')" style="background:linear-gradient(135deg,#0891B2,#0E7490);color:#fff">✉️ Ouvrir mon client mail</button>
+      <p class="hint">Ouvre ton application mail avec le message prérempli.<br/>La pièce jointe PDF doit être ajoutée manuellement.</p>
+    </div>
+
+    <div id="panel-wa" style="display:none">
+      <label>Téléphone du client</label>
+      <input type="tel" value="06 12 34 56 78" style="margin-bottom:10px"/>
+      <label>Message WhatsApp</label>
+      <textarea id="msg-wa" style="margin-bottom:12px;font-size:12px">Bonjour Jean Dupont 👋
+
+Je me permets de vous relancer concernant le devis N° 2024-001 (420,00 € HT) pour le bien au 12 rue des Acacias, 75001 Paris.
+
+Avez-vous eu le temps d'en prendre connaissance ? Je reste disponible pour toute question. 😊
+
+— Dely Diag</textarea>
+      <button class="btn" onclick="simulerEnvoi('whatsapp')" style="background:linear-gradient(135deg,#25D366,#128C7E);color:#fff">💬 Ouvrir WhatsApp</button>
+      <p class="hint">Utilise wa.me pour ouvrir WhatsApp avec le message prérempli.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Diagnostics toggle ──
+function toggleDiag(el) {
+  el.classList.toggle('selected');
+  var cb = el.querySelector('input[type=checkbox]');
+  if (cb) cb.checked = el.classList.contains('selected');
+  recalcul();
+}
+
+// ── Calcul total ──
+function recalcul() {
+  var subtotal = 0;
+  document.querySelectorAll('#demo-grid .diag-item.selected .tarif-input').forEach(function(inp) {
+    subtotal += parseFloat(inp.value) || 0;
+  });
+  var pct = parseFloat(document.getElementById('remise-pct').value) || 0;
+  var eur = parseFloat(document.getElementById('remise-eur').value) || 0;
+  var total = Math.max(0, subtotal - eur);
+
+  document.getElementById('subtotal').textContent    = subtotal.toFixed(2).replace('.',',') + ' €';
+  document.getElementById('total-final').textContent = total.toFixed(2).replace('.',',') + ' €';
+  document.getElementById('remise-display').textContent = eur.toFixed(2).replace('.',',');
+  document.getElementById('remise-line').style.display = eur > 0 ? '' : 'none';
+}
+
+function remisePctChanged() {
+  var subtotal = 0;
+  document.querySelectorAll('#demo-grid .diag-item.selected .tarif-input').forEach(function(inp) {
+    subtotal += parseFloat(inp.value) || 0;
+  });
+  var pct = parseFloat(document.getElementById('remise-pct').value) || 0;
+  var eur = subtotal * pct / 100;
+  document.getElementById('remise-eur').value = eur.toFixed(2);
+  recalcul();
+}
+
+function remiseEurChanged() {
+  var subtotal = 0;
+  document.querySelectorAll('#demo-grid .diag-item.selected .tarif-input').forEach(function(inp) {
+    subtotal += parseFloat(inp.value) || 0;
+  });
+  var eur = parseFloat(document.getElementById('remise-eur').value) || 0;
+  var pct = subtotal > 0 ? (eur / subtotal * 100) : 0;
+  document.getElementById('remise-pct').value = pct.toFixed(1);
+  recalcul();
+}
+
+// ── Relance modal ──
+function openRelanceDemo() {
+  document.getElementById('relance-modal-bg').style.display = 'flex';
+}
+function closeRelance() {
+  document.getElementById('relance-modal-bg').style.display = 'none';
+}
+function switchTab(tab) {
+  document.getElementById('panel-mail').style.display = tab === 'mail' ? '' : 'none';
+  document.getElementById('panel-wa').style.display   = tab === 'wa'   ? '' : 'none';
+  var tm = document.getElementById('tab-mail');
+  var tw = document.getElementById('tab-wa');
+  tm.style.background = tab === 'mail' ? '#0891B2' : '#fff';
+  tm.style.color      = tab === 'mail' ? '#fff'    : '#0891B2';
+  tw.style.background = tab === 'wa'   ? '#25D366' : '#fff';
+  tw.style.color      = tab === 'wa'   ? '#fff'    : '#25D366';
+}
+function simulerEnvoi(canal) {
+  var icon = canal === 'mail' ? '✉️' : '💬';
+  var today = new Date().toLocaleDateString('fr-FR');
+  var el = document.createElement('div');
+  el.className = 'history-item';
+  el.style.color = '#059669';
+  el.style.fontWeight = '700';
+  el.textContent = icon + ' ' + canal + ' — ' + today + ' ← ajouté maintenant';
+  document.getElementById('history-new').appendChild(el);
+  alert('✅ Dans l\'application réelle :\n→ ' + (canal === 'mail' ? 'Ouvre ton client mail avec le message prérempli.' : 'Ouvre WhatsApp avec le message prérempli.') + '\n→ La relance est enregistrée dans l\'historique du devis.');
+  closeRelance();
+}
+</script>
+</body>
+</html>

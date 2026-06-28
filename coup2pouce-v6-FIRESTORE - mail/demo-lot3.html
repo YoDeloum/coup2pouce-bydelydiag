@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Demo Lot 3 — Autocomplete · OCR · Docs · Modèles PDF</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#F5F6FA;color:#1a1a1a;padding:16px}
+h1{font-size:20px;font-weight:800;color:#1B4332;margin-bottom:4px}
+.subtitle{font-size:13px;color:#6B7280;margin-bottom:24px}
+.section{background:#fff;border-radius:14px;padding:18px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.section-title{font-size:15px;font-weight:800;color:#1B4332;margin-bottom:12px}
+.label{font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;display:block;margin-bottom:5px;letter-spacing:.5px}
+input,select{width:100%;padding:10px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:14px;font-family:inherit;outline:none;background:#fff}
+input:focus,select:focus{border-color:#059669}
+.btn{display:block;width:100%;padding:12px;border-radius:10px;border:none;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;text-align:center}
+.btn-green{background:linear-gradient(135deg,#2D6A4F,#1B4332);color:#fff}
+.btn-outline-blue{background:#fff;border:2px solid #0891B2;color:#0891B2}
+.btn-outline-orange{background:#fff;border:2px solid #D97706;color:#D97706}
+.field{margin-bottom:12px;position:relative}
+.desc{font-size:12px;color:#6B7280;margin-top:10px;line-height:1.6;background:#F9FAFB;border-radius:8px;padding:10px 12px}
+.check{color:#059669;font-weight:700;margin-right:2px}
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal-box{background:#fff;border-radius:16px;padding:20px;width:100%;max-width:440px;max-height:92vh;overflow-y:auto}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.modal-header h3{font-size:16px;font-weight:800;color:#1B4332}
+.close-btn{background:none;border:none;font-size:22px;cursor:pointer;color:#9ca3af;line-height:1}
+.doc-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid #BBF7D0;border-radius:8px;margin-bottom:8px;background:#F0FDF4}
+.dl-btn{padding:5px 10px;border-radius:6px;background:#F0FDF4;border:1px solid #BBF7D0;color:#065F46;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+#ac-dropdown{position:absolute;top:100%;left:0;right:0;margin-top:4px;background:#fff;border:1.5px solid #E2E5F0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:200px;overflow-y:auto;z-index:100;display:none;font-size:13px}
+.ac-item{padding:10px 14px;cursor:pointer;border-bottom:1px solid #F0F2F8;line-height:1.3}
+.ac-item:hover{background:#F0FDF4}
+.pdf-preview{border:2px solid #E2E5F0;border-radius:10px;overflow:hidden;margin-top:12px}
+.pdf-body{padding:12px 16px;font-size:12px;color:#374151}
+.note-box{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px 12px;font-size:12px;color:#1E40AF;margin-bottom:10px}
+</style>
+</head>
+<body>
+
+<h1>Démo — Lot 3</h1>
+<p class="subtitle">Autocomplétion · Photo/OCR · Documents réglementaires · Modèles PDF</p>
+
+<!-- ═══════ NOTE DÉMO ═══════ -->
+<div class="note-box">
+  ℹ️ <strong>Note :</strong> Cette démo fonctionne en local. Certaines fonctions (autocomplétion adresse, OCR photo) nécessitent internet et fonctionneront pleinement sur GitHub Pages (https://). Le stockage des documents et le switch de modèle PDF sont 100% testables ici.
+</div>
+
+<!-- ═══════ #10 AUTOCOMPLETE ═══════ -->
+<div class="section">
+  <div class="section-title">🗺️ #10 — Autocomplétion d'adresse</div>
+  <div class="field">
+    <label class="label">Adresse du bien — tape 3+ caractères</label>
+    <input id="demo-adresse" type="text" placeholder="Ex : 12 rue de la Paix..." autocomplete="off"/>
+    <div id="ac-dropdown"></div>
+  </div>
+  <div class="field">
+    <label class="label">Code postal (auto)</label>
+    <input id="demo-cp" type="text" placeholder="75001" style="background:#F9FAFB"/>
+  </div>
+  <div class="field">
+    <label class="label">Ville (auto)</label>
+    <input id="demo-ville" type="text" placeholder="Paris" style="background:#F9FAFB"/>
+  </div>
+  <div class="desc">
+    <span class="check">✅</span> <code>js/address-autocomplete.js</code> — surveille <code>#dv-bien_adresse</code>, <code>#m-adresse</code>, <code>#p-adresse</code><br>
+    <span class="check">✅</span> Chargé en dernier dans <code>index.html</code> pour trouver les inputs dynamiques<br>
+    <span class="check">⚠️</span> API data.gouv.fr = internet requis. En local (file://) les suggestions peuvent ne pas apparaître — fonctionnera sur GitHub Pages.
+  </div>
+</div>
+
+<!-- ═══════ #11 OCR ═══════ -->
+<div class="section">
+  <div class="section-title">📷 #11 — Préremplissage par photo</div>
+  <button class="btn btn-outline-orange" onclick="demoOCR()">📷 Choisir une image (démo simulée)</button>
+  <div id="ocr-zone" style="display:none"></div>
+  <div class="desc">
+    <span class="check">✅</span> <code>js/ocr-reader.js</code> — Tesseract.js chargé à la demande (internet requis)<br>
+    <span class="check">✅</span> Bouton <em>📷 Préremplir depuis une photo</em> dans le formulaire devis<br>
+    <span class="check">⚠️</span> Le vrai OCR nécessite internet. Cette démo simule le résultat.
+  </div>
+</div>
+
+<!-- ═══════ #13 DOCS RÉGLEMENTAIRES ═══════ -->
+<div class="section">
+  <div class="section-title">📄 #13 — Documents réglementaires</div>
+  <p style="font-size:13px;color:#374151;margin-bottom:14px">Upload tes PDF — ils sont stockés dans l'application (localStorage). Télécharge-les depuis chaque devis.</p>
+
+  <div id="docs-upload-zone"></div>
+
+  <button class="btn btn-outline-blue" style="margin-top:10px" onclick="ouvrirModalDocs()">📄 Voir comme dans le devis</button>
+  <div class="desc">
+    <span class="check">✅</span> Upload dans <strong>Profil → Documents réglementaires</strong><br>
+    <span class="check">✅</span> Stockage base64 en localStorage (<code>dd_docs_reglementaires</code>)<br>
+    <span class="check">✅</span> Bouton ⬇️ PDF dans le modal devis — télécharge le fichier uploadé
+  </div>
+</div>
+
+<!-- ═══════ #7 MODÈLES PDF ═══════ -->
+<div class="section">
+  <div class="section-title">🎨 #7 — Modèles de PDF</div>
+  <div class="field">
+    <label class="label">Choisir le modèle (aperçu en temps réel)</label>
+    <select id="tpl-select" onchange="switchTemplate(this.value)">
+      <option value="standard">Standard — bandeau vert</option>
+      <option value="epure">Épuré — fond blanc</option>
+    </select>
+  </div>
+
+  <!-- Standard -->
+  <div id="preview-standard" class="pdf-preview">
+    <div style="background:linear-gradient(135deg,#2D6A4F,#1B4332);color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div style="font-size:15px;font-weight:800">MARTIN DIAGNOSTICS</div>
+        <div style="font-size:9px;opacity:.8;margin-top:2px">SASU — SIRET : 123 456 789 00010</div>
+        <div style="font-size:9px;opacity:.8">15 rue des Acacias, 75001 Paris</div>
+        <div style="font-size:9px;opacity:.8">06 12 34 56 78  |  contact@martin-diag.fr</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:22px;font-weight:900">DEVIS</div>
+        <div style="font-size:10px;opacity:.8">N° 2026-001</div>
+        <div style="font-size:9px;opacity:.7">06/06/2026 — Valable 30 jours</div>
+      </div>
+    </div>
+    <div class="pdf-body">
+      <div style="background:#2D6A4F;color:#fff;border-radius:4px;padding:4px 8px;display:flex;justify-content:space-between;font-size:10px;font-weight:700;margin-bottom:4px"><span>PRESTATIONS</span><span>INCLUS</span></div>
+      <div style="font-size:11px;padding:3px 8px;display:flex;justify-content:space-between;background:#F9FAFB"><span>✓  DPE</span><span style="color:#2D6A4F">120.00 €</span></div>
+      <div style="font-size:11px;padding:3px 8px;display:flex;justify-content:space-between"><span>✓  Amiante</span><span style="color:#2D6A4F">150.00 €</span></div>
+      <div style="font-size:11px;padding:3px 8px;display:flex;justify-content:space-between;background:#F9FAFB"><span>✓  Électricité</span><span style="color:#2D6A4F">150.00 €</span></div>
+      <div style="background:#2D6A4F;color:#fff;border-radius:4px;padding:6px 8px;margin-top:6px;display:flex;justify-content:space-between;font-size:12px"><span>TOTAL HT</span><span style="font-weight:800">420.00 €</span></div>
+    </div>
+  </div>
+
+  <!-- Épuré -->
+  <div id="preview-epure" class="pdf-preview" style="display:none">
+    <div style="background:#fff;border-bottom:2px solid #E2E5F0;padding:14px 16px;display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div style="font-size:14px;font-weight:800;color:#1B4332">MARTIN DIAGNOSTICS</div>
+        <div style="font-size:9px;color:#6B7280;margin-top:2px">SASU — SIRET : 123 456 789 00010</div>
+        <div style="font-size:9px;color:#6B7280">15 rue des Acacias, 75001 Paris</div>
+        <div style="font-size:9px;color:#6B7280">06 12 34 56 78  |  contact@martin-diag.fr</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:20px;font-weight:900;color:#1B4332">DEVIS</div>
+        <div style="font-size:10px;color:#2D6A4F;font-weight:700">N° 2026-001</div>
+        <div style="font-size:9px;color:#6B7280">06/06/2026 — Valable 30 jours</div>
+      </div>
+    </div>
+    <div class="pdf-body">
+      <div style="border-top:1.5px solid #E2E5F0;border-bottom:1.5px solid #E2E5F0;padding:4px 8px;display:flex;justify-content:space-between;font-size:10px;font-weight:700;color:#374151;margin-bottom:4px"><span>PRESTATIONS</span><span>INCLUS</span></div>
+      <div style="font-size:11px;padding:3px 8px;display:flex;justify-content:space-between;background:#F9FAFB"><span>✓  DPE</span><span style="color:#2D6A4F">120.00 €</span></div>
+      <div style="font-size:11px;padding:3px 8px;display:flex;justify-content:space-between"><span>✓  Amiante</span><span style="color:#2D6A4F">150.00 €</span></div>
+      <div style="font-size:11px;padding:3px 8px;display:flex;justify-content:space-between;background:#F9FAFB"><span>✓  Électricité</span><span style="color:#2D6A4F">150.00 €</span></div>
+      <div style="border:1.5px solid #1B4332;border-radius:4px;padding:6px 8px;margin-top:6px;display:flex;justify-content:space-between;font-size:12px;color:#1B4332"><span>TOTAL HT</span><span style="font-weight:800">420.00 €</span></div>
+    </div>
+  </div>
+
+  <div class="desc">
+    <span class="check">✅</span> Sélecteur dans <strong>Profil → Facturation → Modèle PDF</strong><br>
+    <span class="check">✅</span> Appliqué à tous les devis ET factures générés (<code>js/pdf-generator.js</code>)<br>
+    <span class="check">✅</span> Valeur stockée dans le profil
+  </div>
+</div>
+
+<!-- ═══════ MODAL DOCS DEVIS ═══════ -->
+<div id="modal-docs" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>📄 Documents réglementaires</h3>
+      <button class="close-btn" onclick="document.getElementById('modal-docs').style.display='none'">✕</button>
+    </div>
+    <div style="background:#F0FDF4;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:#065F46">
+      👤 <strong>Thomas MARTIN</strong><br>✉️ thomas.martin@email.com
+    </div>
+    <div id="modal-docs-list" style="margin-bottom:14px"></div>
+    <div style="margin-bottom:10px">
+      <label class="label">Email du client</label>
+      <input type="email" value="thomas.martin@email.com"/>
+    </div>
+    <button class="btn btn-green" onclick="document.getElementById('modal-docs').style.display='none';alert('✅ Dans la vraie app : ouvre le client mail avec le message prérempli.')">✉️ Préparer le mail</button>
+  </div>
+</div>
+
+<script>
+// ──────────────────────────────────────────────
+// STORAGE DOCS (même logique que la vraie app)
+// ──────────────────────────────────────────────
+var DOCS = [
+  { id:'consentement', label:'Feuille de consentement',             icon:'📝', desc:'Accord du client pour la réalisation des diagnostics' },
+  { id:'cgv',          label:'Conditions Générales de Vente (CGV)', icon:'📋', desc:'Conditions contractuelles de la prestation' },
+  { id:'cgi',          label:'CGI — Conditions d\'Intervention',    icon:'🔧', desc:'Modalités techniques d\'intervention' }
+];
+
+function getStoredDocs() {
+  try { return JSON.parse(localStorage.getItem('dd_docs_reglementaires') || '{}'); } catch(e) { return {}; }
+}
+
+function renderDocsUploadZone() {
+  var stored = getStoredDocs();
+  var html = DOCS.map(function(doc) {
+    var s = stored[doc.id];
+    return '<div style="padding:12px;border:1.5px solid '+(s?'#BBF7D0':'#E2E5F0')+';border-radius:10px;margin-bottom:10px;background:'+(s?'#F0FDF4':'#FAFAFA')+'">'
+      + '<div style="font-size:13px;font-weight:700;color:#1B4332;margin-bottom:6px">'+(s?'✅ ':'📎 ')+doc.label+'</div>'
+      + (s ? '<div style="font-size:11px;color:#065F46;margin-bottom:8px">📄 '+s.name+'</div>' : '')
+      + '<div style="display:flex;gap:8px;align-items:center">'
+      + '<label style="flex:1;padding:7px 12px;border-radius:8px;border:1.5px dashed #BBF7D0;background:#fff;font-size:12px;color:#2D6A4F;font-weight:600;cursor:pointer;text-align:center">'
+      + (s ? '🔄 Remplacer' : '⬆️ Choisir le PDF')
+      + '<input type="file" accept=".pdf,application/pdf" style="display:none" onchange="uploadDoc(this,\''+doc.id+'\')" />'
+      + '</label>'
+      + (s ? '<button onclick="supprimerDoc(\''+doc.id+'\')" style="padding:7px 10px;border-radius:8px;border:1.5px solid #FCA5A5;background:#fff;color:#EF4444;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🗑️</button>' : '')
+      + '</div>'
+      + '</div>';
+  }).join('');
+  document.getElementById('docs-upload-zone').innerHTML = html;
+}
+
+function uploadDoc(input, docId) {
+  if (!input.files || !input.files[0]) return;
+  var file = input.files[0];
+  if (file.size > 3 * 1024 * 1024) { alert('Fichier trop volumineux (max 3 Mo).'); return; }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var docs = getStoredDocs();
+      docs[docId] = { name: file.name, data: e.target.result };
+      localStorage.setItem('dd_docs_reglementaires', JSON.stringify(docs));
+      renderDocsUploadZone();
+    } catch(err) {
+      alert('Impossible de stocker le fichier — essaie un PDF plus léger (< 2 Mo).');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function supprimerDoc(docId) {
+  if (!confirm('Supprimer ce document ?')) return;
+  var docs = getStoredDocs();
+  delete docs[docId];
+  localStorage.setItem('dd_docs_reglementaires', JSON.stringify(docs));
+  renderDocsUploadZone();
+}
+
+function telechargerDoc(docId) {
+  var d = getStoredDocs()[docId];
+  if (!d) { alert('Document non uploadé.'); return; }
+  var a = document.createElement('a');
+  a.href = d.data; a.download = d.name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+function ouvrirModalDocs() {
+  var stored = getStoredDocs();
+  var tousPresents = DOCS.every(function(d) { return !!stored[d.id]; });
+  var html = (!tousPresents ? '<div style="background:#FEF3C7;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#92400E">⚠️ Certains documents ne sont pas encore uploadés. Utilise la zone ci-dessus.</div>' : '')
+    + DOCS.map(function(doc) {
+      var s = stored[doc.id];
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid '+(s?'#BBF7D0':'#E2E5F0')+';border-radius:8px;margin-bottom:8px;background:'+(s?'#F0FDF4':'#fff')+'">'
+        + '<span style="font-size:20px">'+doc.icon+'</span>'
+        + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;color:#1B4332">'+doc.label+'</div>'
+        + '<div style="font-size:11px;color:#6B7280">'+(s?'📄 '+s.name:doc.desc)+'</div></div>'
+        + (s ? '<button onclick="telechargerDoc(\''+doc.id+'\')" class="dl-btn">⬇️ PDF</button>' : '<span style="font-size:11px;color:#EF4444;font-weight:600;white-space:nowrap">⚠️ Non uploadé</span>')
+        + '</div>';
+    }).join('');
+  document.getElementById('modal-docs-list').innerHTML = html;
+  document.getElementById('modal-docs').style.display = 'flex';
+}
+
+// ──────────────────────────────────────────────
+// #7 TEMPLATE SWITCH
+// ──────────────────────────────────────────────
+function switchTemplate(val) {
+  document.getElementById('preview-standard').style.display = (val === 'standard') ? 'block' : 'none';
+  document.getElementById('preview-epure').style.display    = (val === 'epure')    ? 'block' : 'none';
+}
+
+// ──────────────────────────────────────────────
+// #10 AUTOCOMPLETE (avec fallback local)
+// ──────────────────────────────────────────────
+var _acTimer = null;
+var _SAMPLES = [
+  {label:'12 Avenue de la République, 75011 Paris',    name:'12 Avenue de la République', postcode:'75011', city:'Paris'},
+  {label:'8 Boulevard Victor Hugo, 13001 Marseille',   name:'8 Boulevard Victor Hugo',    postcode:'13001', city:'Marseille'},
+  {label:'25 Rue Nationale, 59000 Lille',              name:'25 Rue Nationale',           postcode:'59000', city:'Lille'},
+  {label:'15 Rue des Lilas, 69003 Lyon',               name:'15 Rue des Lilas',           postcode:'69003', city:'Lyon'},
+  {label:'3 Place du Capitole, 31000 Toulouse',        name:'3 Place du Capitole',        postcode:'31000', city:'Toulouse'},
+  {label:'10 Rue de la Paix, 75002 Paris',             name:'10 Rue de la Paix',          postcode:'75002', city:'Paris'},
+];
+
+document.getElementById('demo-adresse').addEventListener('input', function() {
+  clearTimeout(_acTimer);
+  var q = this.value.trim();
+  var dd = document.getElementById('ac-dropdown');
+  if (q.length < 3) { dd.style.display='none'; return; }
+  var inputEl = this;
+  _acTimer = setTimeout(function() {
+    fetch('https://api-adresse.data.gouv.fr/search/?q=' + encodeURIComponent(q) + '&limit=5&autocomplete=1')
+      .then(function(r) { return r.json(); })
+      .then(function(data) { showAC(data.features.map(function(f) { return f.properties; }), inputEl); })
+      .catch(function() {
+        var matches = _SAMPLES.filter(function(s) { return s.label.toLowerCase().includes(q.toLowerCase()); });
+        showAC(matches.length ? matches : _SAMPLES.slice(0,3), inputEl);
+      });
+  }, 320);
+});
+
+function showAC(items, inputEl) {
+  var dd = document.getElementById('ac-dropdown');
+  dd.innerHTML = '';
+  if (!items.length) { dd.style.display='none'; return; }
+  items.forEach(function(p) {
+    var item = document.createElement('div');
+    item.className = 'ac-item';
+    item.innerHTML = '<strong>' + (p.name||p.label||'') + '</strong> <span style="color:#6B7280;font-size:12px">' + (p.postcode||'') + ' ' + (p.city||'') + '</span>';
+    item.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      inputEl.value = p.label || ((p.name||'') + (p.postcode ? ', '+p.postcode+' '+(p.city||'') : ''));
+      if (p.postcode) document.getElementById('demo-cp').value    = p.postcode;
+      if (p.city)     document.getElementById('demo-ville').value = p.city;
+      dd.style.display = 'none';
+    });
+    dd.appendChild(item);
+  });
+  dd.style.display = 'block';
+}
+document.addEventListener('click', function(e) {
+  var dd = document.getElementById('ac-dropdown');
+  if (dd && !dd.contains(e.target) && e.target.id !== 'demo-adresse') dd.style.display='none';
+});
+
+// ──────────────────────────────────────────────
+// #11 OCR — simulation (le vrai OCR = Tesseract.js sur GitHub)
+// ──────────────────────────────────────────────
+function demoOCR() {
+  var inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'image/*';
+  inp.style.display = 'none';
+  document.body.appendChild(inp);
+
+  inp.addEventListener('change', function() {
+    document.body.removeChild(inp);
+    if (!inp.files || !inp.files[0]) return;
+
+    var zone = document.getElementById('ocr-zone');
+    zone.style.display = 'block';
+    zone.innerHTML = '<div style="text-align:center;padding:16px;background:#F0FDF4;border-radius:10px;margin-top:12px">'
+      + '<div style="font-size:24px;margin-bottom:8px">⏳</div>'
+      + '<div style="font-size:13px;color:#065F46;font-weight:600">Analyse de l\'image en cours...</div>'
+      + '<div style="margin-top:10px;height:6px;background:#BBF7D0;border-radius:999px;overflow:hidden">'
+      + '<div id="ocr-bar" style="height:100%;background:#2D6A4F;width:0%;transition:width .25s;border-radius:999px"></div>'
+      + '</div></div>';
+
+    var pct = 0;
+    var iv = setInterval(function() {
+      pct = Math.min(100, pct + 10);
+      var bar = document.getElementById('ocr-bar');
+      if (bar) bar.style.width = pct + '%';
+      if (pct >= 100) {
+        clearInterval(iv);
+        setTimeout(showOCRResult, 400);
+      }
+    }, 180);
+  });
+
+  inp.click();
+}
+
+function showOCRResult() {
+  var zone = document.getElementById('ocr-zone');
+  var resultFields = [
+    { label:'Nom', value:'MARTIN Thomas' },
+    { label:'Email', value:'thomas.martin@email.com' },
+    { label:'Téléphone', value:'0612345678' },
+    { label:'Adresse', value:'15 rue des Lilas, 69003 Lyon' },
+    { label:'Surface (m²)', value:'87' },
+  ];
+  var fieldsHtml = resultFields.map(function(f) {
+    return '<div style="margin-bottom:8px">'
+      + '<label style="font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;display:block;margin-bottom:3px">' + f.label + '</label>'
+      + '<input type="text" value="' + f.value + '" style="width:100%;padding:8px 11px;border-radius:7px;border:1.5px solid #BBF7D0;font-size:13px;font-family:inherit;outline:none;background:#fff"/>'
+      + '</div>';
+  }).join('');
+
+  zone.innerHTML = '<div style="background:#F0FDF4;border-radius:10px;padding:14px;margin-top:12px">'
+    + '<div style="font-size:13px;font-weight:700;color:#065F46;margin-bottom:12px">✅ Informations détectées — vérifie avant d\'appliquer :</div>'
+    + fieldsHtml
+    + '<button onclick="alert(\'✅ Dans la vraie app, les champs du formulaire devis seraient remplis automatiquement !\')" '
+    + 'style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#2D6A4F,#1B4332);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px">'
+    + '✅ Appliquer au formulaire</button>'
+    + '</div>';
+}
+
+// ── Init ──
+renderDocsUploadZone();
+</script>
+</body>
+</html>

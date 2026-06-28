@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Démo Lot 1 — Vérification des améliorations</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f4f1; color: #1a1a1a; }
+
+  .header { background: linear-gradient(135deg,#1B4332,#2D6A4F); padding: 20px 24px; color: #fff; }
+  .header h1 { font-size: 20px; font-weight: 800; }
+  .header p { font-size: 13px; opacity: .75; margin-top: 4px; }
+
+  .page { max-width: 600px; margin: 0 auto; padding: 20px 16px 60px; }
+
+  .card { background: #fff; border-radius: 14px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+  .card-title { font-size: 13px; font-weight: 800; color: #2D6A4F; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1.5px solid #e8f5ee; display: flex; align-items: center; gap: 8px; }
+  .badge { background: #D1FAE5; color: #065F46; font-size: 10px; padding: 2px 8px; border-radius: 999px; font-weight: 700; }
+  .badge.new { background: #FEF3C7; color: #92400E; }
+
+  label { display: block; font-size: 11px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: .7px; margin-bottom: 5px; margin-top: 14px; }
+  label:first-child { margin-top: 0; }
+  input[type=text], input[type=tel], input[type=email], select {
+    width: 100%; padding: 10px 13px; border-radius: 8px; border: 1.5px solid #E2E5F0;
+    font-size: 14px; font-family: inherit; outline: none; transition: border-color .2s;
+  }
+  input:focus, select:focus { border-color: #2D6A4F; }
+
+  .termite-link {
+    display: inline-flex; align-items: center; gap: 5px; margin-top: 6px;
+    font-size: 12px; color: #059669; font-weight: 700; text-decoration: none;
+    padding: 5px 10px; background: #D1FAE5; border-radius: 6px;
+    transition: background .2s;
+  }
+  .termite-link:hover { background: #A7F3D0; }
+
+  .status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; margin-top: 6px; }
+  .dot-ok  { width: 8px; height: 8px; border-radius: 50%; background: #059669; }
+  .dot-new { width: 8px; height: 8px; border-radius: 50%; background: #F59E0B; }
+
+  /* Carte devis simulée */
+  .devis-card { border: 1.5px solid #E2E5F0; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; position: relative; overflow: hidden; cursor: pointer; transition: box-shadow .2s; }
+  .devis-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+  .devis-card-accent { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #059669; }
+  .devis-card-body { padding-left: 12px; }
+  .devis-card-title { font-weight: 800; font-size: 14px; color: #1B4332; }
+  .devis-card-sub { font-size: 12px; color: #6B7280; margin-top: 3px; }
+  .tel-link { color: #059669; font-weight: 700; text-decoration: none; font-size: 13px; }
+  .tel-link:hover { text-decoration: underline; }
+
+  /* Logo demo */
+  .logo-demo { display: flex; gap: 16px; flex-wrap: wrap; }
+  .logo-box { flex: 1; min-width: 130px; border: 1.5px solid #E2E5F0; border-radius: 10px; padding: 12px; text-align: center; }
+  .logo-box .label-small { font-size: 11px; color: #6B7280; margin-bottom: 8px; font-weight: 700; }
+  .logo-box img { display: block; margin: 0 auto; border: 1px solid #f0f0f0; border-radius: 4px; }
+  .logo-bad  img { width: 60px; height: 60px; object-fit: fill; }
+  .logo-good img { max-width: 60px; max-height: 60px; object-fit: contain; }
+  .logo-caption { font-size: 10px; margin-top: 6px; }
+  .logo-bad  .logo-caption { color: #EF4444; }
+  .logo-good .logo-caption { color: #059669; }
+
+  /* Résumé */
+  .check-list { list-style: none; }
+  .check-list li { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 1px solid #F0F2F8; font-size: 14px; }
+  .check-list li:last-child { border-bottom: none; }
+  .check-list li span.icon { font-size: 18px; flex-shrink: 0; }
+  .check-list li .desc { flex: 1; }
+  .check-list li .desc strong { display: block; font-size: 13px; margin-bottom: 2px; }
+  .check-list li .desc small { color: #6B7280; font-size: 12px; }
+
+  .section-sep { height: 1px; background: #E8F5EE; margin: 16px 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🧪 Démo — Vérification Lot 1</h1>
+  <p>Toutes les améliorations appliquées — teste chaque section ci-dessous</p>
+</div>
+
+<div class="page">
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- #2 ÉLECTRICITÉ                          -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-title">⚡ Fix #2 — Électricité unifié <span class="badge">Correction</span></div>
+
+    <p style="font-size:13px;color:#374151;margin-bottom:14px">
+      Avant : <code style="background:#FEF2F2;color:#DC2626;padding:2px 6px;border-radius:4px">Electricite</code> dans TARIFS_DEFAULT ne matchait pas
+      <code style="background:#ECFDF5;color:#065F46;padding:2px 6px;border-radius:4px">Électricité</code> dans les listes → le tarif était ignoré dans les stats et factures.
+    </p>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:140px;background:#FEF2F2;border-radius:10px;padding:12px;border:1px solid #FECACA">
+        <div style="font-size:11px;font-weight:700;color:#DC2626;margin-bottom:8px">❌ AVANT</div>
+        <code style="font-size:12px;color:#7F1D1D">TARIFS_DEFAULT = {<br>&nbsp;&nbsp;Electricite: 150<br>}</code>
+        <div style="font-size:11px;color:#DC2626;margin-top:8px">→ Stats : 0 € comptabilisé</div>
+      </div>
+      <div style="flex:1;min-width:140px;background:#ECFDF5;border-radius:10px;padding:12px;border:1px solid #A7F3D0">
+        <div style="font-size:11px;font-weight:700;color:#059669;margin-bottom:8px">✅ APRÈS</div>
+        <code style="font-size:12px;color:#065F46">TARIFS_DEFAULT = {<br>&nbsp;&nbsp;'Électricité': 150<br>}</code>
+        <div style="font-size:11px;color:#059669;margin-top:8px">→ Stats : 150 € comptabilisé</div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px;background:#F0FDF4;border-radius:8px;padding:10px 12px;font-size:12px;color:#065F46">
+      ℹ️ Migration automatique : si tu avais un tarif enregistré sous <code>Electricite</code> en localStorage, il est automatiquement migré vers <code>Électricité</code> au premier chargement.
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- #4 TYPES DE BIEN                        -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-title">🏠 Fix #4 — Nouveaux types de bien <span class="badge new">Nouveau</span></div>
+
+    <label>Type de bien</label>
+    <select id="type-bien-demo">
+      <option>Maison</option>
+      <option>Appartement</option>
+      <option>Local commercial</option>
+      <option>Immeuble</option>
+      <option style="font-weight:700;color:#059669">Partie commune ← NOUVEAU</option>
+      <option style="font-weight:700;color:#059669">Cave / Box ← NOUVEAU</option>
+      <option style="font-weight:700;color:#059669">Dépendance ← NOUVEAU</option>
+    </select>
+
+    <div style="margin-top:12px;font-size:12px;color:#6B7280">
+      ✅ Disponible dans le formulaire <strong>Devis</strong> et dans le formulaire <strong>Mission</strong>.
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- #1 ZONE TERMITES                        -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-title">🐜 Fix #1 — Zone termites <span class="badge new">Nouveau</span></div>
+
+    <label>Adresse du bien</label>
+    <input type="text" value="12 rue des Acacias, 75001 Paris" placeholder="Adresse du bien"/>
+    <a class="termite-link" href="https://termite.com.fr/rechercher/" target="_blank">
+      🐜 Vérifier zone termites
+    </a>
+
+    <div class="section-sep"></div>
+
+    <div style="font-size:12px;color:#6B7280">
+      ✅ Lien visible sous le champ adresse dans <strong>Devis</strong> et dans <strong>Mission</strong>.<br>
+      S'ouvre dans un nouvel onglet sur <code>termite.com.fr/rechercher/</code>.
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- #12 TEL CLIQUABLE                       -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-title">📞 Fix #12 — Appel direct <span class="badge new">Nouveau</span></div>
+
+    <p style="font-size:13px;color:#374151;margin-bottom:14px">Dans la liste des devis et missions, le numéro de téléphone est maintenant cliquable :</p>
+
+    <div class="devis-card">
+      <div class="devis-card-accent"></div>
+      <div class="devis-card-body">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="devis-card-title">Devis N° 2024-001</div>
+          <span style="background:#D1FAE5;color:#065F46;font-size:11px;padding:2px 8px;border-radius:999px;font-weight:700">Accepté</span>
+        </div>
+        <div class="devis-card-sub">
+          👤 Jean Dupont —
+          <a class="tel-link" href="tel:0612345678" onclick="event.stopPropagation()">
+            📞 06 12 34 56 78
+          </a>
+        </div>
+        <div class="devis-card-sub">📍 12 rue des Acacias, 75001 Paris</div>
+        <div style="display:flex;justify-content:space-between;margin-top:8px">
+          <div style="font-size:11px;color:#9ca3af">01/01/2025</div>
+          <div style="font-size:14px;font-weight:800;color:#1B4332">450,00 € HT</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size:12px;color:#6B7280;margin-top:4px">
+      Clique sur 📞 pour appeler directement. Sur mobile : ouvre le téléphone. Sur ordinateur : ouvre Skype ou l'application par défaut.
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- #8 LOGO                                 -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-title">🖼️ Fix #8 — Logo proportionnel dans PDF <span class="badge">Correction</span></div>
+
+    <p style="font-size:13px;color:#374151;margin-bottom:14px">Simulation avec un logo rectangulaire (ex: 300×100px) :</p>
+
+    <div class="logo-demo">
+      <div class="logo-box logo-bad">
+        <div class="label-small">❌ AVANT</div>
+        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='100' viewBox='0 0 300 100'%3E%3Crect width='300' height='100' fill='%232D6A4F'/%3E%3Ctext x='150' y='55' text-anchor='middle' fill='white' font-size='22' font-family='Arial' font-weight='bold'%3EDELY DIAG%3C/text%3E%3C/svg%3E"
+             style="width:60px;height:60px;object-fit:fill"/>
+        <div class="logo-caption">Étiré — déformé</div>
+      </div>
+      <div class="logo-box logo-good">
+        <div class="label-small">✅ APRÈS</div>
+        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='100' viewBox='0 0 300 100'%3E%3Crect width='300' height='100' fill='%232D6A4F'/%3E%3Ctext x='150' y='55' text-anchor='middle' fill='white' font-size='22' font-family='Arial' font-weight='bold'%3EDELY DIAG%3C/text%3E%3C/svg%3E"
+             style="max-width:60px;max-height:60px;object-fit:contain;width:auto;height:auto"/>
+        <div class="logo-caption">Proportions conservées</div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px;font-size:12px;color:#6B7280">
+      ✅ Appliqué dans le PDF <strong>Devis</strong> et le PDF <strong>Facture</strong>.<br>
+      Format PNG ou JPEG auto-détecté. Boîte max : 28×24 mm.
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- RÉSUMÉ GLOBAL                           -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-title">✅ Récapitulatif Lot 1</div>
+    <ul class="check-list">
+      <li>
+        <span class="icon">⚡</span>
+        <div class="desc">
+          <strong>Électricité unifiée</strong>
+          <small>Tarif maintenant correctement compté dans devis, factures et statistiques</small>
+        </div>
+      </li>
+      <li>
+        <span class="icon">🏠</span>
+        <div class="desc">
+          <strong>3 nouveaux types de bien</strong>
+          <small>Partie commune · Cave/Box · Dépendance — dans Devis et Mission</small>
+        </div>
+      </li>
+      <li>
+        <span class="icon">🐜</span>
+        <div class="desc">
+          <strong>Lien zone termites</strong>
+          <small>Sous le champ adresse dans Devis et Mission</small>
+        </div>
+      </li>
+      <li>
+        <span class="icon">📞</span>
+        <div class="desc">
+          <strong>Numéro cliquable</strong>
+          <small>Dans les cartes liste Devis et Mission — protocole tel:</small>
+        </div>
+      </li>
+      <li>
+        <span class="icon">🖼️</span>
+        <div class="desc">
+          <strong>Logo PDF proportionnel</strong>
+          <small>Plus de déformation — proportions conservées dans PDF devis et facture</small>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <div style="text-align:center;font-size:12px;color:#9ca3af;padding-top:10px">
+    Démo générée par Claude — Vérification Lot 1 · Application Dely Diag
+  </div>
+
+</div>
+</body>
+</html>
