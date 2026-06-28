@@ -397,9 +397,11 @@ function changerEmailConnexion() {
     } else {
       var msg = 'Erreur lors du changement.';
       if (data.error) {
-        if (data.error.message === 'EMAIL_EXISTS')       msg = 'Cet email est déjà utilisé.';
-        if (data.error.message === 'INVALID_EMAIL')      msg = 'Email invalide.';
-        if (data.error.message === 'CREDENTIAL_TOO_OLD_LOGIN_AGAIN') msg = 'Session expirée — reconnecte-toi.';
+        var code = data.error.message || '';
+        if (code === 'EMAIL_EXISTS')       msg = 'Cet email est déjà utilisé.';
+        else if (code === 'INVALID_EMAIL') msg = 'Email invalide.';
+        else if (code === 'CREDENTIAL_TOO_OLD_LOGIN_AGAIN' || code === 'TOKEN_EXPIRED') msg = 'Session expirée — déconnecte-toi et reconnecte-toi.';
+        else msg = 'Erreur Firebase : ' + code;
       }
       msgEl.textContent = msg;
       msgEl.style.background = '#FEE2E2';
