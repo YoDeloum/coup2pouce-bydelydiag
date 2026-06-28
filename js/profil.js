@@ -184,6 +184,18 @@ function renderProfilScreen() {
       <p style="font-size:11px;color:#9ca3af;margin-top:4px">⚠️ Les PDF sont stockés localement dans le navigateur. Taille max recommandée : 2 Mo par fichier.</p>
     </div>
 
+    <!-- ── Changement d'email de connexion ── -->
+    <div class="profil-section" style="border:2px solid #6366F1;background:#EEF2FF">
+      <div class="profil-section-title" style="color:#3730A3">🔐 Email de connexion</div>
+      <p style="font-size:12px;color:#4338CA;margin-bottom:12px">Email actuel : <strong>${localStorage.getItem('fb_email') || '—'}</strong></p>
+      <input id="profil-new-email" type="email" placeholder="Nouvel email de connexion"
+        style="width:100%;padding:10px 14px;border-radius:10px;border:1.5px solid #A5B4FC;font-size:14px;font-family:inherit;box-sizing:border-box;margin-bottom:8px;outline:none"/>
+      <button onclick="changerEmailConnexion()" style="width:100%;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,#6366F1,#818CF8);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">
+        Changer mon email de connexion
+      </button>
+      <div id="profil-email-msg" style="display:none;margin-top:8px;font-size:12px;text-align:center;font-weight:600;padding:8px;border-radius:8px"></div>
+    </div>
+
     <!-- ── Sauvegarde / Restauration ── -->
     <div class="profil-section" style="border:2px solid #FCD34D;background:#FFFBEB">
       <div class="profil-section-title" style="color:#92400E">💾 Sauvegarde des données</div>
@@ -324,28 +336,81 @@ function importerDonnees(event) {
       var backup = JSON.parse(e.target.result);
       // Validation minimale
       if (!backup || !backup.donnees || typeof backup.donnees !== 'object') {
-        alert('Fichier invalide. Ce fichier ne semble pas être une sauvegarde Coup 2 Pouce.');
+        alert('Fichier invalide. Ce fichier ne semble pas etre un fichier de sauvegarde Coup 2 Pouce.');
         return;
       }
-      var nbCles = Object.keys(backup.donnees).length;
-      var dateBackup = backup.date ? new Date(backup.date).toLocaleDateString('fr-FR') : 'inconnue';
-      var msg = 'Sauvegarde du ' + dateBackup + ' - ' + nbCles + ' blocs de donnees.\n\n' + 'Cette operation va remplacer TOUTES vos donnees actuelles (profil, devis, missions, factures, tarifs).\n\n' + 'Voulez-vous continuer ?';
+      var msg = 'Restaurer les données depuis ce fichier ? Les données actuelles seront remplacées.';
       var confirm1 = confirm(msg);
       if (!confirm1) return;
-      // Restauration
-      Object.keys(backup.donnees).forEach(function(cle) {
-        var val = backup.donnees[cle];
-        try {
-          localStorage.setItem(cle, typeof val === 'string' ? val : JSON.stringify(val));
-        } catch(err) {
-          console.warn('Impossible de restaurer la clé : ' + cle, err);
+      var keys = Object.keys(backup.donnees);
+      keys.forEach(function(k) {
+        if (backup.donnees[k] !== null && backup.donnees[k] !== undefined) {
+          localStorage.setItem(k, backup.donnees[k]);
         }
       });
-      alert('Restauration terminee. L\'application va se recharger.');
+      alert('Données restaurées avec succès ! L\'application va se recharger.');
       window.location.reload();
     } catch(err) {
-      alert('Erreur de lecture du fichier. Vérifiez que le fichier est bien un JSON valide.');
+      alert('Erreur lors de la lecture du fichier.');
     }
   };
   reader.readAsText(file);
+}
+
+// ─── Changement email de connexion ───
+function changerEmailConnexion() {
+  var newEmail = (document.getElementById('profil-new-email')?.value || '').trim();
+  var msgEl    = document.getElementById('profil-email-msg');
+  var token    = localStorage.getItem('fb_token');
+
+  if (!newEmail) {
+    msgEl.textContent = 'Saisis un nouvel email.';
+    msgEl.style.background = '#FEE2E2';
+    msgEl.style.color = '#991B1B';
+    msgEl.style.display = 'block';
+    return;
+  }
+  if (!token) {
+    msgEl.textContent = 'Session expirée — reconnecte-toi.';
+    msgEl.style.background = '#FEE2E2';
+    msgEl.style.color = '#991B1B';
+    msgEl.style.display = 'block';
+    return;
+  }
+
+  var apiKey = 'AIzaSyATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+  fetch('https://identitytoolkit.googleapis.com/v1/accounts:update?key=' + apiKey, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({idToken: token, email: newEmail, returnSecureToken: true})
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (data.idToken) {
+      localStorage.setItem('fb_token', data.idToken);
+      localStorage.setItem('fb_email', newEmail);
+      msgEl.textContent = 'Email mis à jour : ' + newEmail;
+      msgEl.style.background = '#D1FAE5';
+      msgEl.style.color = '#065F46';
+      msgEl.style.display = 'block';
+      document.getElementById('profil-new-email').value = '';
+    } else {
+      var msg = 'Erreur lors du changement.';
+      if (data.error) {
+        if (data.error.message === 'EMAIL_EXISTS')       msg = 'Cet email est déjà utilisé.';
+        if (data.error.message === 'INVALID_EMAIL')      msg = 'Email invalide.';
+        if (data.error.message === 'CREDENTIAL_TOO_OLD_LOGIN_AGAIN') msg = 'Session expirée — reconnecte-toi.';
+      }
+      msgEl.textContent = msg;
+      msgEl.style.background = '#FEE2E2';
+      msgEl.style.color = '#991B1B';
+      msgEl.style.display = 'block';
+    }
+  })
+  .catch(function() {
+    msgEl.textContent = 'Erreur réseau.';
+    msgEl.style.background = '#FEE2E2';
+    msgEl.style.color = '#991B1B';
+    msgEl.style.display = 'block';
+  });
 }
