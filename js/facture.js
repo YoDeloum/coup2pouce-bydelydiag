@@ -135,6 +135,29 @@ function renderFactureForm(body) {
     </div>
 
     <div class="devis-section">
+      <div class="devis-section-title" style="color:#1B4332">🧾 Coordonnées de facturation</div>
+      <p style="font-size:12px;color:#6B7280;margin-bottom:10px">Renseigne uniquement si différentes du client (société, adresse de facturation...)</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="devis-field" style="grid-column:1/-1">
+          <label class="devis-label">Société (optionnel)</label>
+          <input class="devis-input" id="fc-fact_societe" type="text" value="${src.fact_societe||''}" placeholder="Laissez vide si particulier"/>
+        </div>
+        <div class="devis-field">
+          <label class="devis-label">Nom facturation</label>
+          <input class="devis-input" id="fc-fact_nom" type="text" value="${src.fact_nom||''}" placeholder="Idem client si vide"/>
+        </div>
+        <div class="devis-field">
+          <label class="devis-label">Prénom facturation</label>
+          <input class="devis-input" id="fc-fact_prenom" type="text" value="${src.fact_prenom||''}" placeholder="Idem client si vide"/>
+        </div>
+        <div class="devis-field" style="grid-column:1/-1">
+          <label class="devis-label">Adresse de facturation</label>
+          <input class="devis-input" id="fc-fact_adresse" type="text" value="${src.fact_adresse||''}" placeholder="Idem adresse du bien si vide"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="devis-section">
       <div class="devis-section-title" style="color:#1B4332">🔬 Prestations réalisées</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="fc-diags-grid">
         ${DEVIS_DIAGNOSTICS_LIST.map(d => {
@@ -212,6 +235,10 @@ function getFactureFormData() {
     client_email:   document.getElementById('fc-client_email')?.value   || '',
     bien_adresse:   document.getElementById('fc-bien_adresse')?.value   || '',
     bien_type:      document.getElementById('fc-bien_type')?.value      || '',
+    fact_societe:   document.getElementById('fc-fact_societe')?.value   || '',
+    fact_nom:       document.getElementById('fc-fact_nom')?.value       || '',
+    fact_prenom:    document.getElementById('fc-fact_prenom')?.value    || '',
+    fact_adresse:   document.getElementById('fc-fact_adresse')?.value   || '',
     statut_fiscal:        document.getElementById('fc-statut_fiscal')?.value || p.statut_fiscal || 'HT',
     // Champs propagés depuis le devis source
     periode_construction: src.periode_construction || '',
