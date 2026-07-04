@@ -48,7 +48,8 @@ exports.handler = async function(event) {
   var html       = payload.html;
   var attachments = payload.attachments || [];
   var fromName   = payload.fromName  || 'Coup 2 Pouce';
-  var fromEmail  = payload.fromEmail || 'noreply@delydiag.fr';
+  var fromEmail  = payload.fromEmail || 'noreply@coup2pouce-pro.fr';
+  var replyTo    = payload.replyTo   || '';
 
   if (!to || !subject || !html) {
     return {
@@ -65,13 +66,13 @@ exports.handler = async function(event) {
         'Authorization': 'Bearer ' + RESEND_KEY,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
+      body: JSON.stringify(Object.assign({
         from: fromName + ' <' + fromEmail + '>',
         to: [to],
         subject: subject,
         html: html,
         attachments: attachments
-      })
+      }, replyTo ? { reply_to: replyTo } : {}))
     });
 
     var rawText = await res.text();
