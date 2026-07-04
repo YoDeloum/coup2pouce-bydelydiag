@@ -49,9 +49,13 @@ function firebaseLogin() {
       localStorage.setItem('fb_token', data.idToken);
       localStorage.setItem('fb_uid',   data.localId);
       localStorage.setItem('fb_email', email);
-      document.getElementById('login-screen').classList.add('hidden');
+      btn.textContent = '⏳ Chargement de vos données...';
       if (typeof syncFromFirestore === 'function') {
-        syncFromFirestore(function() {});
+        syncFromFirestore(function() {
+          document.getElementById('login-screen').classList.add('hidden');
+        });
+      } else {
+        document.getElementById('login-screen').classList.add('hidden');
       }
     } else {
       var msg = 'Email ou mot de passe incorrect';
@@ -108,9 +112,13 @@ function firebaseRegister() {
       localStorage.setItem('fb_token', data.idToken);
       localStorage.setItem('fb_uid',   data.localId);
       localStorage.setItem('fb_email', email);
-      document.getElementById('login-screen').classList.add('hidden');
+      btn.textContent = '⏳ Chargement de vos données...';
       if (typeof syncFromFirestore === 'function') {
-        syncFromFirestore(function() {});
+        syncFromFirestore(function() {
+          document.getElementById('login-screen').classList.add('hidden');
+        });
+      } else {
+        document.getElementById('login-screen').classList.add('hidden');
       }
     } else {
       var msg = 'Erreur lors de la création du compte';
