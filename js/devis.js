@@ -180,6 +180,14 @@ function renderDevisForm(body) {
             <option value="Location" ${devis.type_transaction==='Location'?'selected':''}>Location</option>
           </select>
         </div>
+        <div class="devis-field" style="grid-column:1/-1">
+          <label class="devis-label">Installation gaz</label>
+          <select class="devis-select" id="dv-gaz">
+            <option value="" ${!devis.gaz?'selected':''}>— Non renseigné —</option>
+            <option value="oui" ${devis.gaz==='oui'?'selected':''}>Oui</option>
+            <option value="non" ${devis.gaz==='non'?'selected':''}>Non</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -205,6 +213,7 @@ function renderDevisForm(body) {
     <div class="devis-section">
       <div class="devis-section-title">🔬 Prestations</div>
       <p style="font-size:12px;color:#6B7280;margin-bottom:12px">Sélectionne les diagnostics — tarifs depuis ton profil</p>
+      <button onclick="calculerDiagsAuto()" style="width:100%;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,#6366F1,#818CF8);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">⚡ Calculer automatiquement les diagnostics obligatoires</button>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="dv-diags-grid">
         ${DEVIS_DIAGNOSTICS_LIST.map(function(d) {
           var isSel = sel.includes(d);
@@ -372,6 +381,7 @@ function getDevisFormData() {
     periode_construction: document.getElementById('dv-periode_construction')?.value || '',
     nb_pieces:            document.getElementById('dv-nb_pieces')?.value            || '',
     type_transaction:     document.getElementById('dv-type_transaction')?.value     || '',
+    gaz:                  document.getElementById('dv-gaz')?.value                  || '',
     dependances:          selDeps,
     dep_custom:           (document.getElementById('dv-dep-custom')?.value || '').trim(),
     taux_tva:             p.taux_tva || 20,
@@ -428,13 +438,63 @@ function convertirEnMission() {
   if (devis.mission_creee) {
     if (!confirm('Une mission a déjà été créée depuis ce devis.\nEn créer une nouvelle quand même ?')) return;
   }
-  // Marquer le devis comme "transformé en mission"
   var list = getAllDevis();
   if (list[_devisEdit].statut === 'Devis') list[_devisEdit].statut = 'Accepté';
   list[_devisEdit].mission_creee = true;
   saveAllDevis(list);
-  // Passer les données au module mission
   window._devisToMission = devis;
   closeDevis();
   openMission();
+}
+
+// ─── CALCUL AUTO DIAGNOSTICS ───
+function calculerDiagsAuto() {
+  var periode     = document.getElementById('dv-periode_construction')?.value || '';
+  var transaction = document.getElementById('dv-type_transaction')?.value || '';
+  var typeBien    = document.getElementById('dv-bien_type')?.value || '';
+  var gaz         = document.getElementById('dv-gaz')?.value === 'oui';
+
+  if (!transaction) {
+    alert('Sélectionne d\'abord le type de transaction (Vente ou Location).');
+    return;
+  }
+  if (!periode) {
+    alert('Sélectionne d\'abord la période de construction du bien.');
+    return;
+  }
+  if (typeof calculerDiagnosticsObligatoires !== 'function') {
+    alert('Erreur : moteur de règles non chargé.');
+    return;
+  }
+
+  var obligatoires = calculerDiagnosticsObligatoires({
+    periode: periode,
+    transaction: transaction,
+    typeBien: typeBien,
+    gaz: gaz
+  });
+
+  document.querySelectorAll('#dv-diags-grid .diag-item').forEach(function(el) {
+    var span = el.querySelector('span');
+    var diag = span ? span.textContent.trim() : '';
+    var doit = obligatoires.indexOf(diag) !== -1;
+    if (doit) {
+      el.classList.add('selected');
+      var cb = el.querySelector('input[type="checkbox"]');
+      if (cb) cb.checked = true;
+      el.style.borderColor = '#059669';
+      el.style.background  = '#05966912';
+    } else {
+      el.classList.remove('selected');
+      var cb = el.querySelector('input[type="checkbox"]');
+      if (cb) cb.checked = false;
+      el.style.borderColor = '';
+      el.style.background  = '';
+    }
+  });
+
+  updateDevisTotal();
+
+  var nb = obligatoires.length;
+  alert('\u2705 ' + nb + ' diagnostic' + (nb > 1 ? 's' : '') + ' sélectionné' + (nb > 1 ? 's' : '') + ' :\n' + obligatoires.join(', ') + '\n\nTu peux modifier la sélection manuellement.');
 }
