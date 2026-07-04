@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Signature du devis</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #f8fafc; color: #1f2937; min-height: 100vh; }
+
+    .header { background: linear-gradient(135deg, #2D6A4F, #059669); padding: 22px 20px; text-align: center; }
+    .header h1 { color: #fff; font-size: 19px; font-weight: 700; margin-bottom: 4px; }
+    .header p  { color: rgba(255,255,255,.75); font-size: 13px; }
+
+    .container { max-width: 560px; margin: 0 auto; padding: 20px 16px 40px; }
+
+    .card { background: #fff; border-radius: 14px; padding: 18px; margin-bottom: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.07); }
+    .card-title { font-size: 13px; font-weight: 700; color: #2D6A4F; margin-bottom: 12px; text-transform: uppercase; letter-spacing: .5px; }
+
+    .info-row { font-size: 13px; color: #374151; padding: 5px 0; border-bottom: 1px solid #f3f4f6; }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { color: #9ca3af; font-size: 11px; font-weight: 600; margin-bottom: 1px; }
+
+    .amount-box { text-align: center; background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 10px; padding: 16px; margin: 12px 0; }
+    .amount-value { font-size: 30px; font-weight: 800; color: #059669; line-height: 1; }
+    .amount-label { font-size: 12px; color: #6b7280; margin-top: 4px; }
+
+    .diag-item { padding: 7px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #374151; display: flex; align-items: center; gap: 8px; }
+    .diag-item:last-child { border-bottom: none; }
+    .diag-check { color: #059669; font-weight: 700; }
+
+    .sig-hint { font-size: 13px; color: #6b7280; margin-bottom: 12px; line-height: 1.5; }
+    #sig-canvas { width: 100%; border: 2px dashed #d1d5db; border-radius: 10px; background: #fafafa; touch-action: none; display: block; cursor: crosshair; }
+    #sig-canvas.has-sig { border-color: #059669; border-style: solid; background: #fff; }
+
+    .sig-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .btn-clear { flex: 1; padding: 10px; border: 1.5px solid #e5e7eb; background: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; color: #6b7280; cursor: pointer; font-family: inherit; }
+    .btn-clear:active { background: #f9fafb; }
+
+    .cgv-box { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; margin: 14px 0 8px; font-size: 12px; color: #6b7280; line-height: 1.7; }
+
+    .btn-accept { width: 100%; padding: 17px; background: linear-gradient(135deg, #059669, #2D6A4F); color: #fff; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; margin-top: 6px; transition: opacity .2s; }
+    .btn-accept:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-accept:active:not(:disabled) { opacity: .9; }
+
+    .state { text-align: center; padding: 60px 20px; }
+    .state-icon { font-size: 64px; margin-bottom: 18px; }
+    .state-title { font-size: 21px; font-weight: 700; margin-bottom: 8px; }
+    .state-sub { font-size: 14px; color: #6b7280; line-height: 1.6; }
+
+    .spinner { width: 40px; height: 40px; border: 3px solid #e5e7eb; border-top-color: #2D6A4F; border-radius: 50%; animation: spin .8s linear infinite; margin: 0 auto 18px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #view-loading, #view-error, #view-already, #view-success { display: none; }
+    #view-content { display: none; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1 id="hdr-societe">Coup 2 Pouce</h1>
+  <p>Signature électronique de devis</p>
+</div>
+
+<!-- LOADING -->
+<div id="view-loading" class="container state">
+  <div class="spinner"></div>
+  <p style="color:#6b7280;font-size:14px">Chargement du devis...</p>
+</div>
+
+<!-- ERREUR -->
+<div id="view-error" class="container state">
+  <div class="state-icon">❌</div>
+  <div class="state-title" style="color:#ef4444">Lien invalide</div>
+  <div class="state-sub">Ce lien de signature n'est plus disponible ou a expiré.</div>
+</div>
+
+<!-- DÉJÀ SIGNÉ -->
+<div id="view-already" class="container state">
+  <div class="state-icon">✅</div>
+  <div class="state-title" style="color:#059669">Devis déjà signé</div>
+  <div class="state-sub" id="already-sub">Ce devis a déjà été signé.</div>
+</div>
+
+<!-- SUCCÈS -->
+<div id="view-success" class="container state">
+  <div class="state-icon">🎉</div>
+  <div class="state-title" style="color:#059669">Devis signé !</div>
+  <div class="state-sub">Votre signature a bien été enregistrée.<br>Vous recevrez une confirmation de la part du diagnostiqueur.</div>
+</div>
+
+<!-- CONTENU PRINCIPAL -->
+<div id="view-content" class="container">
+
+  <!-- Récapitulatif -->
+  <div class="card">
+    <div class="card-title">📄 Devis N° <span id="d-numero"></span></div>
+    <div class="info-row">
+      <div class="info-label">Client</div>
+      <div id="d-client" style="font-weight:600"></div>
+    </div>
+    <div class="info-row">
+      <div class="info-label">Adresse du bien</div>
+      <div id="d-adresse"></div>
+    </div>
+    <div class="info-row">
+      <div class="info-label">Type de bien / Transaction</div>
+      <div id="d-type"></div>
+    </div>
+    <div class="info-row">
+      <div class="info-label">Date d'intervention prévue</div>
+      <div id="d-date-mission"></div>
+    </div>
+
+    <div class="amount-box">
+      <div class="amount-value" id="d-montant"></div>
+      <div class="amount-label" id="d-fiscal"></div>
+    </div>
+  </div>
+
+  <!-- Prestations -->
+  <div class="card">
+    <div class="card-title">🔬 Prestations incluses</div>
+    <div id="d-diags"></div>
+  </div>
+
+  <!-- Signature -->
+  <div class="card">
+    <div class="card-title">✍️ Votre signature</div>
+    <p class="sig-hint">Signez ci-dessous avec votre doigt (ou votre souris), puis cliquez sur le bouton de validation.</p>
+    <canvas id="sig-canvas" height="160"></canvas>
+    <div class="sig-actions">
+      <button class="btn-clear" onclick="clearSig()">🗑️ Effacer</button>
+    </div>
+
+    <div class="cgv-box">
+      En signant ce document, je reconnais avoir pris connaissance du devis N°&nbsp;<span id="cgv-numero"></span> et j'accepte les conditions générales de vente et d'intervention. J'autorise le diagnostiqueur à procéder aux diagnostics immobiliers décrits ci-dessus pour le montant indiqué.
+    </div>
+
+    <button class="btn-accept" id="btn-accept" onclick="soumettreSig()">
+      ✅ J'accepte et je signe le devis
+    </button>
+  </div>
+
+  <p style="text-align:center;font-size:11px;color:#9ca3af;padding-bottom:16px">
+    Signature électronique légalement valide — Coup 2 Pouce by DELY DIAG
+  </p>
+</div>
+
+<script>
+// ─── Config Firestore ───
+var FS_PROJECT = 'coup2pouce-by-delydiag';
+var FS_API_KEY = 'AIzaSyATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+var FS_URL = 'https://firestore.googleapis.com/v1/projects/' + FS_PROJECT + '/databases/(default)/documents/signatures/';
+
+var _token = new URLSearchParams(location.search).get('token');
+var _devisData = null;
+
+// ─── Vues ───
+function showView(id) {
+  ['view-loading','view-error','view-already','view-success','view-content'].forEach(function(v) {
+    document.getElementById(v).style.display = v === id ? 'block' : 'none';
+  });
+}
+
+// ─── Canvas signature ───
+var canvas, ctx, drawing = false, _hasSig = false;
+
+function initCanvas() {
+  canvas = document.getElementById('sig-canvas');
+  canvas.width = canvas.offsetWidth;
+  ctx = canvas.getContext('2d');
+  ctx.strokeStyle = '#111827';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  function pos(e) {
+    var r = canvas.getBoundingClientRect();
+    var src = e.touches ? e.touches[0] : e;
+    return { x: src.clientX - r.left, y: src.clientY - r.top };
+  }
+
+  canvas.addEventListener('mousedown',  function(e) { drawing = true; var p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+  canvas.addEventListener('mousemove',  function(e) { if (!drawing) return; var p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); markSig(); });
+  canvas.addEventListener('mouseup',    function() { drawing = false; });
+  canvas.addEventListener('mouseleave', function() { drawing = false; });
+
+  canvas.addEventListener('touchstart', function(e) { e.preventDefault(); drawing = true; var p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }, { passive: false });
+  canvas.addEventListener('touchmove',  function(e) { e.preventDefault(); if (!drawing) return; var p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); markSig(); }, { passive: false });
+  canvas.addEventListener('touchend',   function() { drawing = false; });
+}
+
+function markSig() {
+  _hasSig = true;
+  canvas.classList.add('has-sig');
+}
+
+function clearSig() {
+  if (!canvas) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  _hasSig = false;
+  canvas.classList.remove('has-sig');
+}
+
+// ─── Chargement du devis ───
+function charger() {
+  if (!_token) { showView('view-error'); return; }
+  showView('view-loading');
+
+  fetch(FS_URL + _token + '?key=' + FS_API_KEY)
+    .then(function(r) { return r.json(); })
+    .then(function(doc) {
+      if (!doc.fields || !doc.fields.value) { showView('view-error'); return; }
+
+      try { _devisData = JSON.parse(doc.fields.value.stringValue); }
+      catch(e) { showView('view-error'); return; }
+
+      if (_devisData.signed) {
+        var sub = document.getElementById('already-sub');
+        if (_devisData.signedAt) {
+          var d = new Date(_devisData.signedAt);
+          sub.textContent = 'Ce devis a déjà été signé le ' + d.toLocaleDateString('fr-FR') + ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + '.';
+        }
+        showView('view-already');
+        return;
+      }
+
+      afficherDevis(_devisData);
+      showView('view-content');
+      initCanvas();
+    })
+    .catch(function() { showView('view-error'); });
+}
+
+function afficherDevis(d) {
+  if (d.nomSociete) document.getElementById('hdr-societe').textContent = d.nomSociete;
+
+  document.getElementById('d-numero').textContent  = d.devisNumero || '';
+  document.getElementById('cgv-numero').textContent = d.devisNumero || '';
+  document.getElementById('d-client').textContent  = ((d.clientPrenom || '') + ' ' + (d.clientNom || '')).trim();
+  document.getElementById('d-adresse').textContent = d.bienAdresse || '—';
+  document.getElementById('d-type').textContent    = [d.bienType, d.typeTransaction].filter(Boolean).join(' — ') || '—';
+
+  if (d.dateMission) {
+    document.getElementById('d-date-mission').textContent = new Date(d.dateMission).toLocaleDateString('fr-FR');
+  } else {
+    document.getElementById('d-date-mission').textContent = 'À définir';
+  }
+
+  var montant = (d.prixFinal && parseFloat(d.prixFinal) > 0) ? parseFloat(d.prixFinal) : parseFloat(d.totalHt || 0);
+  document.getElementById('d-montant').textContent = montant.toFixed(2) + ' €';
+  document.getElementById('d-fiscal').textContent  = d.statut_fiscal || 'HT';
+
+  var diagsEl = document.getElementById('d-diags');
+  if (d.diagnostics && d.diagnostics.length) {
+    diagsEl.innerHTML = d.diagnostics.map(function(diag) {
+      return '<div class="diag-item"><span class="diag-check">✓</span> ' + diag + '</div>';
+    }).join('');
+  } else {
+    diagsEl.innerHTML = '<p style="color:#9ca3af;font-size:13px">Aucune prestation renseignée</p>';
+  }
+}
+
+// ─── Soumission signature ───
+function soumettreSig() {
+  if (!_hasSig) {
+    alert('Veuillez signer dans le cadre avant de valider.');
+    return;
+  }
+
+  var sigImg = canvas.toDataURL('image/png');
+  var now    = new Date().toISOString();
+
+  var updated = Object.assign({}, _devisData, {
+    signed:       true,
+    signedAt:     now,
+    signataire:   ((_devisData.clientPrenom || '') + ' ' + (_devisData.clientNom || '')).trim(),
+    signature_img: sigImg
+  });
+
+  var btn = document.getElementById('btn-accept');
+  btn.textContent = '⏳ Enregistrement...';
+  btn.disabled = true;
+
+  fetch(FS_URL + _token + '?key=' + FS_API_KEY, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      fields: { value: { stringValue: JSON.stringify(updated) } }
+    })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    if (res.fields) {
+      showView('view-success');
+    } else {
+      btn.textContent = '✅ J\'accepte et je signe le devis';
+      btn.disabled = false;
+      alert('Erreur lors de l\'enregistrement. Veuillez réessayer.');
+    }
+  })
+  .catch(function() {
+    btn.textContent = '✅ J\'accepte et je signe le devis';
+    btn.disabled = false;
+    alert('Erreur réseau. Vérifiez votre connexion et réessayez.');
+  });
+}
+
+charger();
+</script>
+</body>
+</html>
