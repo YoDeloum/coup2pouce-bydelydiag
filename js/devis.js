@@ -610,7 +610,8 @@ function envoyerMailDevis(devis) {
         html:        html,
         attachments: attachments,
         fromName:    p.nom_societe  || 'Coup 2 Pouce',
-        fromEmail:   p.email        || 'noreply@delydiag.fr'
+        fromEmail:   'noreply@coup2pouce-pro.fr',
+        replyTo:     p.email        || ''
       })
     });
   })
