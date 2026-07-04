@@ -1,13 +1,14 @@
 // ─────────────────────────────────────────────
 // STORAGE.JS — Synchronisation Firestore
-// Intercepte localStorage → sync cloud auto
+// Chaque écriture localStorage → sync cloud
+// Token Firebase rafraîchi automatiquement
 // ─────────────────────────────────────────────
 
 var _FS_PROJECT = 'coup2pouce-by-delydiag';
 var _FS_API_KEY = 'AIzaSyATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
 var _FS_COL     = 'https://firestore.googleapis.com/v1/projects/' + _FS_PROJECT + '/databases/(default)/documents/userdata/';
 
-// Clés à synchroniser (données métier uniquement — jamais les tokens d'auth)
+// Clés à synchroniser (données métier uniquement)
 var _FS_KEYS = [
   'dd_company_profile',
   'dd_tarifs',
@@ -24,12 +25,9 @@ var _FS_KEYS = [
   'dd_dark'
 ];
 
-// Sauvegarde de la méthode originale avant interception
 var _lsSetItem = Storage.prototype.setItem;
 
-// ─── Interception de localStorage.setItem ───
-// Tous les modules existants continuent de fonctionner sans modification.
-// Chaque écriture sur une clé métier déclenche une sync Firestore silencieuse.
+// ─── Interception localStorage.setItem ───
 Storage.prototype.setItem = function(key, value) {
   _lsSetItem.call(this, key, value);
   if (this === localStorage && _FS_KEYS.indexOf(key) !== -1) {
@@ -37,65 +35,114 @@ Storage.prototype.setItem = function(key, value) {
   }
 };
 
+// ─── Rafraîchissement automatique du token ───
+function _fsRefreshToken(callback) {
+  var refresh = localStorage.getItem('fb_refresh');
+  if (!refresh) { callback(null); return; }
+
+  fetch('https://securetoken.googleapis.com/v1/token?key=' + _FS_API_KEY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ grant_type: 'refresh_token', refresh_token: refresh })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.id_token) {
+      _lsSetItem.call(localStorage, 'fb_token', data.id_token);
+      if (data.refresh_token) _lsSetItem.call(localStorage, 'fb_refresh', data.refresh_token);
+      callback(data.id_token);
+    } else {
+      callback(null);
+    }
+  })
+  .catch(function() { callback(null); });
+}
+
 // ─── Écriture d'une clé vers Firestore ───
-// Utilise updateMask pour ne mettre à jour qu'un seul champ sans écraser les autres.
 function _fsPush(key, value) {
-  var uid = localStorage.getItem('fb_uid');
-  if (!uid) return;
+  var uid   = localStorage.getItem('fb_uid');
+  var token = localStorage.getItem('fb_token');
+  if (!uid || !token) return;
 
   var fields = {};
   fields[key] = { stringValue: String(value) };
 
-  fetch(_FS_COL + uid + '?key=' + _FS_API_KEY + '&updateMask.fieldPaths=' + key, {
-    method:  'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+  var url = _FS_COL + uid + '?updateMask.fieldPaths=' + key;
+  var opts = {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify({ fields: fields })
-  }).catch(function() {
-    // Silencieux : la donnée reste dans localStorage même si Firestore est injoignable
-  });
+  };
+
+  fetch(url, opts).then(function(res) {
+    if (res.status === 401 || res.status === 403) {
+      // Token expiré — rafraîchir et réessayer
+      _fsRefreshToken(function(newToken) {
+        if (!newToken) return;
+        opts.headers['Authorization'] = 'Bearer ' + newToken;
+        fetch(url, opts).catch(function() {});
+      });
+    }
+  }).catch(function() {});
 }
 
-// ─── Lecture complète depuis Firestore → localStorage ───
-// Appelée à chaque connexion (login).
-// Si Firestore n'a pas encore une clé mais localStorage l'a (migration),
-// la donnée locale est poussée vers Firestore automatiquement.
-function syncFromFirestore(callback) {
-  var uid = localStorage.getItem('fb_uid');
-  if (!uid) {
-    if (callback) callback();
-    return;
+// ─── Traitement des données reçues de Firestore ───
+function _processSync(data, uid, callback) {
+  var cloudKeys = {};
+  if (data && data.fields) {
+    _FS_KEYS.forEach(function(key) {
+      var field = data.fields[key];
+      if (field && field.stringValue !== undefined) {
+        _lsSetItem.call(localStorage, key, field.stringValue);
+        cloudKeys[key] = true;
+      }
+    });
   }
+  // Pousser vers le cloud les clés locales absentes
+  _FS_KEYS.forEach(function(key) {
+    if (!cloudKeys[key]) {
+      var val = localStorage.getItem(key);
+      if (val) _fsPush(key, val);
+    }
+  });
+  if (callback) callback();
+}
 
-  fetch(_FS_COL + uid + '?key=' + _FS_API_KEY)
+// ─── Lecture complète depuis Firestore ───
+function _doSync(uid, token, callback) {
+  fetch(_FS_COL + uid, {
+    headers: { 'Authorization': 'Bearer ' + token }
+  })
   .then(function(res) { return res.json(); })
   .then(function(data) {
-    var cloudKeys = {};
-    if (data && data.fields) {
-      _FS_KEYS.forEach(function(key) {
-        var field = data.fields[key];
-        if (field && field.stringValue !== undefined) {
-          // Donnée cloud → localStorage
-          _lsSetItem.call(localStorage, key, field.stringValue);
-          cloudKeys[key] = true;
-        }
+    if (data && data.error && (data.error.code === 401 || data.error.code === 403)) {
+      // Token invalide — rafraîchir et réessayer une fois
+      _fsRefreshToken(function(newToken) {
+        if (!newToken) { if (callback) callback(); return; }
+        fetch(_FS_COL + uid, { headers: { 'Authorization': 'Bearer ' + newToken } })
+        .then(function(r) { return r.json(); })
+        .then(function(d) { _processSync(d, uid, callback); })
+        .catch(function() { if (callback) callback(); });
       });
+      return;
     }
-
-    // Migration unique : pousse les clés locales absentes du cloud
-    if (!localStorage.getItem('_fs_migrated_v2')) {
-      _FS_KEYS.forEach(function(key) {
-        if (!cloudKeys[key]) {
-          var val = localStorage.getItem(key);
-          if (val) _fsPush(key, val);
-        }
-      });
-      _lsSetItem.call(localStorage, '_fs_migrated_v2', '1');
-    }
-
-    if (callback) callback();
+    _processSync(data, uid, callback);
   })
-  .catch(function() {
-    // En cas d'erreur réseau : l'app continue avec les données locales
-    if (callback) callback();
-  });
+  .catch(function() { if (callback) callback(); });
+}
+
+// ─── Point d'entrée : sync au login ───
+function syncFromFirestore(callback) {
+  var uid   = localStorage.getItem('fb_uid');
+  var token = localStorage.getItem('fb_token');
+  if (!uid) { if (callback) callback(); return; }
+
+  if (!token) {
+    _fsRefreshToken(function(newToken) {
+      if (newToken) { _doSync(uid, newToken, callback); }
+      else { if (callback) callback(); }
+    });
+    return;
+  }
+  _doSync(uid, token, callback);
 }
