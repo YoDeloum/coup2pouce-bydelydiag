@@ -4,7 +4,8 @@
 // ─────────────────────────────────────────────
 
 var _FS_PROJECT = 'coup2pouce-by-delydiag';
-var _FS_BASE    = 'https://firestore.googleapis.com/v1/projects/' + _FS_PROJECT + '/databases/(default)/documents/users/';
+var _FS_API_KEY = 'AIzaSyATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+var _FS_COL     = 'https://firestore.googleapis.com/v1/projects/' + _FS_PROJECT + '/databases/(default)/documents/userdata/';
 
 // Clés à synchroniser (données métier uniquement — jamais les tokens d'auth)
 var _FS_KEYS = [
@@ -36,59 +37,61 @@ Storage.prototype.setItem = function(key, value) {
   }
 };
 
-// ─── Helpers auth ───
-function _fsGetAuth() {
-  return {
-    uid:   localStorage.getItem('fb_uid'),
-    token: localStorage.getItem('fb_token')
-  };
-}
-
 // ─── Écriture d'une clé vers Firestore ───
+// Utilise updateMask pour ne mettre à jour qu'un seul champ sans écraser les autres.
 function _fsPush(key, value) {
-  var a = _fsGetAuth();
-  if (!a.uid || !a.token) return;
+  var uid = localStorage.getItem('fb_uid');
+  if (!uid) return;
 
-  fetch(_FS_BASE + a.uid + '/data/' + key, {
+  var fields = {};
+  fields[key] = { stringValue: String(value) };
+
+  fetch(_FS_COL + uid + '?key=' + _FS_API_KEY + '&updateMask.fieldPaths=' + key, {
     method:  'PATCH',
-    headers: {
-      'Content-Type':  'application/json',
-      'Authorization': 'Bearer ' + a.token
-    },
-    body: JSON.stringify({
-      fields: { value: { stringValue: String(value) } }
-    })
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: fields })
   }).catch(function() {
     // Silencieux : la donnée reste dans localStorage même si Firestore est injoignable
   });
 }
 
 // ─── Lecture complète depuis Firestore → localStorage ───
-// Appelée à chaque connexion (login) et à chaque ouverture de l'app (checkLogin).
-// Garantit que les données cloud écrasent localStorage si différentes
-// (utile quand l'utilisateur change d'appareil).
+// Appelée à chaque connexion (login).
+// Si Firestore n'a pas encore une clé mais localStorage l'a (migration),
+// la donnée locale est poussée vers Firestore automatiquement.
 function syncFromFirestore(callback) {
-  var a = _fsGetAuth();
-  if (!a.uid || !a.token) {
+  var uid = localStorage.getItem('fb_uid');
+  if (!uid) {
     if (callback) callback();
     return;
   }
 
-  fetch(_FS_BASE + a.uid + '/data', {
-    headers: { 'Authorization': 'Bearer ' + a.token }
-  })
+  fetch(_FS_COL + uid + '?key=' + _FS_API_KEY)
   .then(function(res) { return res.json(); })
   .then(function(data) {
-    if (data.documents && data.documents.length) {
-      data.documents.forEach(function(doc) {
-        var key = doc.name.split('/').pop();
-        var val = doc.fields && doc.fields.value && doc.fields.value.stringValue;
-        if (val !== undefined && _FS_KEYS.indexOf(key) !== -1) {
-          // Écriture directe via la méthode originale (sans re-déclencher la sync)
-          _lsSetItem.call(localStorage, key, val);
+    var cloudKeys = {};
+    if (data && data.fields) {
+      _FS_KEYS.forEach(function(key) {
+        var field = data.fields[key];
+        if (field && field.stringValue !== undefined) {
+          // Donnée cloud → localStorage
+          _lsSetItem.call(localStorage, key, field.stringValue);
+          cloudKeys[key] = true;
         }
       });
     }
+
+    // Migration unique : pousse les clés locales absentes du cloud
+    if (!localStorage.getItem('_fs_migrated_v2')) {
+      _FS_KEYS.forEach(function(key) {
+        if (!cloudKeys[key]) {
+          var val = localStorage.getItem(key);
+          if (val) _fsPush(key, val);
+        }
+      });
+      _lsSetItem.call(localStorage, '_fs_migrated_v2', '1');
+    }
+
     if (callback) callback();
   })
   .catch(function() {
