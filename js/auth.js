@@ -46,9 +46,10 @@ function firebaseLogin() {
   .then(function(res) { return res.json(); })
   .then(function(data) {
     if (data.idToken) {
-      localStorage.setItem('fb_token', data.idToken);
-      localStorage.setItem('fb_uid',   data.localId);
-      localStorage.setItem('fb_email', email);
+      localStorage.setItem('fb_token',   data.idToken);
+      localStorage.setItem('fb_uid',     data.localId);
+      localStorage.setItem('fb_email',   email);
+      localStorage.setItem('fb_refresh', data.refreshToken);
       btn.textContent = '⏳ Chargement de vos données...';
       if (typeof syncFromFirestore === 'function') {
         syncFromFirestore(function() {
@@ -109,9 +110,10 @@ function firebaseRegister() {
   .then(function(res) { return res.json(); })
   .then(function(data) {
     if (data.idToken) {
-      localStorage.setItem('fb_token', data.idToken);
-      localStorage.setItem('fb_uid',   data.localId);
-      localStorage.setItem('fb_email', email);
+      localStorage.setItem('fb_token',   data.idToken);
+      localStorage.setItem('fb_uid',     data.localId);
+      localStorage.setItem('fb_email',   email);
+      localStorage.setItem('fb_refresh', data.refreshToken);
       btn.textContent = '⏳ Chargement de vos données...';
       if (typeof syncFromFirestore === 'function') {
         syncFromFirestore(function() {
