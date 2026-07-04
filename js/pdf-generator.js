@@ -46,7 +46,7 @@ function pdfRect(doc, x, y, w, h, color) {
 }
 
 // ─── DEVIS PDF ─────────────────────────────
-function genererPDFDevis(devis) {
+function genererPDFDevis(devis, _returnBlob) {
   var jsPDF = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
   if (!jsPDF) { alert('jsPDF non chargé. Vérifiez votre connexion internet.'); return; }
 
@@ -194,7 +194,9 @@ function genererPDFDevis(devis) {
   pdfText(doc, p.mentions_legales || '', 15, footerY + 2, {size:7, color:[150,150,150]});
   pdfText(doc, (p.nom_societe||'') + (p.siret ? ' — SIRET : ' + p.siret : ''), 195, footerY + 7, {size:7, color:[150,150,150], align:'right'});
 
-  doc.save('Devis_' + (devis.numero || 'XXXX') + '_' + (devis.client_nom || '') + '.pdf');
+  var _pdfFilename = 'Devis_' + (devis.numero || 'XXXX') + '_' + (devis.client_nom || '') + '.pdf';
+  if (_returnBlob) return { blob: doc.output('blob'), filename: _pdfFilename };
+  doc.save(_pdfFilename);
 }
 
 // ─── FACTURE PDF ───────────────────────────
@@ -324,6 +326,5 @@ function genererPDFFacture(facture) {
   pdfRect(doc, 0, footerY - 3, 210, 15, [245,247,250]);
   pdfText(doc, p.mentions_legales || '', 15, footerY + 2, {size:7, color:[150,150,150]});
   pdfText(doc, (p.nom_societe||'') + (p.siret ? ' — SIRET : ' + p.siret : ''), 195, footerY + 7, {size:7, color:[150,150,150], align:'right'});
-
   doc.save('Facture_' + (facture.numero_facture || 'XXXX') + '_' + (facture.client_nom || '') + '.pdf');
 }

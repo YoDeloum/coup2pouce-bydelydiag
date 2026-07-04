@@ -447,6 +447,76 @@ function convertirEnMission() {
   openMission();
 }
 
+// ─── ENVOI MAIL DEVIS + DOCUMENTS ───
+function envoyerMailDevis(devis) {
+  if (!devis) return;
+
+  // 1. Générer le PDF devis en blob
+  var jsPDF = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
+  if (!jsPDF) { alert('jsPDF non chargé. Vérifiez votre connexion.'); return; }
+  var pdfResult = genererPDFDevis(devis, true);
+  if (!pdfResult) { alert('Erreur lors de la génération du PDF.'); return; }
+
+  // 2. Récupérer les docs réglementaires (CGV, CGI, consentement)
+  var docs = {};
+  try { docs = JSON.parse(localStorage.getItem('dd_docs_reglementaires') || '{}'); } catch(e) {}
+
+  // 3. Construire la liste de fichiers
+  var files = [];
+  files.push(new File([pdfResult.blob], pdfResult.filename, { type: 'application/pdf' }));
+  var docsLabels = { consentement: 'Consentement', cgv: 'CGV', cgi: 'CGI' };
+  ['consentement', 'cgv', 'cgi'].forEach(function(id) {
+    if (docs[id] && docs[id].data) {
+      // Convertir dataURL en blob
+      var arr = docs[id].data.split(',');
+      var mime = (arr[0].match(/:(.*?);/) || [])[1] || 'application/pdf';
+      var bstr = atob(arr[1]);
+      var u8arr = new Uint8Array(bstr.length);
+      for (var i = 0; i < bstr.length; i++) u8arr[i] = bstr.charCodeAt(i);
+      var blob = new Blob([u8arr], { type: mime });
+      files.push(new File([blob], docs[id].name || (docsLabels[id] + '.pdf'), { type: mime }));
+    }
+  });
+
+  // 4. Infos pour l'e-mail
+  var clientEmail = devis.client_email || '';
+  var clientNom   = ((devis.client_prenom || '') + ' ' + (devis.client_nom || '')).trim();
+  var subject     = 'Votre devis N° ' + (devis.numero || '') + ' — ' + (devis.bien_adresse || '');
+  var body        = 'Bonjour ' + (devis.client_prenom || '') + ',\n\nVeuillez trouver ci-joint votre devis N' + String.fromCharCode(176) + ' ' + (devis.numero || '') + ' ainsi que les documents reglementaires.\n\nCordialement';
+
+  // 5. Web Share API (mobile)
+  if (navigator.canShare && navigator.canShare({ files: files })) {
+    navigator.share({
+      title: subject,
+      text:  body,
+      files: files
+    }).catch(function(err) {
+      if (err.name !== 'AbortError') console.error('Partage annule :', err);
+    });
+    return;
+  }
+
+  // 6. Fallback desktop : telecharger les PDF + ouvrir mailto
+  files.forEach(function(file) {
+    var url = URL.createObjectURL(file);
+    var a   = document.createElement('a');
+    a.href  = url;
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
+  });
+  var mailtoUrl = 'mailto:' + encodeURIComponent(clientEmail)
+    + '?subject=' + encodeURIComponent(subject)
+    + '&body='    + encodeURIComponent(body);
+  setTimeout(function() { window.location.href = mailtoUrl; }, 500);
+
+  if (!clientEmail) {
+    alert('Aucun email client renseigne sur ce devis.\nLes PDF ont ete telecharges. Ajoute l\'adresse email du client dans le devis.');
+  }
+}
+
 // ─── CALCUL AUTO DIAGNOSTICS ───
 function calculerDiagsAuto() {
   var periode     = document.getElementById('dv-periode_construction')?.value || '';
@@ -455,15 +525,15 @@ function calculerDiagsAuto() {
   var gaz         = document.getElementById('dv-gaz')?.value === 'oui';
 
   if (!transaction) {
-    alert('Sélectionne d\'abord le type de transaction (Vente ou Location).');
+    alert('Selectionne d\'abord le type de transaction (Vente ou Location).');
     return;
   }
   if (!periode) {
-    alert('Sélectionne d\'abord la période de construction du bien.');
+    alert('Selectionne d\'abord la periode de construction du bien.');
     return;
   }
   if (typeof calculerDiagnosticsObligatoires !== 'function') {
-    alert('Erreur : moteur de règles non chargé.');
+    alert('Erreur : moteur de regles non charge.');
     return;
   }
 
@@ -496,5 +566,5 @@ function calculerDiagsAuto() {
   updateDevisTotal();
 
   var nb = obligatoires.length;
-  alert('\u2705 ' + nb + ' diagnostic' + (nb > 1 ? 's' : '') + ' sélectionné' + (nb > 1 ? 's' : '') + ' :\n' + obligatoires.join(', ') + '\n\nTu peux modifier la sélection manuellement.');
+  alert('\u2705 ' + nb + ' diagnostic' + (nb > 1 ? 's' : '') + ' selectionne' + (nb > 1 ? 's' : '') + ' :\n' + obligatoires.join(', ') + '\n\nTu peux modifier la selection manuellement.');
 }
