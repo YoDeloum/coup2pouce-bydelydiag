@@ -21,6 +21,7 @@ var _FS_KEYS = [
   'dd_prenom',
   'dd_avis_lien',
   'dd_avis_msg',
+  'dd_stats_objectif',
   'certif_planning',
   'dd_dark'
 ];
