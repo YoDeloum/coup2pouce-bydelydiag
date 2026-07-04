@@ -265,6 +265,7 @@ function renderDevisForm(body) {
     <button class="devis-btn-primary" onclick="saveDevisForm()">💾 Enregistrer le devis</button>
     <button onclick="if(_devisEdit!==null && getAllDevis()[_devisEdit]) genererPDFDevis(getAllDevis()[_devisEdit])" style="width:100%;padding:12px;border-radius:10px;border:2px solid #059669;background:#fff;color:#059669;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>📄 Générer PDF devis</button>
     <button onclick="if(_devisEdit!==null && getAllDevis()[_devisEdit]) envoyerMailDevis(getAllDevis()[_devisEdit])" style="width:100%;padding:12px;border-radius:10px;border:2px solid #0891B2;background:#fff;color:#0891B2;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>✉️ Envoyer par mail</button>
+    ${devis.signature_token ? '<button id="btn-verif-sig" onclick="verifierSignatureDistante()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #059669;background:#F0FDF4;color:#059669;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:pointer">🔄 Vérifier si le client a signé</button>' : ''}
     <button onclick="if(_devisEdit!==null) openSignature(_devisEdit)" style="width:100%;padding:12px;border-radius:10px;border:2px solid #1B4332;background:#fff;color:#1B4332;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>✍️ Signature / Acceptation client</button>
     <button onclick="convertirEnFacture()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #5B21B6;background:#fff;color:#5B21B6;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>📋 Convertir en facture</button>
     <button onclick="convertirEnMission()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #E8650A;background:#fff;color:#E8650A;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>🏠 Créer une mission depuis ce devis</button>
@@ -448,74 +449,231 @@ function convertirEnMission() {
 }
 
 // ─── ENVOI MAIL DEVIS + DOCUMENTS ───
-function envoyerMailDevis(devis) {
-  if (!devis) return;
-
-  // 1. Générer le PDF devis en blob
-  var jsPDF = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
-  if (!jsPDF) { alert('jsPDF non chargé. Vérifiez votre connexion.'); return; }
-  var pdfResult = genererPDFDevis(devis, true);
-  if (!pdfResult) { alert('Erreur lors de la génération du PDF.'); return; }
-
-  // 2. Récupérer les docs réglementaires (CGV, CGI, consentement)
-  var docs = {};
-  try { docs = JSON.parse(localStorage.getItem('dd_docs_reglementaires') || '{}'); } catch(e) {}
-
-  // 3. Construire la liste de fichiers
-  var files = [];
-  files.push(new File([pdfResult.blob], pdfResult.filename, { type: 'application/pdf' }));
-  var docsLabels = { consentement: 'Consentement', cgv: 'CGV', cgi: 'CGI' };
-  ['consentement', 'cgv', 'cgi'].forEach(function(id) {
-    if (docs[id] && docs[id].data) {
-      // Convertir dataURL en blob
-      var arr = docs[id].data.split(',');
-      var mime = (arr[0].match(/:(.*?);/) || [])[1] || 'application/pdf';
-      var bstr = atob(arr[1]);
-      var u8arr = new Uint8Array(bstr.length);
-      for (var i = 0; i < bstr.length; i++) u8arr[i] = bstr.charCodeAt(i);
-      var blob = new Blob([u8arr], { type: mime });
-      files.push(new File([blob], docs[id].name || (docsLabels[id] + '.pdf'), { type: mime }));
-    }
+// ─── HELPERS ───
+function _generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
   });
+}
 
-  // 4. Infos pour l'e-mail
-  var clientEmail = devis.client_email || '';
-  var clientNom   = ((devis.client_prenom || '') + ' ' + (devis.client_nom || '')).trim();
-  var subject     = 'Votre devis N° ' + (devis.numero || '') + ' — ' + (devis.bien_adresse || '');
-  var body        = 'Bonjour ' + (devis.client_prenom || '') + ',\n\nVeuillez trouver ci-joint votre devis N' + String.fromCharCode(176) + ' ' + (devis.numero || '') + ' ainsi que les documents reglementaires.\n\nCordialement';
+function _buildEmailHtml(devis, p, signUrl) {
+  var montant = (devis.prix_final && parseFloat(devis.prix_final) > 0)
+    ? parseFloat(devis.prix_final)
+    : parseFloat(devis.total_ht || 0);
+  var diagsHtml = (devis.diagnostics || []).map(function(d) {
+    return '<li style="padding:3px 0">' + d + '</li>';
+  }).join('');
+  var dateStr = devis.date ? new Date(devis.date).toLocaleDateString('fr-FR') : '';
+  var dateMissionStr = devis.date_mission ? new Date(devis.date_mission).toLocaleDateString('fr-FR') : 'À définir';
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"></head>'
+    + '<body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:0;color:#1f2937">'
+    + '<div style="background:linear-gradient(135deg,#2D6A4F,#059669);padding:24px;text-align:center">'
+    + '<h1 style="color:#fff;margin:0;font-size:20px">' + (p.nom_societe || 'DELY DIAG') + '</h1>'
+    + '<p style="color:rgba(255,255,255,.8);margin:5px 0 0;font-size:12px">' + (p.adresse || '') + (p.telephone ? ' &bull; ' + p.telephone : '') + '</p>'
+    + '</div>'
+    + '<div style="padding:28px 24px;background:#fff;border:1px solid #e5e7eb;border-top:none">'
+    + '<p>Bonjour <strong>' + (devis.client_prenom || '') + ' ' + (devis.client_nom || '') + '</strong>,</p>'
+    + '<p style="margin-top:12px">Veuillez trouver ci-joint votre devis <strong>N&deg;&nbsp;' + (devis.numero || '') + '</strong> du ' + dateStr + '.</p>'
+    + '<div style="background:#f9fafb;border-radius:8px;padding:14px;margin:16px 0">'
+    + '<div style="font-size:12px;color:#6b7280;margin-bottom:2px">Adresse du bien</div>'
+    + '<div style="font-weight:600">' + (devis.bien_adresse || '') + '</div>'
+    + (devis.bien_type ? '<div style="font-size:12px;color:#6b7280;margin-top:6px">' + devis.bien_type + (devis.type_transaction ? ' &mdash; ' + devis.type_transaction : '') + '</div>' : '')
+    + '<div style="font-size:12px;color:#6b7280;margin-top:6px">Intervention prévue le ' + dateMissionStr + '</div>'
+    + '</div>'
+    + '<h3 style="color:#2D6A4F;font-size:14px;margin-bottom:8px">Prestations incluses :</h3>'
+    + '<ul style="margin:0;padding-left:20px;font-size:13px">' + diagsHtml + '</ul>'
+    + '<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:18px;margin:20px 0;text-align:center">'
+    + '<div style="color:#6b7280;font-size:12px;margin-bottom:4px">Montant total</div>'
+    + '<div style="color:#059669;font-size:26px;font-weight:800">' + montant.toFixed(2) + ' &euro; ' + (devis.statut_fiscal || 'HT') + '</div>'
+    + '</div>'
+    + '<div style="text-align:center;margin:24px 0">'
+    + '<a href="' + signUrl + '" style="display:inline-block;background:linear-gradient(135deg,#059669,#2D6A4F);color:#fff;text-decoration:none;padding:16px 36px;border-radius:10px;font-weight:700;font-size:15px">'
+    + '✍️ Signer le devis en ligne</a>'
+    + '<p style="font-size:11px;color:#9ca3af;margin-top:8px">Ou copiez ce lien : ' + signUrl + '</p>'
+    + '</div>'
+    + '<p style="font-size:12px;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:14px;margin-top:14px">Les documents réglementaires (CGV, CGI, Consentement) sont joints à cet email. Ce devis est valable 30 jours.</p>'
+    + '<p style="margin-top:14px">Cordialement,<br><strong>' + (p.nom_societe || '') + '</strong>'
+    + (p.telephone ? '<br>' + p.telephone : '')
+    + (p.email ? ' &bull; ' + p.email : '')
+    + '</p>'
+    + '</div>'
+    + '<div style="background:#f9fafb;padding:12px 24px;text-align:center;font-size:10px;color:#9ca3af;border:1px solid #e5e7eb;border-top:none">'
+    + 'Coup 2 Pouce by DELY DIAG'
+    + (p.siret ? ' &bull; SIRET ' + p.siret : '')
+    + '</div>'
+    + '</body></html>';
+}
 
-  // 5. Web Share API (mobile)
-  if (navigator.canShare && navigator.canShare({ files: files })) {
-    navigator.share({
-      title: subject,
-      text:  body,
-      files: files
-    }).catch(function(err) {
-      if (err.name !== 'AbortError') console.error('Partage annule :', err);
-    });
+// ─── ENVOI MAIL DEVIS via Netlify Function + Resend ───
+function envoyerMailDevis(devis) {
+  if (!devis) { alert('Devis introuvable.'); return; }
+  if (!devis.client_email) {
+    alert('Renseigne d\'abord l\'email du client dans le devis avant d\'envoyer.');
     return;
   }
 
-  // 6. Fallback desktop : telecharger les PDF + ouvrir mailto
-  files.forEach(function(file) {
-    var url = URL.createObjectURL(file);
-    var a   = document.createElement('a');
-    a.href  = url;
-    a.download = file.name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
-  });
-  var mailtoUrl = 'mailto:' + encodeURIComponent(clientEmail)
-    + '?subject=' + encodeURIComponent(subject)
-    + '&body='    + encodeURIComponent(body);
-  setTimeout(function() { window.location.href = mailtoUrl; }, 500);
+  var btn = document.querySelector('[onclick*="envoyerMailDevis"]');
+  if (btn) { btn.textContent = '⏳ Préparation...'; btn.disabled = true; }
 
-  if (!clientEmail) {
-    alert('Aucun email client renseigne sur ce devis.\nLes PDF ont ete telecharges. Ajoute l\'adresse email du client dans le devis.');
+  var p = typeof getCompanyProfile === 'function' ? getCompanyProfile() : {};
+
+  // 1. Générer token de signature
+  var token   = _generateUUID();
+  var signUrl = 'https://coup2pouce-bydelydiag.netlify.app/sign.html?token=' + token;
+
+  // 2. Données pour Firestore (page de signature client)
+  var fsData = {
+    devisNumero:     devis.numero || '',
+    clientPrenom:    devis.client_prenom || '',
+    clientNom:       devis.client_nom || '',
+    clientEmail:     devis.client_email || '',
+    bienAdresse:     devis.bien_adresse || '',
+    bienType:        devis.bien_type || '',
+    typeTransaction: devis.type_transaction || '',
+    dateMission:     devis.date_mission || '',
+    diagnostics:     devis.diagnostics || [],
+    totalHt:         devis.total_ht || 0,
+    prixFinal:       devis.prix_final || 0,
+    statut_fiscal:   devis.statut_fiscal || 'HT',
+    nomSociete:      p.nom_societe || '',
+    telephoneSociete: p.telephone || '',
+    emailSociete:    p.email || '',
+    uid:             localStorage.getItem('fb_uid') || '',
+    token:           token,
+    signed:          false,
+    createdAt:       new Date().toISOString()
+  };
+
+  // 3. Sauvegarder token dans le devis local
+  var list = getAllDevis();
+  if (_devisEdit !== null && list[_devisEdit]) {
+    list[_devisEdit].signature_token = token;
+    list[_devisEdit].signature_url   = signUrl;
+    saveAllDevis(list);
   }
+
+  var subject = 'Votre devis N\u00b0 ' + (devis.numero || '') + ' — ' + (devis.bien_adresse || '');
+
+  // 4. Écrire dans Firestore (collection publique /signatures)
+  var fsUrl = 'https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents/signatures/'
+    + token + '?key=AIzaSyATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+
+  fetch(fsUrl, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: { value: { stringValue: JSON.stringify(fsData) } } })
+  })
+  .catch(function() {}) // Silencieux si Firestore échoue — le mail sera quand même envoyé
+  .then(function() {
+    // 5. Générer PDF devis en base64
+    var pdfResult = genererPDFDevis(devis, true);
+    if (!pdfResult) {
+      if (btn) { btn.textContent = '✉️ Envoyer par mail'; btn.disabled = false; }
+      alert('Erreur lors de la génération du PDF devis.');
+      return;
+    }
+    return new Promise(function(resolve) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var attachments = [];
+        attachments.push({
+          filename: pdfResult.filename,
+          content:  e.target.result.split(',')[1]
+        });
+        // Docs réglementaires (CGV, CGI, Consentement)
+        var docs = {};
+        try { docs = JSON.parse(localStorage.getItem('dd_docs_reglementaires') || '{}'); } catch(ex) {}
+        ['consentement', 'cgv', 'cgi'].forEach(function(id) {
+          if (docs[id] && docs[id].data) {
+            var b64 = docs[id].data.split(',')[1];
+            if (b64) attachments.push({ filename: docs[id].name || (id.toUpperCase() + '.pdf'), content: b64 });
+          }
+        });
+        resolve(attachments);
+      };
+      reader.readAsDataURL(pdfResult.blob);
+    });
+  })
+  .then(function(attachments) {
+    if (!attachments) return;
+    if (btn) btn.textContent = '⏳ Envoi en cours...';
+    // 6. HTML email
+    var html = _buildEmailHtml(devis, p, signUrl);
+    // 7. Appel Netlify Function
+    return fetch('/.netlify/functions/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to:          devis.client_email,
+        subject:     subject,
+        html:        html,
+        attachments: attachments,
+        fromName:    p.nom_societe  || 'Coup 2 Pouce',
+        fromEmail:   p.email        || 'noreply@delydiag.fr'
+      })
+    });
+  })
+  .then(function(res) { if (res) return res.json(); })
+  .then(function(data) {
+    if (btn) { btn.textContent = '✉️ Envoyer par mail'; btn.disabled = false; }
+    if (!data) return;
+    if (data.success) {
+      alert('\u2705 Mail envoy\u00e9 \u00e0 ' + devis.client_email + ' !\n\nLe client peut signer via le lien inclus dans l\'email.\nTu peux v\u00e9rifier la signature depuis ce devis.');
+      renderDevisScreen('form');
+    } else {
+      alert('\u274c Erreur d\'envoi : ' + (data.error || JSON.stringify(data)));
+    }
+  })
+  .catch(function(err) {
+    if (btn) { btn.textContent = '✉️ Envoyer par mail'; btn.disabled = false; }
+    alert('❌ Erreur : ' + err.message);
+  });
 }
+
+// ─── VÉRIFIER SI LE CLIENT A SIGNÉ À DISTANCE ───
+function verifierSignatureDistante() {
+  var list  = getAllDevis();
+  var devis = _devisEdit !== null ? list[_devisEdit] : null;
+  if (!devis || !devis.signature_token) { alert('Aucun lien de signature envoy\u00e9 pour ce devis.'); return; }
+
+  var btn = document.getElementById('btn-verif-sig');
+  if (btn) { btn.textContent = '⏳ Vérification...'; btn.disabled = true; }
+
+  var fsUrl = 'https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents/signatures/'
+    + devis.signature_token + '?key=AIzaSyATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+
+  fetch(fsUrl)
+    .then(function(r) { return r.json(); })
+    .then(function(doc) {
+      if (btn) { btn.textContent = '🔄 Vérifier si le client a signé'; btn.disabled = false; }
+      if (!doc.fields || !doc.fields.value) { alert('Impossible de v\u00e9rifier (lien introuvable).'); return; }
+      var data;
+      try { data = JSON.parse(doc.fields.value.stringValue); } catch(e) { alert('Erreur de lecture.'); return; }
+      if (data.signed) {
+        var signedDate = data.signedAt ? new Date(data.signedAt).toLocaleString('fr-FR') : '';
+        // Mettre à jour le devis local avec la signature
+        list[_devisEdit].signature = {
+          accepte:        true,
+          signataire:     data.signataire || '',
+          date_signature: data.signedAt || new Date().toISOString(),
+          signature_img:  data.signature_img || '',
+          type:           'remote'
+        };
+        list[_devisEdit].statut = 'Accepté';
+        saveAllDevis(list);
+        alert('✅ Signé par ' + (data.signataire || 'le client') + (signedDate ? ' le ' + signedDate : '') + ' !');
+        renderDevisScreen('form');
+      } else {
+        alert('\u23f3 Le client n\'a pas encore sign\u00e9 le devis.');
+      }
+    })
+    .catch(function() {
+      if (btn) { btn.textContent = '🔄 Vérifier si le client a signé'; btn.disabled = false; }
+      alert('Erreur réseau lors de la vérification.');
+    });
+}
+
 
 // ─── CALCUL AUTO DIAGNOSTICS ───
 function calculerDiagsAuto() {
