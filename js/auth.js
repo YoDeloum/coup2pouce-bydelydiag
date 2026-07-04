@@ -53,6 +53,10 @@ function firebaseLogin() {
       btn.textContent = '⏳ Chargement de vos données...';
       if (typeof syncFromFirestore === 'function') {
         syncFromFirestore(function() {
+          // Recharger les variables globales chargées avant la sync
+          if (typeof missions !== 'undefined') {
+            missions = JSON.parse(localStorage.getItem('dd_missions') || '[]');
+          }
           document.getElementById('login-screen').classList.add('hidden');
         });
       } else {
