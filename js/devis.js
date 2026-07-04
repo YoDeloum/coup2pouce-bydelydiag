@@ -154,6 +154,30 @@ function renderDevisForm(body) {
       </div>
     </div>
 
+    <!-- ── Coordonnées de facturation ── -->
+    <div class="devis-section">
+      <div class="devis-section-title">🧾 Coordonnées de facturation</div>
+      <p style="font-size:12px;color:#6B7280;margin-bottom:10px">Si différentes du client — société, adresse de facturation... Laisse vide pour utiliser les infos client.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="devis-field" style="grid-column:1/-1">
+          <label class="devis-label">Société (optionnel)</label>
+          <input class="devis-input" id="dv-fact_societe" type="text" value="${devis.fact_societe||''}" placeholder="Nom de la société si facturation société"/>
+        </div>
+        <div class="devis-field">
+          <label class="devis-label">Nom facturation</label>
+          <input class="devis-input" id="dv-fact_nom" type="text" value="${devis.fact_nom||''}" placeholder="Idem client si vide"/>
+        </div>
+        <div class="devis-field">
+          <label class="devis-label">Prénom facturation</label>
+          <input class="devis-input" id="dv-fact_prenom" type="text" value="${devis.fact_prenom||''}" placeholder="Idem client si vide"/>
+        </div>
+        <div class="devis-field" style="grid-column:1/-1">
+          <label class="devis-label">Adresse de facturation</label>
+          <input class="devis-input" id="dv-fact_adresse" type="text" value="${devis.fact_adresse||''}" placeholder="Idem adresse du bien si vide"/>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Le Bien ── -->
     <div class="devis-section">
       <div class="devis-section-title">🏠 Le Bien</div>
@@ -376,6 +400,10 @@ function getDevisFormData() {
     client_prenom:        document.getElementById('dv-client_prenom')?.value       || '',
     client_tel:           document.getElementById('dv-client_tel')?.value          || '',
     client_email:         document.getElementById('dv-client_email')?.value        || '',
+    fact_societe:         document.getElementById('dv-fact_societe')?.value        || '',
+    fact_nom:             document.getElementById('dv-fact_nom')?.value            || '',
+    fact_prenom:          document.getElementById('dv-fact_prenom')?.value         || '',
+    fact_adresse:         document.getElementById('dv-fact_adresse')?.value        || '',
     bien_adresse:         document.getElementById('dv-bien_adresse')?.value        || '',
     bien_type:            document.getElementById('dv-bien_type')?.value           || '',
     statut_fiscal:        document.getElementById('dv-statut_fiscal')?.value       || p.statut_fiscal || 'HT',
