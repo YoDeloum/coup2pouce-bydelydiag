@@ -494,7 +494,6 @@
 <script src="js/address-autocomplete.js"></script>
 
 <script>
-// ── Menu hamburger accueil ──
 // ── Écran Cours ──
 function openCours() {
   document.getElementById('cours-screen').style.display = 'block';
@@ -504,12 +503,12 @@ function closeCours() {
   document.getElementById('cours-screen').style.display = 'none';
   document.body.style.overflow = '';
 }
+
 // ── Menu hamburger accueil ──
 function toggleHomeMenu() {
   var d = document.getElementById('home-dropdown');
   d.style.display = (d.style.display === 'none' || !d.style.display) ? 'block' : 'none';
 }
-// Fermer si clic hors menu
 document.addEventListener('click', function(e) {
   var btn = document.getElementById('home-menu-btn');
   var dd  = document.getElementById('home-dropdown');
@@ -517,7 +516,8 @@ document.addEventListener('click', function(e) {
     dd.style.display = 'none';
   }
 });
-// Mettre à jour le prénom et l'avatar dans la barre
+
+// ── Prénom + avatar dans le topbar ──
 function updateHomeGreeting() {
   var prenom = localStorage.getItem('dd_prenom') || '';
   var g = document.getElementById('home-greeting-name');
@@ -525,8 +525,36 @@ function updateHomeGreeting() {
   var avatar = localStorage.getItem('dd_avatar') || '👤';
   var a = document.getElementById('home-avatar-btn');
   if (a) a.textContent = avatar;
+  // Masquer le bonjour-msg existant (doublon avec topbar)
+  var bm = document.getElementById('bonjour-msg');
+  if (bm) bm.style.display = 'none';
 }
-document.addEventListener('DOMContentLoaded', updateHomeGreeting);
+
+document.addEventListener('DOMContentLoaded', function() {
+  updateHomeGreeting();
+
+  // Masquer le header système sur l'accueil (le home-topbar le remplace)
+  var sysHeader = document.getElementById('header');
+  if (sysHeader) sysHeader.style.display = 'none';
+
+  // Intercepter showHome() pour re-masquer le header quand on revient à l'accueil
+  var _origShowHome = window.showHome;
+  window.showHome = function() {
+    if (_origShowHome) _origShowHome.apply(this, arguments);
+    if (sysHeader) sysHeader.style.display = 'none';
+    updateHomeGreeting();
+  };
+
+  // Clic sur une card de cours : fermer l'écran cours AVANT que le module s'ouvre
+  // (sinon le module se charge derrière l'écran cours, z-index 500)
+  var grid = document.getElementById('cards-grid');
+  if (grid) {
+    grid.addEventListener('click', function() {
+      closeCours();
+      if (sysHeader) sysHeader.style.display = '';
+    }, true);
+  }
+});
 </script>
 
 </body>
