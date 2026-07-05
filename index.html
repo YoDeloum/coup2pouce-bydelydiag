@@ -533,27 +533,34 @@ function updateHomeGreeting() {
 document.addEventListener('DOMContentLoaded', function() {
   updateHomeGreeting();
 
-  // Masquer le header système sur l'accueil (le home-topbar le remplace)
   var sysHeader = document.getElementById('header');
+  var _venaitDesCours = false;
+
+  // Masquer le header système sur l'accueil (home-topbar le remplace)
   if (sysHeader) sysHeader.style.display = 'none';
 
-  // Intercepter showHome() pour re-masquer le header quand on revient à l'accueil
-  var _origShowHome = window.showHome;
-  window.showHome = function() {
-    if (_origShowHome) _origShowHome.apply(this, arguments);
-    if (sysHeader) sysHeader.style.display = 'none';
-    updateHomeGreeting();
-  };
-
-  // Clic sur une card de cours : fermer l'écran cours AVANT que le module s'ouvre
-  // (sinon le module se charge derrière l'écran cours, z-index 500)
+  // Clic sur une card de cours (phase capture) : fermer cours-screen puis ouvrir le module
   var grid = document.getElementById('cards-grid');
   if (grid) {
     grid.addEventListener('click', function() {
       closeCours();
-      if (sysHeader) sysHeader.style.display = '';
+      _venaitDesCours = true;           // mémoriser : on vient des cours
+      if (sysHeader) sysHeader.style.display = '';  // ré-afficher le header pour naviguer dans le module
     }, true);
   }
+
+  // Intercepter showHome() — une seule fois, propre
+  var _origShowHome = window.showHome;
+  window.showHome = function() {
+    if (_origShowHome) _origShowHome.apply(this, arguments);
+    if (sysHeader) sysHeader.style.display = 'none';  // toujours masquer le header sur l'accueil
+    if (_venaitDesCours) {
+      _venaitDesCours = false;
+      openCours();   // retour → liste des cours (pas l'accueil)
+    } else {
+      updateHomeGreeting();
+    }
+  };
 });
 </script>
 
