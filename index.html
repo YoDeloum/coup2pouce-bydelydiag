@@ -134,17 +134,15 @@
     <input id="search-bar" type="text" placeholder="🔍 Rechercher dans tous les modules..." oninput="searchGlobal(this.value)"/>
   </div>
 
-  <!-- Progression globale -->
-  <div id="global-prog-wrap" style="display:none" class="global-prog">
-    <div style="display:flex;justify-content:space-between;margin-bottom:7px">
-      <span style="font-size:13px;font-weight:700">Progression globale</span>
-      <span id="global-pct" style="font-size:13px;color:#E8650A;font-weight:700">0%</span>
+  <!-- Bouton Cours -->
+  <button onclick="openCours()" style="display:flex;align-items:center;gap:14px;width:100%;margin-top:8px;padding:18px 20px;background:linear-gradient(135deg,#1B4332,#2D6A4F);border:none;border-radius:16px;cursor:pointer;box-shadow:0 4px 16px rgba(27,67,50,.35);text-align:left">
+    <span style="font-size:28px">📚</span>
+    <div style="flex:1">
+      <div style="color:#fff;font-weight:700;font-size:16px">Cours & Diagnostics</div>
+      <div style="color:rgba(255,255,255,.8);font-size:12px">Accéder à tous les modules</div>
     </div>
-    <div class="pbar-wrap" style="height:6px"><div id="global-pbar" class="pbar-fill" style="width:0%"></div></div>
-  </div>
-
-  <!-- Grille de modules -->
-  <div class="grid" id="cards-grid"></div>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2.5" style="flex-shrink:0"><polyline points="9,18 15,12 9,6"/></svg>
+  </button>
 
   <!-- ── Grille Devis | Factures ── -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px">
@@ -333,6 +331,29 @@
   <div class="mission-body" id="mission-body"></div>
 </div>
 
+<!-- ═══════════════════════════════════════
+     ÉCRAN COURS & DIAGNOSTICS
+════════════════════════════════════════ -->
+<div id="cours-screen" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#fafaf8;z-index:500;overflow-y:auto">
+  <div style="background:linear-gradient(135deg,#1B4332,#2D6A4F);padding:16px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10">
+    <span style="font-size:22px">📚</span>
+    <h2 style="color:#fff;font-size:18px;font-weight:800;flex:1;margin:0">Cours & Diagnostics</h2>
+    <button style="background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;line-height:1" onclick="closeCours()">✕</button>
+  </div>
+  <div style="padding:16px">
+    <!-- Progression globale -->
+    <div id="global-prog-wrap" style="display:none;margin-bottom:16px" class="global-prog">
+      <div style="display:flex;justify-content:space-between;margin-bottom:7px">
+        <span style="font-size:13px;font-weight:700">Progression globale</span>
+        <span id="global-pct" style="font-size:13px;color:#E8650A;font-weight:700">0%</span>
+      </div>
+      <div class="pbar-wrap" style="height:6px"><div id="global-pbar" class="pbar-fill" style="width:0%"></div></div>
+    </div>
+    <!-- Grille de modules — TOUS LES COURS SONT ICI -->
+    <div class="grid" id="cards-grid"></div>
+  </div>
+</div>
+
 <div id="glossaire-screen">
   <div class="glossaire-header">
     <span style="font-size:22px">📖</span>
@@ -473,6 +494,16 @@
 <script src="js/address-autocomplete.js"></script>
 
 <script>
+// ── Menu hamburger accueil ──
+// ── Écran Cours ──
+function openCours() {
+  document.getElementById('cours-screen').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+function closeCours() {
+  document.getElementById('cours-screen').style.display = 'none';
+  document.body.style.overflow = '';
+}
 // ── Menu hamburger accueil ──
 function toggleHomeMenu() {
   var d = document.getElementById('home-dropdown');
