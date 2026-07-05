@@ -146,46 +146,48 @@
   <!-- Grille de modules -->
   <div class="grid" id="cards-grid"></div>
 
-  <!-- ── Grand bouton Cours ── -->
-  <button onclick="document.getElementById('cards-grid').scrollIntoView({behavior:'smooth',block:'nearest'})" style="display:flex;align-items:center;gap:14px;width:100%;margin-top:16px;padding:18px 20px;background:linear-gradient(135deg,#1B4332,#2D6A4F);border:none;border-radius:16px;cursor:pointer;box-shadow:0 4px 16px rgba(27,67,50,.35);text-align:left">
-    <span style="font-size:28px">📚</span>
-    <div style="flex:1">
-      <div style="color:#fff;font-weight:700;font-size:16px">Cours & Diagnostics</div>
-      <div style="color:rgba(255,255,255,.8);font-size:12px">Accéder à tous les modules</div>
-    </div>
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2.5" style="flex-shrink:0"><polyline points="9,18 15,12 9,6"/></svg>
-  </button>
+  <!-- ── Grille Devis | Factures ── -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px">
+    <button onclick="openDevis()" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:22px 10px;border-radius:16px;border:1.5px solid #E5E7EB;background:#fff;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#111827">Mes Devis</div>
+        <div style="font-size:11px;color:#9CA3AF;margin-top:2px">Créer & envoyer</div>
+      </div>
+    </button>
+    <button onclick="openFacture()" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:22px 10px;border-radius:16px;border:1.5px solid #E5E7EB;background:#fff;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1B4332" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#111827">Mes Factures</div>
+        <div style="font-size:11px;color:#9CA3AF;margin-top:2px">Facturer & PDF</div>
+      </div>
+    </button>
+  </div>
 
-  <!-- ── Grille principale ── -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
-    <button onclick="openMission()" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:20px 10px;border-radius:14px;border:none;background:linear-gradient(135deg,#E8650A,#F4A261);cursor:pointer;box-shadow:0 3px 10px rgba(232,101,10,.3)">
-      <span style="font-size:28px">📋</span>
-      <div style="color:#fff;font-weight:700;font-size:13px">Missions</div>
-      <div style="color:rgba(255,255,255,.8);font-size:11px">Mes interventions</div>
+  <!-- ── Grille Missions | Checklist ── -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+    <button onclick="openMission()" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:22px 10px;border-radius:16px;border:1.5px solid #E5E7EB;background:#fff;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="11" y2="16"/></svg>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#111827">Missions</div>
+        <div style="font-size:11px;color:#9CA3AF;margin-top:2px">Mes interventions</div>
+      </div>
     </button>
-    <button onclick="openChecklist()" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:20px 10px;border-radius:14px;border:none;background:linear-gradient(135deg,#065F46,#059669);cursor:pointer;box-shadow:0 3px 10px rgba(6,95,70,.3)">
-      <span style="font-size:28px">✅</span>
-      <div style="color:#fff;font-weight:700;font-size:13px">Checklist</div>
-      <div style="color:rgba(255,255,255,.8);font-size:11px">Checklist terrain</div>
-    </button>
-    <button onclick="openDevis()" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:20px 10px;border-radius:14px;border:none;background:linear-gradient(135deg,#059669,#10B981);cursor:pointer;box-shadow:0 3px 10px rgba(5,150,105,.3)">
-      <span style="font-size:28px">📄</span>
-      <div style="color:#fff;font-weight:700;font-size:13px">Mes Devis</div>
-      <div style="color:rgba(255,255,255,.8);font-size:11px">Créer & envoyer</div>
-    </button>
-    <button onclick="openFacture()" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:20px 10px;border-radius:14px;border:none;background:linear-gradient(135deg,#1B4332,#2D6A4F);cursor:pointer;box-shadow:0 3px 10px rgba(27,67,50,.3)">
-      <span style="font-size:28px">🧾</span>
-      <div style="color:#fff;font-weight:700;font-size:13px">Mes Factures</div>
-      <div style="color:rgba(255,255,255,.8);font-size:11px">Facturer & PDF</div>
+    <button onclick="openChecklist()" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:22px 10px;border-radius:16px;border:1.5px solid #E5E7EB;background:#fff;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#111827">Checklist</div>
+        <div style="font-size:11px;color:#9CA3AF;margin-top:2px">Checklist terrain</div>
+      </div>
     </button>
   </div>
 
   <!-- ── Statistiques ── -->
-  <button onclick="openStats()" style="display:flex;align-items:center;gap:14px;width:100%;margin-top:10px;padding:16px 20px;background:linear-gradient(135deg,#6366F1,#8B5CF6);border:none;border-radius:14px;cursor:pointer;box-shadow:0 3px 12px rgba(99,102,241,.3)">
-    <span style="font-size:26px">📊</span>
+  <button onclick="openStats()" style="display:flex;align-items:center;gap:14px;width:100%;margin-top:10px;padding:16px 20px;background:#F5F3FF;border:1.5px solid #DDD6FE;border-radius:16px;cursor:pointer">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
     <div style="text-align:left">
-      <div style="color:#fff;font-weight:700;font-size:15px">Mes Statistiques</div>
-      <div style="color:rgba(255,255,255,.8);font-size:12px">CA, objectifs, activité</div>
+      <div style="font-size:14px;font-weight:700;color:#5B21B6">Mes Statistiques</div>
+      <div style="font-size:11px;color:#8B5CF6;margin-top:2px">CA, objectifs, activité</div>
     </div>
   </button>
 
