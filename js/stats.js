@@ -32,11 +32,19 @@ function renderStats() {
   var caMissions = 0, caDeplacements = 0;
   var modCount = {};
   missionsFilt.forEach(function(m) {
+    // Comptage des diagnostics pour le graphique (inchangé)
     (m.diags || []).forEach(function(d) {
       modCount[d] = (modCount[d] || 0) + 1;
-      if (d === 'Frais déplacement') caDeplacements += parseFloat(tarifs[d]) || 0;
-      else                           caMissions     += parseFloat(tarifs[d]) || 0;
     });
+    // CA : utiliser le total personnalisé si défini, sinon calculer depuis les tarifs
+    if (m.total && parseFloat(m.total) > 0) {
+      caMissions += parseFloat(m.total);
+    } else {
+      (m.diags || []).forEach(function(d) {
+        if (d === 'Frais déplacement') caDeplacements += parseFloat(tarifs[d]) || 0;
+        else                           caMissions     += parseFloat(tarifs[d]) || 0;
+      });
+    }
   });
 
   // ── Calculs devis filtrés ──
@@ -194,7 +202,13 @@ function exportStats() {
   var tarifs       = Object.assign({}, TARIFS_DEFAULT, JSON.parse(localStorage.getItem('dd_tarifs') || '{}')); 
   var facturesList = typeof getAllFactures === 'function' ? getAllFactures() : [];
   var caTotal = 0;
-  (missions || []).forEach(function(m) { (m.diags||[]).forEach(function(d) { caTotal += parseFloat(tarifs[d])||0; }); });
+  (missions || []).forEach(function(m) {
+    if (m.total && parseFloat(m.total) > 0) {
+      caTotal += parseFloat(m.total);
+    } else {
+      (m.diags||[]).forEach(function(d) { caTotal += parseFloat(tarifs[d])||0; });
+    }
+  });
   var caFacture = facturesList.reduce(function(s,f) { return s+parseFloat(f.total_ht||0); }, 0);
   var caPaye    = facturesList.filter(function(f) { return f.statut === 'Payé'; }).reduce(function(s,f) { return s+parseFloat(f.total_ht||0); }, 0);
   var today = new Date().toLocaleDateString('fr-FR');
