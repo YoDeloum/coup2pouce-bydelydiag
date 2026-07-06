@@ -170,6 +170,25 @@ function renderMissionForm(body) {
     </div>
 
     <div class="mission-section">
+      <h3>💶 Tarif total</h3>
+      <div style="background:#F0FDF4;border:1px solid #A7F3D0;border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:11px;font-weight:600;color:#065F46;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Calculé depuis les tarifs</div>
+          <div id="m-total-calc" style="font-size:18px;font-weight:800;color:#1B4332">—</div>
+        </div>
+        <button onclick="calculerTotalMission(true)" style="padding:8px 12px;border-radius:8px;border:none;background:#1B4332;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">🔄 Recalculer</button>
+      </div>
+      <div class="mission-field">
+        <label class="mission-label">Montant final HT (modifiable)</label>
+        <div style="position:relative">
+          <input class="mission-input" id="m-total" type="number" step="0.01" min="0" value="${m.total||''}" placeholder="Laisser vide = tarif standard"/>
+          <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:13px;color:#6B7280;pointer-events:none">€</span>
+        </div>
+        <div style="font-size:11px;color:#9CA3AF;margin-top:4px">Modifie ce montant pour appliquer une remise. Les statistiques utiliseront ce total.</div>
+      </div>
+    </div>
+
+    <div class="mission-section">
       <h3>📝 Notes terrain</h3>
       <textarea class="mission-textarea" id="m-notes" placeholder="Notes libres, observations, anomalies...">${m.notes||''}</textarea>
       <button id="vocal-notes-btn" class="vocal-btn idle" onclick="startVoiceDescription('m-notes','vocal-notes-btn')" style="margin-top:8px">🎤 Dicter les notes</button>
@@ -183,11 +202,31 @@ function renderMissionForm(body) {
     <button class="mission-export-btn" onclick="exportMission()">📤 Exporter / Partager</button>
     <button onclick="openAvisGoogle()" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">⭐ Demander un avis Google</button>
     ${currentMissionIdx !== null ? '<button onclick="deleteMission()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #EF4444;background:#fff;color:#EF4444;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">🗑️ Supprimer cette mission</button>' : ''}`;
+  // Calculer automatiquement le total depuis les tarifs au chargement
+  setTimeout(function() { calculerTotalMission(false); }, 50);
 }
 
 function toggleDiag(el, diag) {
   el.classList.toggle('selected');
   el.querySelector('input').checked = el.classList.contains('selected');
+  calculerTotalMission(false);
+}
+
+function calculerTotalMission(forceOverwrite) {
+  var tarifs = Object.assign({},
+    typeof TARIFS_DEFAULT !== 'undefined' ? TARIFS_DEFAULT : {},
+    JSON.parse(localStorage.getItem('dd_tarifs') || '{}')
+  );
+  var diags = Array.from(document.querySelectorAll('.diag-grid .diag-item.selected')).map(function(el) {
+    return el.querySelector('span').textContent;
+  });
+  var total = diags.reduce(function(sum, d) { return sum + (parseFloat(tarifs[d]) || 0); }, 0);
+  var calcEl = document.getElementById('m-total-calc');
+  if (calcEl) calcEl.textContent = total > 0 ? total.toFixed(2) + ' €' : '—';
+  var input = document.getElementById('m-total');
+  if (input && (forceOverwrite || !input.value)) {
+    input.value = total > 0 ? total.toFixed(2) : '';
+  }
 }
 
 function getMissionFormData() {
@@ -210,6 +249,7 @@ function getMissionFormData() {
     notes:                document.getElementById('m-notes')?.value            || '',
     devis_ref:            document.getElementById('m-devis_ref')?.value        || '',
     type_transaction:     document.getElementById('m-type_transaction')?.value || '',
+    total:                document.getElementById('m-total')?.value            || '',
     diags,
     savedAt: new Date().toISOString()
   };
