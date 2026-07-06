@@ -46,12 +46,15 @@ function pdfRect(doc, x, y, w, h, color) {
 }
 
 // ─── DEVIS PDF ─────────────────────────────
-function genererPDFDevis(devis, _returnBlob) {
+function genererPDFDevis(devis, _returnBlob, opts) {
+  opts = opts || {};
   var jsPDF = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
   if (!jsPDF) { alert('jsPDF non chargé. Vérifiez votre connexion internet.'); return; }
 
   var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   var p   = getCompanyProfile();
+  // Pour l'envoi par mail : ignorer le logo (trop lourd pour Netlify)
+  if (opts.skipLogo) { p = Object.assign({}, p); delete p.logo; }
   var y   = 15;
   var tplEpure = (p.pdf_template || 'standard') === 'epure';
 
@@ -244,11 +247,15 @@ function genererPDFFacture(facture) {
 
   y = 50;
 
-  // Client
+  // Client — coordonnées de facturation (société ou nom/prénom et adresse spécifiques si renseignés)
+  var _factNom = facture.fact_societe
+    ? facture.fact_societe
+    : (((facture.fact_prenom || facture.client_prenom || '') + ' ' + (facture.fact_nom || facture.client_nom || '')).trim());
+  var _factAdresse = facture.fact_adresse || facture.bien_adresse || '';
   pdfRect(doc, 120, y, 75, 40, [245, 247, 250]);
   pdfText(doc, 'FACTURÉ À', 122, y + 6, {bold:true, size:9, color:[107,114,128]});
-  pdfText(doc, (facture.client_prenom||'') + ' ' + (facture.client_nom||''), 122, y + 13, {bold:true, size:11, color:[30,30,30]});
-  pdfText(doc, facture.bien_adresse || '', 122, y + 20, {size:9, color:[80,80,80]});
+  pdfText(doc, _factNom, 122, y + 13, {bold:true, size:11, color:[30,30,30]});
+  pdfText(doc, _factAdresse, 122, y + 20, {size:9, color:[80,80,80]});
   if (facture.client_tel)   pdfText(doc, 'Tel : ' + facture.client_tel,   122, y + 27, {size:9, color:[80,80,80]});
   if (facture.client_email) pdfText(doc, 'Email : ' + facture.client_email, 122, y + 34, {size:9, color:[80,80,80]});
 
