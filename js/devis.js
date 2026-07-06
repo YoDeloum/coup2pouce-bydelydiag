@@ -594,8 +594,8 @@ function envoyerMailDevis(devis) {
   })
   .catch(function() {}) // Silencieux si Firestore échoue — le mail sera quand même envoyé
   .then(function() {
-    // 5. Générer PDF devis en base64
-    var pdfResult = genererPDFDevis(devis, true);
+    // 5. Générer PDF devis en base64 (sans logo pour réduire la taille)
+    var pdfResult = genererPDFDevis(devis, true, { skipLogo: true });
     if (!pdfResult) {
       if (btn) { btn.textContent = '✉️ Envoyer par mail'; btn.disabled = false; }
       alert('Erreur lors de la génération du PDF devis.');
@@ -630,10 +630,10 @@ function envoyerMailDevis(devis) {
     var html = _buildEmailHtml(devis, p, signUrl);
     // Vérifier taille payload (limite Netlify ~6 Mo)
     var totalB64 = attachments.reduce(function(s, a) { return s + (a.content ? a.content.length : 0); }, 0);
+    console.log('[devis] Taille totale PJ base64:', Math.round(totalB64 / 1024), 'Ko — nb PJ:', attachments.length);
     if (totalB64 > 4 * 1024 * 1024) {
-      // Trop lourd : retirer les docs réglementaires, garder seulement le PDF devis
       attachments = attachments.slice(0, 1);
-      console.warn('[devis] Pièces jointes réduites au seul PDF devis (docs réglementaires trop volumineux)');
+      console.warn('[devis] PJ réduites au seul PDF devis:', Math.round(attachments[0].content.length / 1024), 'Ko');
     }
     // 7. Appel Netlify Function
     return fetch('/.netlify/functions/send-email', {
