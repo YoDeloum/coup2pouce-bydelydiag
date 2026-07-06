@@ -6,6 +6,10 @@
 
 exports.handler = async function(event) {
 
+  // Log taille payload pour diagnostique
+  var bodySize = event.body ? event.body.length : 0;
+  console.log('[send-email] Méthode:', event.httpMethod, '| Taille payload:', Math.round(bodySize/1024), 'Ko');
+
   // CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -59,6 +63,17 @@ exports.handler = async function(event) {
     };
   }
 
+  // Vérifier taille des pièces jointes
+  var totalAttachSize = attachments.reduce(function(s, a) { return s + (a.content ? a.content.length : 0); }, 0);
+  console.log('[send-email] Nombre PJ:', attachments.length, '| Taille PJ base64:', Math.round(totalAttachSize/1024), 'Ko');
+  if (totalAttachSize > 4 * 1024 * 1024) { // > 4 Mo base64
+    return {
+      statusCode: 413,
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ error: 'Pièces jointes trop volumineuses (' + Math.round(totalAttachSize/1024/1024) + ' Mo). Limite : 4 Mo. Retire les documents réglementaires ou réduis le PDF.' })
+    };
+  }
+
   try {
     var res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -76,29 +91,32 @@ exports.handler = async function(event) {
     });
 
     var rawText = await res.text();
+    console.log('[send-email] Resend HTTP', res.status, '| Réponse:', rawText.substring(0, 300));
     var data;
     try {
       data = JSON.parse(rawText);
     } catch(e) {
-      // Resend a renvoyé du texte brut au lieu de JSON
       return {
         statusCode: 500,
         headers: { 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({ error: 'Resend HTTP ' + res.status + ' : ' + rawText.substring(0, 400) })
+        body: JSON.stringify({ error: 'Resend HTTP ' + res.status + ' — ' + (rawText.substring(0, 400) || '(réponse vide)') })
       };
     }
 
     if (res.ok) {
+      console.log('[send-email] Succès, id:', data.id);
       return {
         statusCode: 200,
         headers: { 'Access-Control-Allow-Origin': '*' },
         body: JSON.stringify({ success: true, id: data.id })
       };
     } else {
+      var errMsg = data.message || data.name || data.error || JSON.stringify(data);
+      console.log('[send-email] Erreur Resend:', errMsg);
       return {
         statusCode: 400,
         headers: { 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({ error: data.message || data.name || JSON.stringify(data) })
+        body: JSON.stringify({ error: errMsg })
       };
     }
 
