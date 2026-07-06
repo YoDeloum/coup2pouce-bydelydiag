@@ -628,6 +628,13 @@ function envoyerMailDevis(devis) {
     if (btn) btn.textContent = '⏳ Envoi en cours...';
     // 6. HTML email
     var html = _buildEmailHtml(devis, p, signUrl);
+    // Vérifier taille payload (limite Netlify ~6 Mo)
+    var totalB64 = attachments.reduce(function(s, a) { return s + (a.content ? a.content.length : 0); }, 0);
+    if (totalB64 > 4 * 1024 * 1024) {
+      // Trop lourd : retirer les docs réglementaires, garder seulement le PDF devis
+      attachments = attachments.slice(0, 1);
+      console.warn('[devis] Pièces jointes réduites au seul PDF devis (docs réglementaires trop volumineux)');
+    }
     // 7. Appel Netlify Function
     return fetch('/.netlify/functions/send-email', {
       method: 'POST',
