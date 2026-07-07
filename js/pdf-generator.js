@@ -98,10 +98,17 @@ function genererPDFDevis(devis, _returnBlob, opts) {
   // ── Informations CLIENT ──
   pdfRect(doc, 120, y, 75, 40, [245, 247, 250]);
   pdfText(doc, 'CLIENT', 122, y + 6, {bold:true, size:9, color:[107, 114, 128]});
-  pdfText(doc, (devis.client_prenom||'') + ' ' + (devis.client_nom||''), 122, y + 13, {bold:true, size:11, color:[30,30,30]});
-  pdfText(doc, devis.bien_adresse || '', 122, y + 20, {size:9, color:[80,80,80]});
-  if (devis.client_tel) pdfText(doc, 'Tel : ' + devis.client_tel, 122, y + 27, {size:9, color:[80,80,80]});
-  if (devis.client_email) pdfText(doc, 'Email : ' + devis.client_email, 122, y + 34, {size:9, color:[80,80,80]});
+  if (devis.client_societe) {
+    pdfText(doc, devis.client_societe, 122, y + 13, {bold:true, size:10, color:[30,30,30]});
+    pdfText(doc, (devis.client_prenom||'') + ' ' + (devis.client_nom||''), 122, y + 20, {size:8, color:[80,80,80]});
+    pdfText(doc, devis.bien_adresse || '', 122, y + 27, {size:8, color:[80,80,80]});
+    if (devis.client_tel) pdfText(doc, 'Tel : ' + devis.client_tel, 122, y + 34, {size:8, color:[80,80,80]});
+  } else {
+    pdfText(doc, (devis.client_prenom||'') + ' ' + (devis.client_nom||''), 122, y + 13, {bold:true, size:11, color:[30,30,30]});
+    pdfText(doc, devis.bien_adresse || '', 122, y + 20, {size:9, color:[80,80,80]});
+    if (devis.client_tel)   pdfText(doc, 'Tel : ' + devis.client_tel,   122, y + 27, {size:9, color:[80,80,80]});
+    if (devis.client_email) pdfText(doc, 'Email : ' + devis.client_email, 122, y + 34, {size:9, color:[80,80,80]});
+  }
 
   // ── Objet ──
   pdfText(doc, 'Objet de la mission :', 15, y + 6, {bold:true, size:9, color:[45,106,79]});
@@ -248,16 +255,22 @@ function genererPDFFacture(facture) {
   y = 50;
 
   // Client — coordonnées de facturation (société ou nom/prénom et adresse spécifiques si renseignés)
-  var _factNom = facture.fact_societe
-    ? facture.fact_societe
-    : (((facture.fact_prenom || facture.client_prenom || '') + ' ' + (facture.fact_nom || facture.client_nom || '')).trim());
+  var _factSociete = facture.fact_societe || facture.client_societe || '';
+  var _factNomContact = ((facture.fact_prenom || facture.client_prenom || '') + ' ' + (facture.fact_nom || facture.client_nom || '')).trim();
   var _factAdresse = facture.fact_adresse || facture.bien_adresse || '';
   pdfRect(doc, 120, y, 75, 40, [245, 247, 250]);
   pdfText(doc, 'FACTURÉ À', 122, y + 6, {bold:true, size:9, color:[107,114,128]});
-  pdfText(doc, _factNom, 122, y + 13, {bold:true, size:11, color:[30,30,30]});
-  pdfText(doc, _factAdresse, 122, y + 20, {size:9, color:[80,80,80]});
-  if (facture.client_tel)   pdfText(doc, 'Tel : ' + facture.client_tel,   122, y + 27, {size:9, color:[80,80,80]});
-  if (facture.client_email) pdfText(doc, 'Email : ' + facture.client_email, 122, y + 34, {size:9, color:[80,80,80]});
+  if (_factSociete) {
+    pdfText(doc, _factSociete, 122, y + 13, {bold:true, size:10, color:[30,30,30]});
+    pdfText(doc, _factNomContact, 122, y + 20, {size:8, color:[80,80,80]});
+    pdfText(doc, _factAdresse, 122, y + 27, {size:8, color:[80,80,80]});
+    if (facture.client_tel) pdfText(doc, 'Tel : ' + facture.client_tel, 122, y + 34, {size:8, color:[80,80,80]});
+  } else {
+    pdfText(doc, _factNomContact, 122, y + 13, {bold:true, size:11, color:[30,30,30]});
+    pdfText(doc, _factAdresse, 122, y + 20, {size:9, color:[80,80,80]});
+    if (facture.client_tel)   pdfText(doc, 'Tel : ' + facture.client_tel,   122, y + 27, {size:9, color:[80,80,80]});
+    if (facture.client_email) pdfText(doc, 'Email : ' + facture.client_email, 122, y + 34, {size:9, color:[80,80,80]});
+  }
 
   pdfText(doc, 'Objet :', 15, y + 6, {bold:true, size:9, color:[27,67,50]});
   pdfText(doc, 'Réalisation de diagnostics immobiliers', 15, y + 13, {size:10, color:[30,30,30]});
@@ -404,10 +417,17 @@ function genererPDFSigne(devis) {
   // ── Informations CLIENT (identique à genererPDFDevis) ──
   pdfRect(doc, 120, y, 75, 40, [245, 247, 250]);
   pdfText(doc, 'CLIENT', 122, y + 6, {bold:true, size:9, color:[107, 114, 128]});
-  pdfText(doc, (devis.client_prenom||'') + ' ' + (devis.client_nom||''), 122, y + 13, {bold:true, size:11, color:[30,30,30]});
-  pdfText(doc, devis.bien_adresse || '', 122, y + 20, {size:9, color:[80,80,80]});
-  if (devis.client_tel)   pdfText(doc, 'Tel : ' + devis.client_tel,   122, y + 27, {size:9, color:[80,80,80]});
-  if (devis.client_email) pdfText(doc, 'Email : ' + devis.client_email, 122, y + 34, {size:9, color:[80,80,80]});
+  if (devis.client_societe) {
+    pdfText(doc, devis.client_societe, 122, y + 13, {bold:true, size:10, color:[30,30,30]});
+    pdfText(doc, (devis.client_prenom||'') + ' ' + (devis.client_nom||''), 122, y + 20, {size:8, color:[80,80,80]});
+    pdfText(doc, devis.bien_adresse || '', 122, y + 27, {size:8, color:[80,80,80]});
+    if (devis.client_tel) pdfText(doc, 'Tel : ' + devis.client_tel, 122, y + 34, {size:8, color:[80,80,80]});
+  } else {
+    pdfText(doc, (devis.client_prenom||'') + ' ' + (devis.client_nom||''), 122, y + 13, {bold:true, size:11, color:[30,30,30]});
+    pdfText(doc, devis.bien_adresse || '', 122, y + 20, {size:9, color:[80,80,80]});
+    if (devis.client_tel)   pdfText(doc, 'Tel : ' + devis.client_tel,   122, y + 27, {size:9, color:[80,80,80]});
+    if (devis.client_email) pdfText(doc, 'Email : ' + devis.client_email, 122, y + 34, {size:9, color:[80,80,80]});
+  }
 
   // ── Objet (identique à genererPDFDevis) ──
   pdfText(doc, 'Objet de la mission :', 15, y + 6, {bold:true, size:9, color:[45,106,79]});
