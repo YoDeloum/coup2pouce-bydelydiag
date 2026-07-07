@@ -64,7 +64,7 @@ function renderDevisList(body) {
         + '<div class="devis-card-title">Devis N° '+(d.numero||'')+'</div>'
         + '<span class="statut-badge '+statutClass+'">'+(d.statut||'Devis')+'</span>'
         + '</div>'
-        + '<div class="devis-card-sub">👤 '+(d.client_prenom||'')+' '+(d.client_nom||'')+''+(d.client_tel ? ' — <a href="tel:'+d.client_tel+'" onclick="event.stopPropagation()" style="color:#059669;font-weight:600;text-decoration:none">📞 '+d.client_tel+'</a>' : '')+'</div>'
+        + '<div class="devis-card-sub">👤 '+(d.client_societe ? d.client_societe+' — ' : '')+(d.client_prenom||'')+' '+(d.client_nom||'')+''+(d.client_tel ? ' — <a href="tel:'+d.client_tel+'" onclick="event.stopPropagation()" style="color:#059669;font-weight:600;text-decoration:none">📞 '+d.client_tel+'</a>' : '')+'</div>'
         + '<div class="devis-card-sub">📍 '+(d.bien_adresse||'')+'</div>'
         + (d.mission_creee ? '<div class="devis-card-sub" style="color:#2D6A4F;font-weight:600">🏠 Mission créée</div>' : '')
         + (d.signature && d.signature.accepte ? '<div class="devis-card-sub" style="color:#1B4332;font-weight:600">✍️ Signé par '+d.signature.signataire+'</div>' : '')
@@ -128,6 +128,10 @@ function renderDevisForm(body) {
     <div class="devis-section">
       <div class="devis-section-title">👤 Client</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="devis-field" style="grid-column:1/-1">
+          <label class="devis-label">Société (optionnel)</label>
+          <input class="devis-input" id="dv-client_societe" type="text" value="${devis.client_societe||''}" placeholder="Agence, notaire, propriétaire, SCI..."/>
+        </div>
         <div class="devis-field">
           <label class="devis-label">Nom</label>
           <input class="devis-input" id="dv-client_nom" type="text" value="${devis.client_nom||''}" placeholder="Dupont"/>
@@ -408,6 +412,7 @@ function getDevisFormData() {
     date:                 document.getElementById('dv-date')?.value                || '',
     date_mission:         document.getElementById('dv-date_mission')?.value        || '',
     statut:               document.getElementById('dv-statut')?.value              || 'Devis',
+    client_societe:       document.getElementById('dv-client_societe')?.value      || '',
     client_nom:           document.getElementById('dv-client_nom')?.value          || '',
     client_prenom:        document.getElementById('dv-client_prenom')?.value       || '',
     client_tel:           document.getElementById('dv-client_tel')?.value          || '',
