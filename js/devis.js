@@ -42,11 +42,14 @@ function renderDevisScreen(view) {
 function renderDevisList(body) {
   var list   = getAllDevis();
   var sorted = list.slice().reverse();
+  var nbSignesNouveaux = list.filter(function(d) { return d.signature_new; }).length;
+  updateDevisBadge();
 
   body.innerHTML = `
     <button onclick="_devisEdit=null;renderDevisScreen('form')" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#059669,#10B981);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:16px">
       ➕ Nouveau devis
     </button>
+    ${nbSignesNouveaux > 0 ? `<div style="background:#F0FDF4;border:1.5px solid #6EE7B7;border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px"><span style="font-size:20px">✅</span><div><div style="font-weight:700;color:#065F46;font-size:13px">${nbSignesNouveaux} devis signé${nbSignesNouveaux>1?'s':''} !</div><div style="font-size:11px;color:#6B7280">Ouvre le devis pour voir la signature</div></div></div>` : ''}
     <div style="font-size:12px;color:#6B7280;margin-bottom:12px;font-weight:600">${list.length} devis enregistré${list.length>1?'s':''}</div>
     ${sorted.length === 0 ? '<div style="text-align:center;padding:40px;color:#6B7280">Aucun devis créé</div>' : ''}
     ${sorted.map(function(d, i) {
@@ -74,6 +77,14 @@ function renderDevisList(body) {
 
 function renderDevisForm(body) {
   var devis  = _devisEdit !== null ? (getAllDevis()[_devisEdit] || {}) : {};
+  // Marquer comme lu si c'est un devis nouvellement signé
+  if (devis.signature_new && _devisEdit !== null) {
+    var _list = getAllDevis();
+    _list[_devisEdit].signature_new = false;
+    saveAllDevis(_list);
+    devis = _list[_devisEdit];
+    setTimeout(updateDevisBadge, 0);
+  }
   var p      = getCompanyProfile();
   var tarifs = Object.assign({}, TARIFS_DEFAULT, JSON.parse(localStorage.getItem('dd_tarifs') || '{}'));
   var sel    = devis.diagnostics || [];
@@ -290,6 +301,7 @@ function renderDevisForm(body) {
     <button onclick="if(_devisEdit!==null && getAllDevis()[_devisEdit]) genererPDFDevis(getAllDevis()[_devisEdit])" style="width:100%;padding:12px;border-radius:10px;border:2px solid #059669;background:#fff;color:#059669;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>📄 Générer PDF devis</button>
     <button onclick="if(_devisEdit!==null && getAllDevis()[_devisEdit]) envoyerMailDevis(getAllDevis()[_devisEdit])" style="width:100%;padding:12px;border-radius:10px;border:2px solid #0891B2;background:#fff;color:#0891B2;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>✉️ Envoyer par mail</button>
     ${devis.signature_token ? '<button id="btn-verif-sig" onclick="verifierSignatureDistante()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #059669;background:#F0FDF4;color:#059669;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:pointer">🔄 Vérifier si le client a signé</button>' : ''}
+    ${devis.signature && devis.signature.accepte && devis.signature.signature_img ? '<button onclick="genererPDFSigne(getAllDevis()[_devisEdit])" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#059669,#2D6A4F);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">📄 Télécharger le devis signé</button>' : ''}
     <button onclick="if(_devisEdit!==null) openSignature(_devisEdit)" style="width:100%;padding:12px;border-radius:10px;border:2px solid #1B4332;background:#fff;color:#1B4332;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>✍️ Signature / Acceptation client</button>
     <button onclick="convertirEnFacture()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #5B21B6;background:#fff;color:#5B21B6;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>📋 Convertir en facture</button>
     <button onclick="convertirEnMission()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #E8650A;background:#fff;color:#E8650A;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>🏠 Créer une mission depuis ce devis</button>
@@ -768,4 +780,74 @@ function calculerDiagsAuto() {
 
   var nb = obligatoires.length;
   alert('\u2705 ' + nb + ' diagnostic' + (nb > 1 ? 's' : '') + ' selectionne' + (nb > 1 ? 's' : '') + ' :\n' + obligatoires.join(', ') + '\n\nTu peux modifier la selection manuellement.');
+}
+
+// \u2500\u2500\u2500 V\u00c9RIFICATION AUTOMATIQUE DE TOUTES LES SIGNATURES \u2500\u2500\u2500
+function checkAllSignatures() {
+  var list = getAllDevis();
+  var toCheck = list.filter(function(d) {
+    return d.signature_token && !(d.signature && d.signature.accepte);
+  });
+  if (!toCheck.length) return;
+
+  var FS_KEY = 'AIzaSyATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+  var promises = toCheck.map(function(d) {
+    var url = 'https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents/signatures/'
+      + d.signature_token + '?key=' + FS_KEY;
+    return fetch(url)
+      .then(function(r) { return r.json(); })
+      .then(function(doc) {
+        if (!doc.fields || !doc.fields.value) return null;
+        var data;
+        try { data = JSON.parse(doc.fields.value.stringValue); } catch(e) { return null; }
+        if (data.signed && data.signature_img) return { token: d.signature_token, sigData: data };
+        return null;
+      })
+      .catch(function() { return null; });
+  });
+
+  Promise.all(promises).then(function(results) {
+    var list2    = getAllDevis();
+    var updated  = 0;
+    results.forEach(function(result) {
+      if (!result) return;
+      list2.forEach(function(d) {
+        if (d.signature_token === result.token && !(d.signature && d.signature.accepte)) {
+          d.signature = {
+            accepte:        true,
+            signataire:     result.sigData.signataire || '',
+            date_signature: result.sigData.signedAt   || new Date().toISOString(),
+            signature_img:  result.sigData.signature_img || '',
+            type:           'remote'
+          };
+          d.statut        = 'Accept\u00e9';
+          d.signature_new = true; // non lu \u2014 d\u00e9clenche la pastille
+          updated++;
+        }
+      });
+    });
+    if (updated > 0) {
+      saveAllDevis(list2);
+      updateDevisBadge();
+    }
+  });
+}
+
+// \u2500\u2500\u2500 MISE \u00c0 JOUR DE LA PASTILLE DEVIS \u2500\u2500\u2500
+function updateDevisBadge() {
+  var list  = getAllDevis();
+  var count = list.filter(function(d) { return d.signature_new; }).length;
+
+  // Pastille native sur l'ic\u00f4ne de l'app (PWA install\u00e9e)
+  if ('setAppBadge' in navigator) {
+    if (count > 0) navigator.setAppBadge(count).catch(function() {});
+    else           navigator.clearAppBadge().catch(function() {});
+  }
+
+  // Pastille in-app sur la carte Devis de l'accueil
+  var badge = document.getElementById('devis-badge');
+  if (badge) {
+    badge.textContent = count > 0 ? String(count) : '';
+    badge.style.display = count > 0 ? 'flex' : 'none';
+  }
 }
