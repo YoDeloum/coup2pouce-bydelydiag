@@ -34,7 +34,7 @@ function renderMissionList(body) {
       var realIdx = missions.length - 1 - i;
       return `
         <div class="mission-card" onclick="editMission(${realIdx})">
-          <div class="mission-card-title">${m.nom||'Sans nom'} ${m.prenom||''}${m.tel ? ' — <a href="tel:'+m.tel+'" onclick="event.stopPropagation()" style="color:#059669;font-weight:600;font-size:13px;text-decoration:none">📞 '+m.tel+'</a>' : ''}</div>
+          <div class="mission-card-title">${m.societe ? m.societe+' — ' : ''}${m.nom||'Sans nom'} ${m.prenom||''}${m.tel ? ' — <a href="tel:'+m.tel+'" onclick="event.stopPropagation()" style="color:#059669;font-weight:600;font-size:13px;text-decoration:none">📞 '+m.tel+'</a>' : ''}</div>
           <div class="mission-card-sub">📍 ${m.adresse||'Adresse non renseignée'}</div>
           <div class="mission-card-sub">🏠 ${m.typeBien||'-'} • ${m.date||'-'}</div>
           ${m.devis_ref ? '<div class="mission-card-sub" style="color:#059669;font-weight:600">📄 Devis réf. ' + m.devis_ref + '</div>' : ''}
@@ -69,6 +69,7 @@ function renderMissionForm(body) {
   if (src) {
     // Pré-remplir depuis le devis
     m = {
+      societe:              src.client_societe|| '',
       nom:                  src.client_nom   || '',
       prenom:               src.client_prenom|| '',
       tel:                  src.client_tel   || '',
@@ -98,6 +99,7 @@ function renderMissionForm(body) {
 
     <div class="mission-section">
       <h3>👤 Client</h3>
+      <div class="mission-field"><label class="mission-label">Société (optionnel)</label><input class="mission-input" id="m-societe" type="text" value="${m.societe||''}" placeholder="Agence, notaire, SCI..."/></div>
       <div class="mission-field"><label class="mission-label">Nom</label><input class="mission-input" id="m-nom" type="text" value="${m.nom||''}" placeholder="Dupont"/></div>
       <div class="mission-field"><label class="mission-label">Prénom</label><input class="mission-input" id="m-prenom" type="text" value="${m.prenom||''}" placeholder="Jean"/></div>
       <div class="mission-field"><label class="mission-label">Téléphone</label><input class="mission-input" id="m-tel" type="tel" value="${m.tel||''}" placeholder="06 00 00 00 00"/></div>
@@ -234,6 +236,7 @@ function getMissionFormData() {
     return el.querySelector('span').textContent;
   });
   return {
+    societe:              document.getElementById('m-societe')?.value           || '',
     nom:                  document.getElementById('m-nom')?.value              || '',
     prenom:               document.getElementById('m-prenom')?.value           || '',
     tel:                  document.getElementById('m-tel')?.value              || '',
@@ -277,7 +280,7 @@ function deleteMission() {
 function exportMission() {
   var m    = getMissionFormData();
   var text = '📋 MISSION DELY DIAG\n─────────────────────\n'
-    + '👤 CLIENT\nNom : ' + m.nom + ' ' + m.prenom
+    + '👤 CLIENT\n' + (m.societe ? 'Société : ' + m.societe + '\n' : '') + 'Nom : ' + m.nom + ' ' + m.prenom
     + '\nTél : ' + m.tel + '\nEmail : ' + m.email
     + '\n🏠 LE BIEN\nAdresse : ' + m.adresse
     + '\nType : ' + m.typeBien
