@@ -2,7 +2,7 @@
 // CHATBOT.JS — Jeffrey, l'assistant DELY DIAG
 // ─────────────────────────────────────────────
 
-var CLAUDE_API_KEY = "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";
+// Clé API gérée côté serveur via Netlify (variable CLAUDE_API_KEY dans les env Netlify)
 
 var JEFFREY_SYSTEM = `Tu es Jeffrey, l'assistant expert officiel de DELY DIAG, cabinet de diagnostics immobiliers. Si window.jeffreyPrenom est défini, utilise ce prénom pour t'adresser à l'utilisateur. Tu aides les diagnostiqueurs certifiés DELY DIAG dans leur pratique quotidienne. Tu as une personnalité sympa, directe et professionnelle. Tu es LA référence technique en diagnostics immobiliers.
 
@@ -181,14 +181,9 @@ async function sendMsg() {
   var loading = addMsg('⏳ Recherche en cours...', 'loading');
 
   try {
-    var response = await fetch('https://api.anthropic.com/v1/messages', {
+    var response = await fetch('/.netlify/functions/chat', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': CLAUDE_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 2048,
