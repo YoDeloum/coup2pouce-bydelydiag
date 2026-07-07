@@ -1,9 +1,13 @@
+tlify · TOML
 [build]
   publish = "."
-
+ 
 [build.environment]
   NODE_VERSION = "18"
   SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
-
+ 
 [functions]
   directory = "netlify/functions"
+ 
+[functions.chat]
+  timeout = 26
