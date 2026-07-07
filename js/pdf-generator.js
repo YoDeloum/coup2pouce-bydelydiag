@@ -335,3 +335,101 @@ function genererPDFFacture(facture) {
   pdfText(doc, (p.nom_societe||'') + (p.siret ? ' — SIRET : ' + p.siret : ''), 195, footerY + 7, {size:7, color:[150,150,150], align:'right'});
   doc.save('Facture_' + (facture.numero_facture || 'XXXX') + '_' + (facture.client_nom || '') + '.pdf');
 }
+
+// ─── DEVIS SIGNÉ PDF ───────────────────────
+function genererPDFSigne(devis) {
+  if (!devis || !devis.signature || !devis.signature.signature_img) {
+    alert('Aucune signature disponible pour ce devis.');
+    return;
+  }
+  var jsPDF = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
+  if (!jsPDF) { alert('jsPDF non chargé. Vérifiez votre connexion internet.'); return; }
+
+  var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  var p   = getCompanyProfile();
+  var y   = 15;
+  var tplEpure = (p.pdf_template || 'standard') === 'epure';
+
+  // ── En-tête (réutilise la même logique que genererPDFDevis) ──
+  if (!tplEpure) {
+    doc.setDrawColor(45, 106, 79);
+    doc.setLineWidth(0.5);
+    doc.line(15, 40, 195, 40);
+    var textX = 15;
+    if (p.logo && p.logo.startsWith('data:image')) textX = pdfAddLogo(doc, p.logo, 15, 8);
+    pdfText(doc, p.nom_societe || 'DELY DIAG', textX, 18, {bold:true, size:14, color:[27,67,50]});
+    if (p.adresse)   pdfText(doc, p.adresse, textX, 24, {size:8, color:[100,100,100]});
+    if (p.telephone) pdfText(doc, p.telephone, textX, 28, {size:8, color:[100,100,100]});
+    if (p.email)     pdfText(doc, p.email, textX, 32, {size:8, color:[100,100,100]});
+    if (p.siret)     pdfText(doc, 'SIRET : ' + p.siret, textX, 36, {size:7, color:[150,150,150]});
+    y = 48;
+  } else {
+    pdfRect(doc, 0, 0, 210, 40, [45, 106, 79]);
+    var textX = 15;
+    if (p.logo && p.logo.startsWith('data:image')) textX = pdfAddLogo(doc, p.logo, 15, 8);
+    pdfText(doc, p.nom_societe || 'DELY DIAG', textX, 18, {bold:true, size:16, color:[255,255,255]});
+    if (p.adresse)   pdfText(doc, p.adresse, textX, 25, {size:8, color:[220,255,220]});
+    if (p.telephone) pdfText(doc, p.telephone + (p.email ? '  |  ' + p.email : ''), textX, 30, {size:8, color:[220,255,220]});
+    y = 50;
+  }
+
+  // ── Titre + infos devis ──
+  pdfText(doc, 'DEVIS SIGNÉ N° ' + (devis.numero || ''), 15, y, {bold:true, size:14, color:[27,67,50]});
+  y += 7;
+  var dateStr = devis.date ? new Date(devis.date).toLocaleDateString('fr-FR') : '';
+  pdfText(doc, 'Date : ' + dateStr, 15, y, {size:9, color:[100,100,100]});
+  y += 5;
+  pdfText(doc, 'Client : ' + (devis.client_prenom || '') + ' ' + (devis.client_nom || ''), 15, y, {size:9});
+  if (devis.client_email) { y += 5; pdfText(doc, 'Email : ' + devis.client_email, 15, y, {size:8, color:[100,100,100]}); }
+  if (devis.bien_adresse) { y += 5; pdfText(doc, 'Bien : ' + devis.bien_adresse, 15, y, {size:9}); }
+  y += 8;
+  y = pdfAddLine(doc, y);
+
+  // ── Diagnostics ──
+  pdfText(doc, 'Prestations :', 15, y, {bold:true, size:10, color:[27,67,50]});
+  y += 6;
+  (devis.diagnostics || []).forEach(function(d) {
+    pdfText(doc, '• ' + d, 18, y, {size:9}); y += 5;
+  });
+  y += 3;
+  var montant = (devis.prix_final && parseFloat(devis.prix_final) > 0)
+    ? parseFloat(devis.prix_final) : parseFloat(devis.total_ht || 0);
+  pdfRect(doc, 15, y - 3, 180, 12, [240, 253, 244]);
+  pdfText(doc, 'Montant total : ' + montant.toFixed(2) + ' € ' + (devis.statut_fiscal || 'HT'), 18, y + 5, {bold:true, size:11, color:[27,67,50]});
+  y += 18;
+  y = pdfAddLine(doc, y);
+
+  // ── Bloc signature ──
+  pdfRect(doc, 15, y - 2, 180, 8, [240, 253, 244]);
+  pdfText(doc, '✅ DEVIS ACCEPTÉ ET SIGNÉ ÉLECTRONIQUEMENT', 105, y + 4, {bold:true, size:10, color:[5,150,105], align:'center'});
+  y += 14;
+  var sig = devis.signature;
+  var signedDate = sig.date_signature ? new Date(sig.date_signature).toLocaleString('fr-FR') : '';
+  pdfText(doc, 'Signataire : ' + (sig.signataire || 'Le client'), 15, y, {size:9, bold:true});
+  y += 5;
+  if (signedDate) { pdfText(doc, 'Date et heure : ' + signedDate, 15, y, {size:9, color:[100,100,100]}); y += 5; }
+  pdfText(doc, 'Méthode : Signature électronique via lien sécurisé', 15, y, {size:8, color:[100,100,100]});
+  y += 10;
+
+  // ── Image signature ──
+  try {
+    var sigImg = sig.signature_img;
+    if (sigImg && sigImg.startsWith('data:image')) {
+      doc.addImage(sigImg, 'PNG', 15, y, 80, 35);
+      doc.setDrawColor(200, 200, 200);
+      doc.rect(15, y, 80, 35);
+    }
+  } catch(e) {}
+  y += 42;
+  pdfText(doc, 'Signature du client', 55, y, {size:8, color:[150,150,150], align:'center'});
+  y += 10;
+  y = pdfAddLine(doc, y);
+
+  // ── Pied de page ──
+  var footerY = 285;
+  pdfRect(doc, 0, footerY - 3, 210, 15, [245,247,250]);
+  pdfText(doc, p.mentions_legales || '', 15, footerY + 2, {size:7, color:[150,150,150]});
+  pdfText(doc, (p.nom_societe||'') + (p.siret ? ' — SIRET : ' + p.siret : ''), 195, footerY + 7, {size:7, color:[150,150,150], align:'right'});
+
+  doc.save('DevisSigne_' + (devis.numero || 'XXXX') + '_' + (devis.client_nom || '') + '.pdf');
+}
