@@ -147,7 +147,10 @@
   <!-- ── Grille Devis | Factures ── -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px">
     <button onclick="openDevis()" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:22px 10px;border-radius:16px;border:1.5px solid #E5E7EB;background:#fff;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.06)">
-      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      <div style="position:relative">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span id="devis-badge" style="position:absolute;top:-7px;right:-10px;background:#EF4444;color:#fff;border-radius:50%;min-width:18px;height:18px;display:none;align-items:center;justify-content:center;font-size:11px;font-weight:700;padding:0 3px;box-sizing:border-box;line-height:18px;border:2px solid #fff"></span>
+      </div>
       <div>
         <div style="font-size:13px;font-weight:700;color:#111827">Mes Devis</div>
         <div style="font-size:11px;color:#9CA3AF;margin-top:2px">Créer & envoyer</div>
@@ -532,6 +535,15 @@ function updateHomeGreeting() {
 
 document.addEventListener('DOMContentLoaded', function() {
   updateHomeGreeting();
+
+  // ── Vérification automatique des signatures ──
+  setTimeout(function() {
+    if (typeof checkAllSignatures === 'function') checkAllSignatures();
+    if (typeof updateDevisBadge  === 'function') updateDevisBadge();
+  }, 3000); // 3s après chargement (laisse le temps aux scripts de s'initialiser)
+  setInterval(function() {
+    if (typeof checkAllSignatures === 'function') checkAllSignatures();
+  }, 2 * 60 * 1000); // toutes les 2 minutes
 
   var sysHeader = document.getElementById('header');
   var _venaitDesCours = false;
