@@ -210,7 +210,7 @@ function genererPDFDevis(devis, _returnBlob, opts) {
 }
 
 // ─── FACTURE PDF ───────────────────────────
-function genererPDFFacture(facture) {
+function genererPDFFacture(facture, _returnBlob) {
   var jsPDF = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
   if (!jsPDF) { alert('jsPDF non chargé.'); return; }
 
@@ -356,6 +356,9 @@ function genererPDFFacture(facture) {
     if (facture.date_paiement) {
       doc.text('le ' + new Date(facture.date_paiement).toLocaleDateString('fr-FR'), 95, 259, { align: 'center' });
     }
+    if (facture.mode_paiement) {
+      doc.text(facture.mode_paiement, 95, 264, { align: 'center' });
+    }
   }
 
   // Pied de page
@@ -363,7 +366,9 @@ function genererPDFFacture(facture) {
   pdfRect(doc, 0, footerY - 3, 210, 15, [245,247,250]);
   pdfText(doc, p.mentions_legales || '', 15, footerY + 2, {size:7, color:[150,150,150]});
   pdfText(doc, (p.nom_societe||'') + (p.siret ? ' — SIRET : ' + p.siret : ''), 195, footerY + 7, {size:7, color:[150,150,150], align:'right'});
-  doc.save('Facture_' + (facture.numero_facture || 'XXXX') + '_' + (facture.client_nom || '') + '.pdf');
+  var _pdfFilename = 'Facture_' + (facture.numero_facture || 'XXXX') + '_' + (facture.client_nom || '') + '.pdf';
+  if (_returnBlob) return { blob: doc.output('blob'), filename: _pdfFilename };
+  doc.save(_pdfFilename);
 }
 
 // ─── DEVIS SIGNÉ PDF ───────────────────────
