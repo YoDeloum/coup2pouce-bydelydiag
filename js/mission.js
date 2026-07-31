@@ -508,8 +508,17 @@ async function dpeAnalyser() {
       body: JSON.stringify({ imageBase64: compressed })
     });
 
-    var data = await res.json();
+    var rawText = await res.text();
     document.getElementById('dpe-loading').style.display = 'none';
+
+    var data;
+    try { data = JSON.parse(rawText); }
+    catch(parseErr) {
+      alert('❌ Erreur serveur (HTTP ' + res.status + ') — ' + rawText.substring(0, 300));
+      btn.disabled = false;
+      btn.textContent = '🔍 Analyser le croquis';
+      return;
+    }
 
     if (data.error) {
       alert('❌ Erreur : ' + data.error);
@@ -530,7 +539,7 @@ async function dpeAnalyser() {
 
   } catch(e) {
     document.getElementById('dpe-loading').style.display = 'none';
-    alert('❌ Erreur réseau. Vérifie ta connexion et réessaie.');
+    alert('❌ Erreur : ' + e.message);
   }
 
   btn.disabled = false;
