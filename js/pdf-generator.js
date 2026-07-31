@@ -210,12 +210,15 @@ function genererPDFDevis(devis, _returnBlob, opts) {
 }
 
 // ─── FACTURE PDF ───────────────────────────
-function genererPDFFacture(facture, _returnBlob) {
+function genererPDFFacture(facture, _returnBlob, opts) {
+  opts = opts || {};
   var jsPDF = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
   if (!jsPDF) { alert('jsPDF non chargé.'); return; }
 
   var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   var p   = getCompanyProfile();
+  // Pour l'envoi par mail : ignorer le logo (trop lourd pour Netlify)
+  if (opts.skipLogo) { p = Object.assign({}, p); delete p.logo; }
   var y   = 15;
   var tplEpureF = (p.pdf_template || 'standard') === 'epure';
 
