@@ -20,6 +20,7 @@ function closeMission() {
 function renderMissionScreen() {
   var body = document.getElementById('mission-body');
   if (missionView === 'form') renderMissionForm(body);
+  else if (missionView === 'dpe') renderDPEScreen(body);
   else renderMissionList(body);
 }
 
@@ -200,6 +201,7 @@ function renderMissionForm(body) {
       <button onclick="addToCalendar()" style="padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#0891B2,#0E7490);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">📅 Agenda</button>
       <button onclick="setMissionRappel()" style="padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">🔔 Rappel</button>
     </div>
+    <button onclick="missionView='dpe';renderMissionScreen()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#1D4ED8,#2563EB);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px">📐 Relevé DPE — Analyser un croquis</button>
     <button class="mission-save-btn" onclick="saveMissionForm()">💾 Sauvegarder la mission</button>
     <button class="mission-export-btn" onclick="exportMission()">📤 Exporter / Partager</button>
     <button onclick="openAvisGoogle()" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">⭐ Demander un avis Google</button>
@@ -388,4 +390,216 @@ function sendAvisGoogle() {
   var smsUrl = tel ? 'sms:'+tel+'?body='+encodeURIComponent(msg) : 'sms:?body='+encodeURIComponent(msg);
   document.getElementById('avis-modal').remove();
   window.location.href = smsUrl;
+}
+
+// ─── RELEVÉ DPE — ANALYSE CROQUIS ───────────
+
+function renderDPEScreen(body) {
+  var savedResult = (currentMissionIdx !== null && missions[currentMissionIdx])
+    ? (missions[currentMissionIdx].dpe_releve || '') : '';
+
+  body.innerHTML = `
+    <button onclick="missionView='form';renderMissionScreen()" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:#1D4ED8;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:16px;font-family:inherit">← Retour à la mission</button>
+
+    <div style="background:linear-gradient(135deg,#1D4ED8,#2563EB);border-radius:14px;padding:16px 18px;margin-bottom:18px;color:#fff">
+      <div style="font-size:17px;font-weight:800;margin-bottom:4px">📐 Relevé DPE</div>
+      <div style="font-size:12px;opacity:.85">Photographiez votre croquis papier — l'IA lit le code couleur et extrait toutes les données</div>
+    </div>
+
+    <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:#1E40AF;line-height:1.6">
+      <strong>Code couleur reconnu :</strong><br>
+      ⬛ Noir = murs &nbsp;|&nbsp; 🔴 Rouge = linéaires (m) &nbsp;|&nbsp; 🟢 Vert = menuiseries &nbsp;|&nbsp; 🔵 Bleu = surfaces (m²)<br>
+      + toutes les annotations autour du plan
+    </div>
+
+    <!-- Zone upload -->
+    <div id="dpe-upload-zone" onclick="document.getElementById('dpe-file-input').click()"
+      style="border:2.5px dashed #93C5FD;border-radius:14px;padding:32px 20px;text-align:center;cursor:pointer;background:#F8FAFF;margin-bottom:14px;transition:all .2s"
+      onmouseover="this.style.borderColor='#2563EB'" onmouseout="this.style.borderColor='#93C5FD'">
+      <div style="font-size:44px;margin-bottom:10px">📷</div>
+      <div style="font-size:14px;font-weight:700;color:#1D4ED8;margin-bottom:4px">Prendre une photo ou choisir une image</div>
+      <div style="font-size:11px;color:#6B7280">JPG, PNG — la photo sera compressée automatiquement</div>
+    </div>
+    <input type="file" id="dpe-file-input" accept="image/*" capture="environment" style="display:none" onchange="dpeImageSelected(this)"/>
+
+    <!-- Aperçu image -->
+    <div id="dpe-preview" style="display:none;margin-bottom:14px">
+      <img id="dpe-img" style="width:100%;max-height:300px;object-fit:contain;border-radius:10px;border:2px solid #E5E7EB;background:#F9FAFB"/>
+      <button onclick="dpeAnalyser()" id="dpe-btn" style="width:100%;margin-top:12px;padding:15px;border-radius:12px;border:none;background:linear-gradient(135deg,#059669,#2D6A4F);color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit">
+        🔍 Analyser le croquis
+      </button>
+    </div>
+
+    <!-- Chargement -->
+    <div id="dpe-loading" style="display:none;text-align:center;padding:36px 20px;background:#F0FDF4;border-radius:12px;margin-bottom:14px">
+      <div style="font-size:36px;margin-bottom:12px">🔍</div>
+      <div style="font-size:14px;font-weight:700;color:#065F46;margin-bottom:6px">Analyse en cours...</div>
+      <div style="font-size:12px;color:#6B7280">L'IA lit votre croquis — 15 à 30 secondes</div>
+      <div style="margin-top:14px;height:4px;background:#D1FAE5;border-radius:99px;overflow:hidden">
+        <div style="height:100%;background:#059669;border-radius:99px;animation:dpe-progress 25s linear forwards" id="dpe-progress-bar"></div>
+      </div>
+    </div>
+
+    <!-- Résultat -->
+    <div id="dpe-result" style="display:${savedResult ? 'block' : 'none'}">
+      <div style="background:#F0FDF4;border:2px solid #6EE7B7;border-radius:12px;padding:16px;margin-bottom:12px">
+        <div style="font-weight:800;color:#065F46;margin-bottom:12px;font-size:14px">📋 Récapitulatif relevé DPE</div>
+        <pre id="dpe-result-text" style="white-space:pre-wrap;font-family:inherit;font-size:12.5px;color:#1F2937;line-height:1.7;margin:0">${savedResult.replace(/</g,'&lt;')}</pre>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <button onclick="dpeCopier()" style="padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">📋 Copier</button>
+        <button onclick="dpeExporterPDF()" style="padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#E8650A,#F4A261);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">📄 Exporter PDF</button>
+      </div>
+      <button onclick="document.getElementById('dpe-file-input').click()" style="width:100%;margin-top:10px;padding:11px;border-radius:10px;border:2px solid #D1D5DB;background:#fff;color:#374151;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">🔄 Analyser un autre croquis</button>
+    </div>
+
+    <style>
+      @keyframes dpe-progress { from{width:0} to{width:95%} }
+    </style>
+  `;
+}
+
+function dpeImageSelected(input) {
+  if (!input.files || !input.files[0]) return;
+  var file = input.files[0];
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = document.getElementById('dpe-img');
+    img.src = e.target.result;
+    document.getElementById('dpe-preview').style.display = 'block';
+    document.getElementById('dpe-upload-zone').style.display = 'none';
+    window._dpeImageData = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function dpeCompressImage(dataUrl) {
+  return new Promise(function(resolve) {
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      var maxSize = 1600;
+      var scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.src = dataUrl;
+  });
+}
+
+async function dpeAnalyser() {
+  var imageData = window._dpeImageData;
+  if (!imageData) return;
+
+  var btn = document.getElementById('dpe-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Compression...';
+  document.getElementById('dpe-loading').style.display = 'block';
+
+  try {
+    var compressed = await dpeCompressImage(imageData);
+    btn.textContent = '⏳ Analyse IA...';
+
+    var res = await fetch('/.netlify/functions/analyze-plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64: compressed })
+    });
+
+    var data = await res.json();
+    document.getElementById('dpe-loading').style.display = 'none';
+
+    if (data.error) {
+      alert('❌ Erreur : ' + data.error);
+      btn.disabled = false;
+      btn.textContent = '🔍 Analyser le croquis';
+      return;
+    }
+
+    var result = data.result || '';
+    document.getElementById('dpe-result-text').textContent = result;
+    document.getElementById('dpe-result').style.display = 'block';
+
+    // Sauvegarder dans la mission
+    if (currentMissionIdx !== null && missions[currentMissionIdx]) {
+      missions[currentMissionIdx].dpe_releve = result;
+      localStorage.setItem('dd_missions', JSON.stringify(missions));
+    }
+
+  } catch(e) {
+    document.getElementById('dpe-loading').style.display = 'none';
+    alert('❌ Erreur réseau. Vérifie ta connexion et réessaie.');
+  }
+
+  btn.disabled = false;
+  btn.textContent = '🔍 Analyser le croquis';
+}
+
+function dpeCopier() {
+  var text = document.getElementById('dpe-result-text')?.textContent || '';
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(function() { alert('✅ Récapitulatif copié !'); });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    alert('✅ Copié !');
+  }
+}
+
+function dpeExporterPDF() {
+  var text = document.getElementById('dpe-result-text')?.textContent || '';
+  if (!text) { alert('Aucun résultat à exporter.'); return; }
+
+  var jsPDF = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
+  if (!jsPDF) { alert('jsPDF non chargé.'); return; }
+
+  var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  var p = getCompanyProfile();
+
+  // En-tête
+  doc.setFillColor(29, 78, 216);
+  doc.rect(0, 0, 210, 28, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.setTextColor(255, 255, 255);
+  doc.text('📐 RELEVÉ DPE', 15, 14);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text((p.nom_societe || 'DELY DIAG') + ' — ' + new Date().toLocaleDateString('fr-FR'), 15, 22);
+
+  // Mission info
+  var m = currentMissionIdx !== null ? missions[currentMissionIdx] : null;
+  if (m) {
+    doc.setFontSize(10);
+    doc.setTextColor(30, 30, 30);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Mission : ' + (m.adresse || ''), 15, 36);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.text('Client : ' + (m.prenom || '') + ' ' + (m.nom || '') + (m.societe ? ' (' + m.societe + ')' : ''), 15, 42);
+  }
+
+  // Contenu
+  doc.setFontSize(9);
+  doc.setTextColor(30, 30, 30);
+  doc.setFont('helvetica', 'normal');
+  var lines = doc.splitTextToSize(text, 180);
+  var y = m ? 50 : 36;
+  lines.forEach(function(line) {
+    if (y > 275) { doc.addPage(); y = 15; }
+    doc.text(line, 15, y);
+    y += 5;
+  });
+
+  // Pied de page
+  doc.setFontSize(7);
+  doc.setTextColor(150, 150, 150);
+  doc.text('Généré par Coup 2 Pouce — DELY DIAG — ' + new Date().toLocaleDateString('fr-FR'), 15, 287);
+
+  var fileName = 'RelévéDPE_' + (m ? (m.nom || 'mission') : 'export') + '_' + new Date().toISOString().split('T')[0] + '.pdf';
+  doc.save(fileName);
 }
