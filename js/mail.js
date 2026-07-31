@@ -94,7 +94,7 @@ function envoyerMailFacture(facture) {
   var subject = 'Facture N°' + (facture.numero_facture || '') + ' — ' + societe;
 
   // 1. Générer PDF facture en blob
-  var pdfResult = (typeof genererPDFFacture === 'function') ? genererPDFFacture(facture, true) : null;
+  var pdfResult = (typeof genererPDFFacture === 'function') ? genererPDFFacture(facture, true, { skipLogo: true }) : null;
   if (!pdfResult || !pdfResult.blob) {
     if (btn) { btn.textContent = '✉️ Envoyer par mail'; btn.disabled = false; }
     alert('Erreur lors de la génération du PDF facture.');
