@@ -63,7 +63,7 @@ function renderFactureList(body) {
               <div class="devis-card-title">${f.numero_facture}</div>
               <span class="statut-badge ${cls}">${f.statut||'Facturé'}</span>
             </div>
-            <div class="devis-card-sub">👤 ${f.client_prenom||''} ${f.client_nom||''}</div>
+            <div class="devis-card-sub">👤 ${f.client_societe ? f.client_societe+' — ' : ''}${f.client_prenom||''} ${f.client_nom||''}</div>
             <div class="devis-card-sub">📍 ${f.bien_adresse||''}</div>
             ${f.numero ? '<div class="devis-card-sub" style="color:#9ca3af">Réf. devis : ' + f.numero + '</div>' : ''}
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
@@ -100,7 +100,7 @@ function renderFactureForm(body) {
         </div>
         <div class="devis-field">
           <label class="devis-label">Statut</label>
-          <select class="devis-select" id="fc-statut">
+          <select class="devis-select" id="fc-statut" onchange="togglePaiementSection()">
             ${statuts.map(s => `<option ${(src.statut||'Facturé')===s?'selected':''}>${s}</option>`).join('')}
           </select>
         </div>
@@ -110,11 +110,29 @@ function renderFactureForm(body) {
         </div>
         ${src.numero ? '<div class="devis-field" style="grid-column:1/-1"><label class="devis-label">Réf. devis</label><input class="devis-input" value="'+src.numero+'" readonly style="background:#F5F6FA;color:#6B7280"/></div>' : ''}
       </div>
+
+      <!-- Section paiement — visible uniquement si statut = Payé -->
+      <div id="fc-paiement-section" style="display:${(src.statut||'Facturé')==='Payé'?'block':'none'};margin-top:12px;padding:14px;background:#F0FDF4;border-radius:10px;border:1px solid #6EE7B7">
+        <div style="font-weight:700;color:#065F46;font-size:12px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">💳 Informations de paiement</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="devis-field">
+            <label class="devis-label">Date de paiement</label>
+            <input class="devis-input" id="fc-date_paiement" type="date" value="${src.date_paiement || today}"/>
+          </div>
+          <div class="devis-field">
+            <label class="devis-label">Mode de paiement</label>
+            <select class="devis-select" id="fc-mode_paiement">
+              ${['Virement bancaire','Chèque','Carte bancaire','Espèces','Paiement en ligne'].map(function(m){ return '<option '+(( src.mode_paiement||'Virement bancaire')===m?'selected':'')+'>'+m+'</option>'; }).join('')}
+            </select>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="devis-section">
       <div class="devis-section-title" style="color:#1B4332">👤 Client</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="devis-field" style="grid-column:1/-1"><label class="devis-label">Société (optionnel)</label><input class="devis-input" id="fc-client_societe" type="text" value="${src.client_societe||''}" placeholder="Laissez vide si particulier"/></div>
         <div class="devis-field"><label class="devis-label">Nom</label><input class="devis-input" id="fc-client_nom" type="text" value="${src.client_nom||''}"/></div>
         <div class="devis-field"><label class="devis-label">Prénom</label><input class="devis-input" id="fc-client_prenom" type="text" value="${src.client_prenom||''}"/></div>
         <div class="devis-field"><label class="devis-label">Téléphone</label><input class="devis-input" id="fc-client_tel" type="tel" value="${src.client_tel||''}"/></div>
@@ -196,6 +214,12 @@ function renderFactureForm(body) {
   updateFactureTotal();
 }
 
+function togglePaiementSection() {
+  var statut = document.getElementById('fc-statut')?.value;
+  var section = document.getElementById('fc-paiement-section');
+  if (section) section.style.display = (statut === 'Payé') ? 'block' : 'none';
+}
+
 function toggleFactureDiag(el, diag) {
   el.classList.toggle('selected');
   var isSel = el.classList.contains('selected');
@@ -229,6 +253,9 @@ function getFactureFormData() {
     date_facture:   document.getElementById('fc-date_facture')?.value   || '',
     date_mission:   document.getElementById('fc-date_mission')?.value   || '',
     statut:         document.getElementById('fc-statut')?.value         || 'Facturé',
+    date_paiement:  document.getElementById('fc-date_paiement')?.value  || '',
+    mode_paiement:  document.getElementById('fc-mode_paiement')?.value  || '',
+    client_societe: document.getElementById('fc-client_societe')?.value || '',
     client_nom:     document.getElementById('fc-client_nom')?.value     || '',
     client_prenom:  document.getElementById('fc-client_prenom')?.value  || '',
     client_tel:     document.getElementById('fc-client_tel')?.value     || '',
