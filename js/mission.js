@@ -374,11 +374,12 @@ function addToGoogleCalendar() {
   var title      = encodeURIComponent('Mission DELY DIAG — ' + nom + ' ' + prenom);
   var details    = encodeURIComponent('Diagnostics : ' + (diags||typeBien) + '\nBien : ' + typeBien + '\nAdresse : ' + adresse);
   var location   = encodeURIComponent(adresse);
-  var url = 'https://calendar.google.com/calendar/r/eventedit'
-    + '?text='   + title
-    + '&dates='  + startStr + '/' + endStr
-    + '&details='+ details
-    + '&location='+ location;
+  var url = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+    + '&text='    + title
+    + '&dates='   + startStr + '/' + endStr
+    + '&details=' + details
+    + '&location='+ location
+    + '&sf=true';
   window.open(url, '_blank');
 }
 
