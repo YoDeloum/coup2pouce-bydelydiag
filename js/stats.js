@@ -132,6 +132,26 @@ function renderStats() {
       </div>
     </div>
 
+    <!-- Détail missions (caché par défaut, juste sous les KPIs) -->
+    <div id="stats-missions-detail" style="display:none;background:#EDE9FE;border:2px solid #6366F1;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px rgba(99,102,241,.15)">
+      <h3 style="font-size:14px;font-weight:800;color:#5B21B6;margin-bottom:12px">📋 Détail des missions — ${moisLabel}</h3>
+      ${missionsFilt.length === 0 ? '<div style="text-align:center;color:#9ca3af;font-size:13px;padding:16px">Aucune mission ce mois-ci</div>' :
+        missionsFilt.map(function(m) {
+          var dept = (m.bien_adresse || m.adresse || '').match(/\b(\d{2})\d{3}\b/);
+          dept = dept ? dept[1] : (m.code_postal ? String(m.code_postal).substring(0,2) : '—');
+          var diags = (m.diags || []).join(' · ') || '—';
+          var tarifs2 = Object.assign({}, TARIFS_DEFAULT, JSON.parse(localStorage.getItem('dd_tarifs') || '{}'));
+          var montant = m.total && parseFloat(m.total) > 0 ? parseFloat(m.total) : (m.diags||[]).reduce(function(s,d){return s+(parseFloat(tarifs2[d])||0);},0);
+          var nom = (m.nom||m.client_nom||'') + ' ' + (m.prenom||m.client_prenom||'');
+          return '<div style="padding:10px;border-bottom:1px solid #DDD6FE;font-size:12px">'
+            + '<div style="font-weight:700;color:#1B4332">' + (nom.trim()||'Client inconnu') + ' — ' + dept + '</div>'
+            + '<div style="color:#6B7280;margin-top:2px">' + diags + '</div>'
+            + '<div style="color:#5B21B6;font-weight:700;margin-top:2px">' + montant.toFixed(0) + ' €</div>'
+            + '</div>';
+        }).join('')
+      }
+    </div>
+
     <!-- CA détaillé -->
     <div style="background:#fff;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.08)">
       <h3 style="font-size:14px;font-weight:800;color:#374151;margin-bottom:12px">💶 Détail financier</h3>
@@ -181,26 +201,6 @@ function renderStats() {
       ${topMod.map(function(e){var mod=e[0];var count=e[1];return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span style="flex:1;font-size:13px">'+mod+'</span><div style="flex:2;background:#E2E5F0;border-radius:999px;height:8px"><div style="height:100%;border-radius:999px;background:#2D6A4F;width:'+Math.round(count/maxVal*100)+'%"></div></div><span style="font-size:13px;font-weight:700;color:#2D6A4F;width:28px;text-align:right">'+count+'</span></div>';}).join('')}
     </div>` : ''}
 
-    <!-- Détail missions (caché par défaut) -->
-    <div id="stats-missions-detail" style="display:none;background:#fff;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.08)">
-      <h3 style="font-size:14px;font-weight:800;color:#6366F1;margin-bottom:12px">📋 Détail des missions — ${moisLabel}</h3>
-      ${missionsFilt.length === 0 ? '<div style="text-align:center;color:#9ca3af;font-size:13px">Aucune mission ce mois-ci</div>' :
-        missionsFilt.map(function(m) {
-          var dept = (m.bien_adresse || m.adresse || '').match(/\b(\d{2})\d{3}\b/);
-          dept = dept ? dept[1] : (m.code_postal ? String(m.code_postal).substring(0,2) : '—');
-          var diags = (m.diags || []).join(' · ') || '—';
-          var tarifs2 = Object.assign({}, TARIFS_DEFAULT, JSON.parse(localStorage.getItem('dd_tarifs') || '{}'));
-          var montant = m.total && parseFloat(m.total) > 0 ? parseFloat(m.total) : (m.diags||[]).reduce(function(s,d){return s+(parseFloat(tarifs2[d])||0);},0);
-          var nom = (m.nom||m.client_nom||'') + ' ' + (m.prenom||m.client_prenom||'');
-          return '<div style="padding:10px;border-bottom:1px solid #F5F5F5;font-size:12px">'
-            + '<div style="font-weight:700;color:#1B4332">' + (nom.trim()||'Client inconnu') + ' — ' + dept + '</div>'
-            + '<div style="color:#6B7280;margin-top:2px">' + diags + '</div>'
-            + '<div style="color:#6366F1;font-weight:700;margin-top:2px">' + montant.toFixed(0) + ' €</div>'
-            + '</div>';
-        }).join('')
-      }
-    </div>
-
     ${missionsFilt.length === 0 && devisFilt.length === 0 && facturesFilt.length === 0 ? '<div style="background:#fff;border-radius:14px;padding:30px;text-align:center;color:#6B7280;font-size:14px">Aucune activité pour '+moisLabel+'</div>' : ''}
 
     <button onclick="exportStats()" style="width:100%;padding:13px;border-radius:10px;border:none;background:linear-gradient(135deg,#6366F1,#8B5CF6);color:#fff;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px;margin-bottom:6px">📤 Exporter mes stats</button>`;
@@ -209,10 +209,13 @@ function renderStats() {
 function toggleStatsMissionsDetail() {
   var detail = document.getElementById('stats-missions-detail');
   var kpi    = document.getElementById('stats-missions-kpi');
-  if (!detail) return;
+  if (!detail) { alert('Panneau introuvable — ouvre les stats et réessaie.'); return; }
   var visible = detail.style.display !== 'none';
   detail.style.display = visible ? 'none' : 'block';
   if (kpi) kpi.style.borderColor = visible ? 'transparent' : '#6366F1';
+  if (!visible) {
+    setTimeout(function() { detail.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
+  }
 }
 
 function changerMoisStats(delta) {
