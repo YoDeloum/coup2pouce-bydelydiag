@@ -182,6 +182,122 @@ function envoyerMailFacture(facture) {
   reader.readAsDataURL(pdfResult.blob);
 }
 
+/**
+ * Mail confirmation RDV — envoi via Netlify avec PDF infos mission en PJ
+ */
+function envoyerMailRDVConfirme(mission) {
+  if (!mission) { alert('Mission introuvable.'); return; }
+  if (!mission.email && !mission.client_email) {
+    alert('Renseigne l\'email du client dans la mission avant d\'envoyer.');
+    return;
+  }
+
+  var btn = document.querySelector('[onclick*="envoyerMailRDVConfirme"]');
+  if (btn) { btn.textContent = '⏳ Envoi...'; btn.disabled = true; }
+
+  var p       = typeof getCompanyProfile === 'function' ? getCompanyProfile() : {};
+  var societe = p.nom_societe || 'DELY DIAG';
+  var prenom  = mission.prenom || mission.client_prenom || '';
+  var adresse = mission.adresse || mission.bien_adresse || '';
+  var date    = mission.date ? new Date(mission.date).toLocaleDateString('fr-FR') : '';
+  var heure   = mission.heure || '';
+  var diags   = (mission.diags || []).join(', ') || 'Diagnostics immobiliers';
+  var to      = mission.email || mission.client_email || '';
+  var subject = 'Confirmation de rendez-vous — ' + societe;
+
+  var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto">'
+    + '<div style="background:#1B4332;padding:24px 32px;border-radius:8px 8px 0 0">'
+    + '<h1 style="color:#fff;margin:0;font-size:20px">' + societe + '</h1>'
+    + (p.telephone ? '<p style="color:#A7F3D0;margin:4px 0;font-size:13px">' + p.telephone + '</p>' : '')
+    + '</div>'
+    + '<div style="background:#F9FAFB;padding:28px 32px;border:1px solid #E5E7EB;border-top:none">'
+    + '<p style="font-size:15px;color:#111827">Bonjour ' + prenom + ',</p>'
+    + '<p style="color:#374151">Votre rendez-vous de diagnostic immobilier est confirmé.</p>'
+    + '<div style="background:#fff;border:2px solid #6EE7B7;border-radius:8px;padding:16px 20px;margin:20px 0">'
+    + '<p style="margin:0 0 8px;font-size:13px;color:#6B7280">📅 Date et heure</p>'
+    + '<p style="margin:0 0 12px;font-size:18px;font-weight:700;color:#1B4332">' + date + (heure ? ' à ' + heure : '') + '</p>'
+    + '<p style="margin:0 0 4px;font-size:13px;color:#6B7280">📍 Bien</p>'
+    + '<p style="margin:0 0 12px;font-size:14px;font-weight:600;color:#374151">' + adresse + '</p>'
+    + '<p style="margin:0 0 4px;font-size:13px;color:#6B7280">🔬 Diagnostics prévus</p>'
+    + '<p style="margin:0;font-size:14px;color:#374151">' + diags + '</p>'
+    + '</div>'
+    + '<p style="color:#374151">Veuillez trouver en pièce jointe la liste des documents et informations à préparer pour le bon déroulement de notre intervention.</p>'
+    + '<p style="color:#374151;margin-top:24px">Cordialement,<br><strong>' + (p.nom_responsable || societe) + '</strong><br>'
+    + (p.telephone ? p.telephone + '<br>' : '') + (p.email || '') + '</p>'
+    + '</div>'
+    + '<div style="padding:12px 32px;font-size:11px;color:#9ca3af;border:1px solid #E5E7EB;border-top:none;border-radius:0 0 8px 8px;background:#fff">'
+    + societe + (p.siret ? ' — SIRET : ' + p.siret : '') + '</div></div>';
+
+  // Pièce jointe : doc infos mission si disponible
+  var attachments = [];
+  try {
+    var docs = JSON.parse(localStorage.getItem('dd_docs_reglementaires') || '{}');
+    if (docs.doc_mission && docs.doc_mission.data) {
+      attachments.push({ filename: docs.doc_mission.name || 'Infos_mission.pdf', content: docs.doc_mission.data.split(',')[1] });
+    }
+  } catch(e) {}
+
+  fetch('/.netlify/functions/send-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      to: to, subject: subject, html: html, attachments: attachments,
+      fromName: societe, fromEmail: 'noreply@coup2pouce-pro.fr', replyTo: p.email || ''
+    })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (btn) { btn.textContent = '✅ RDV Confirmé'; btn.disabled = false; }
+    if (data && data.success) alert('✅ Mail de confirmation envoyé à ' + to + ' !');
+    else alert('⚠️ Erreur : ' + (data && data.error ? data.error : JSON.stringify(data)));
+  })
+  .catch(function(err) {
+    if (btn) { btn.textContent = '✅ RDV Confirmé'; btn.disabled = false; }
+    alert('❌ Erreur réseau : ' + err.message);
+  });
+}
+
+/**
+ * Mail envoi rapport — ouvre la boite mail + télécharge la facture PAYÉE
+ */
+function envoyerMailRapport(mission) {
+  if (!mission) { alert('Mission introuvable.'); return; }
+
+  var p       = typeof getCompanyProfile === 'function' ? getCompanyProfile() : {};
+  var societe = p.nom_societe || 'DELY DIAG';
+  var prenom  = mission.prenom || mission.client_prenom || '';
+  var adresse = mission.adresse || mission.bien_adresse || '';
+  var to      = mission.email || mission.client_email || '';
+  var diags   = (mission.diags || []).join(', ') || 'diagnostics immobiliers';
+
+  // Télécharger la facture PAYÉE si disponible
+  if (mission.facture_id !== undefined || mission.numero_facture) {
+    var allFact = typeof getAllFactures === 'function' ? getAllFactures() : [];
+    var facture = allFact.find(function(f) {
+      return f.statut === 'Payé' && (f.numero_facture === mission.numero_facture ||
+        (f.client_nom||'').toLowerCase() === (mission.nom||mission.client_nom||'').toLowerCase());
+    });
+    if (facture) {
+      if (typeof genererPDFFacture === 'function') genererPDFFacture(facture);
+    }
+  }
+
+  // Ouvrir la boite mail pré-remplie
+  var subject = 'Vos rapports de diagnostic — ' + adresse;
+  var body = 'Bonjour ' + prenom + ',\n\n'
+    + 'Veuillez trouver ci-joint vos rapports de diagnostic immobilier '
+    + 'relatifs au bien situé au ' + adresse + '.\n\n'
+    + 'Diagnostics réalisés : ' + diags + '\n\n'
+    + 'Vous trouverez également en pièce jointe votre facture acquittée.\n\n'
+    + 'Nous restons disponibles pour toute question.\n\n'
+    + 'Cordialement,\n'
+    + (p.nom_responsable || societe) + '\n'
+    + (p.telephone || '') + '\n'
+    + (p.email || '');
+
+  ouvrirMail({ to: to, subject: subject, body: body });
+}
+
 // Utilitaire : date d'expiration devis (30 jours)
 function getDevisExpiry(dateStr) {
   if (!dateStr) return '';
