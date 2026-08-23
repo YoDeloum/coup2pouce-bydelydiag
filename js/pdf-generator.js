@@ -6,19 +6,18 @@
 // ─── UTILITAIRES ───────────────────────────
 
 // Ajoute le logo en conservant les proportions dans une boîte max 28×24mm
-function pdfAddLogo(doc, logoDataUrl, x, y) {
+// logoW / logoH : dimensions réelles stockées au moment de l'upload (évite le chargement async)
+function pdfAddLogo(doc, logoDataUrl, x, y, logoW, logoH) {
   try {
-    var img = new Image();
-    img.src = logoDataUrl;
-    var iw = img.naturalWidth  || img.width  || 100;
-    var ih = img.naturalHeight || img.height || 100;
+    var iw = (logoW && logoW > 0) ? logoW : 200;
+    var ih = (logoH && logoH > 0) ? logoH : 200;
     var maxW = 28, maxH = 24;
     var ratio = Math.min(maxW / iw, maxH / ih);
     var w = iw * ratio;
     var h = ih * ratio;
     var fmt = logoDataUrl.indexOf('image/png') !== -1 ? 'PNG' : 'JPEG';
     doc.addImage(logoDataUrl, fmt, x, y + (maxH - h) / 2, w, h);
-    return x + w + 4; // retourne la position X après le logo
+    return x + w + 4;
   } catch(e) {
     return x;
   }
@@ -66,7 +65,7 @@ function genererPDFDevis(devis, _returnBlob, opts) {
     doc.line(15, 42, 195, 42);
     var textX = 15;
     if (p.logo && p.logo.startsWith('data:image')) {
-      textX = pdfAddLogo(doc, p.logo, 15, 8);
+      textX = pdfAddLogo(doc, p.logo, 15, 8, p.logo_w, p.logo_h);
     }
     pdfText(doc, p.nom_societe || 'DELY DIAG', textX, 18, {bold:true, size:14, color:[27,67,50]});
     pdfText(doc, (p.forme_juridique || '') + (p.siret ? ' — SIRET : ' + p.siret : ''), textX, 24, {size:8, color:[107,114,128]});
@@ -81,7 +80,7 @@ function genererPDFDevis(devis, _returnBlob, opts) {
     pdfRect(doc, 0, 0, 210, 40, [45, 106, 79]);
     var textX = 15;
     if (p.logo && p.logo.startsWith('data:image')) {
-      textX = pdfAddLogo(doc, p.logo, 15, 8);
+      textX = pdfAddLogo(doc, p.logo, 15, 8, p.logo_w, p.logo_h);
     }
     pdfText(doc, p.nom_societe || 'DELY DIAG', textX, 18, {bold:true, size:16, color:[255,255,255]});
     pdfText(doc, (p.forme_juridique || '') + (p.siret ? ' — SIRET : ' + p.siret : ''), textX, 25, {size:9, color:[200,230,210]});
@@ -229,7 +228,7 @@ function genererPDFFacture(facture, _returnBlob, opts) {
     doc.line(15, 42, 195, 42);
     var textXf = 15;
     if (p.logo && p.logo.startsWith('data:image')) {
-      textXf = pdfAddLogo(doc, p.logo, 15, 8);
+      textXf = pdfAddLogo(doc, p.logo, 15, 8, p.logo_w, p.logo_h);
     }
     pdfText(doc, p.nom_societe || 'DELY DIAG', textXf, 18, {bold:true, size:14, color:[27,67,50]});
     pdfText(doc, (p.forme_juridique || '') + (p.siret ? ' — SIRET : ' + p.siret : ''), textXf, 24, {size:8, color:[107,114,128]});
@@ -243,7 +242,7 @@ function genererPDFFacture(facture, _returnBlob, opts) {
     pdfRect(doc, 0, 0, 210, 40, [27, 67, 50]);
     var textXf = 15;
     if (p.logo && p.logo.startsWith('data:image')) {
-      textXf = pdfAddLogo(doc, p.logo, 15, 8);
+      textXf = pdfAddLogo(doc, p.logo, 15, 8, p.logo_w, p.logo_h);
     }
     pdfText(doc, p.nom_societe || 'DELY DIAG', textXf, 18, {bold:true, size:16, color:[255,255,255]});
     pdfText(doc, (p.forme_juridique || '') + (p.siret ? ' — SIRET : ' + p.siret : ''), textXf, 25, {size:9, color:[170,210,185]});
@@ -397,7 +396,7 @@ function genererPDFSigne(devis) {
     doc.setDrawColor(220, 220, 220);
     doc.line(15, 42, 195, 42);
     var textX = 15;
-    if (p.logo && p.logo.startsWith('data:image')) textX = pdfAddLogo(doc, p.logo, 15, 8);
+    if (p.logo && p.logo.startsWith('data:image')) textX = pdfAddLogo(doc, p.logo, 15, 8, p.logo_w, p.logo_h);
     pdfText(doc, p.nom_societe || 'DELY DIAG', textX, 18, {bold:true, size:14, color:[27,67,50]});
     pdfText(doc, (p.forme_juridique || '') + (p.siret ? ' — SIRET : ' + p.siret : ''), textX, 24, {size:8, color:[107,114,128]});
     pdfText(doc, (p.adresse || '') + (p.code_postal ? ', ' + p.code_postal + ' ' + (p.ville||'') : ''), textX, 30, {size:8, color:[107,114,128]});
@@ -409,7 +408,7 @@ function genererPDFSigne(devis) {
   } else {
     pdfRect(doc, 0, 0, 210, 40, [45, 106, 79]);
     var textX = 15;
-    if (p.logo && p.logo.startsWith('data:image')) textX = pdfAddLogo(doc, p.logo, 15, 8);
+    if (p.logo && p.logo.startsWith('data:image')) textX = pdfAddLogo(doc, p.logo, 15, 8, p.logo_w, p.logo_h);
     pdfText(doc, p.nom_societe || 'DELY DIAG', textX, 18, {bold:true, size:16, color:[255,255,255]});
     pdfText(doc, (p.forme_juridique || '') + (p.siret ? ' — SIRET : ' + p.siret : ''), textX, 25, {size:9, color:[200,230,210]});
     pdfText(doc, (p.adresse || '') + (p.code_postal ? ', ' + p.code_postal + ' ' + (p.ville||'') : ''), textX, 31, {size:9, color:[200,230,210]});
