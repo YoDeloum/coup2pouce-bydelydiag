@@ -554,6 +554,7 @@ function updateHomeGreeting() {
 
 document.addEventListener('DOMContentLoaded', function() {
   updateHomeGreeting();
+  if (typeof updateAvatarDisplay === 'function') updateAvatarDisplay();
 
   // ── Vérification automatique des signatures ──
   setTimeout(function() {
