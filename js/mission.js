@@ -155,7 +155,10 @@ function renderMissionForm(body) {
         <textarea class="mission-textarea" id="m-description" placeholder="Ex: Maison sur 2 niveaux...">${m.description||''}</textarea>
         <button id="vocal-desc-btn" class="vocal-btn idle" onclick="startVoiceDescription('m-description','vocal-desc-btn')" style="margin-top:8px">🎤 Dicter</button>
       </div>
-      <div class="mission-field"><label class="mission-label">Date de mission</label><input class="mission-input" id="m-date" type="date" value="${m.date||new Date().toISOString().split('T')[0]}"/></div>
+      <div class="mission-field" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label class="mission-label">Date de mission</label><input class="mission-input" id="m-date" type="date" value="${m.date||new Date().toISOString().split('T')[0]}"/></div>
+        <div><label class="mission-label">Heure du RDV</label><input class="mission-input" id="m-heure" type="time" value="${m.heure||'09:00'}"/></div>
+      </div>
     </div>
 
     <div class="mission-section">
@@ -203,11 +206,28 @@ function renderMissionForm(body) {
     </div>
     <button onclick="missionView='dpe';renderMissionScreen()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#1D4ED8,#2563EB);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px">📐 Relevé DPE — Analyser un croquis</button>
     <button class="mission-save-btn" onclick="saveMissionForm()">💾 Sauvegarder la mission</button>
+    <button onclick="addToGoogleCalendar()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #0891B2;background:#fff;color:#0891B2;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">📅 Ajouter à Google Agenda</button>
+    ${currentMissionIdx !== null ? '<button onclick="envoyerMailRDVConfirme(missions[currentMissionIdx])" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#059669,#2D6A4F);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">✅ RDV Confirmé — Envoyer mail client</button>' : ''}
+    ${currentMissionIdx !== null ? '<button onclick="envoyerMailRapport(missions[currentMissionIdx])" style="width:100%;padding:12px;border-radius:10px;border:2px solid #6366F1;background:#fff;color:#6366F1;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">📧 Envoyer le rapport au client</button>' : ''}
     <button class="mission-export-btn" onclick="exportMission()">📤 Exporter / Partager</button>
     <button onclick="openAvisGoogle()" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">⭐ Demander un avis Google</button>
     ${currentMissionIdx !== null ? '<button onclick="deleteMission()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #EF4444;background:#fff;color:#EF4444;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">🗑️ Supprimer cette mission</button>' : ''}`;
   // Calculer automatiquement le total depuis les tarifs au chargement
-  setTimeout(function() { calculerTotalMission(false); }, 50);
+  setTimeout(function() {
+    calculerTotalMission(false);
+    // Autocomplétion clients
+    if (typeof clientsAutocomplete === 'function') {
+      var nomEl    = document.getElementById('m-nom');
+      var prenomEl = document.getElementById('m-prenom');
+      var telEl    = document.getElementById('m-tel');
+      var emailEl  = document.getElementById('m-email');
+      if (nomEl) {
+        nomEl.addEventListener('input', function() {
+          clientsAutocomplete(nomEl, telEl, prenomEl, emailEl);
+        });
+      }
+    }
+  }, 50);
 }
 
 function toggleDiag(el, diag) {
@@ -251,6 +271,7 @@ function getMissionFormData() {
     surface:              document.getElementById('m-surface')?.value          || '',
     description:          document.getElementById('m-description')?.value      || '',
     date:                 document.getElementById('m-date')?.value             || '',
+    heure:                document.getElementById('m-heure')?.value            || '',
     notes:                document.getElementById('m-notes')?.value            || '',
     devis_ref:            document.getElementById('m-devis_ref')?.value        || '',
     type_transaction:     document.getElementById('m-type_transaction')?.value || '',
@@ -330,6 +351,35 @@ function addToCalendar() {
   var a    = document.createElement('a');
   a.href   = url; a.download = 'mission_delydiag.ics'; a.click();
   URL.revokeObjectURL(url);
+}
+
+// ─── GOOGLE AGENDA ───
+function addToGoogleCalendar() {
+  var date    = document.getElementById('m-date')?.value;
+  var heure   = document.getElementById('m-heure')?.value || '09:00';
+  var nom     = document.getElementById('m-nom')?.value    || '';
+  var prenom  = document.getElementById('m-prenom')?.value || '';
+  var adresse = document.getElementById('m-adresse')?.value|| '';
+  var typeBien= document.getElementById('m-typeBien')?.value|| '';
+  var diags   = Array.from(document.querySelectorAll('.diag-grid .diag-item.selected')).map(function(el){return el.querySelector('span').textContent;}).join(', ');
+  if (!date) { alert('Saisis d\'abord une date de mission !'); return; }
+  var heureArr   = heure.split(':');
+  var startH     = parseInt(heureArr[0]||9, 10);
+  var startM     = parseInt(heureArr[1]||0, 10);
+  var endH       = startH + 2;
+  var pad        = function(n){return String(n).padStart(2,'0');};
+  var dateBase   = date.replace(/-/g,'');
+  var startStr   = dateBase + 'T' + pad(startH) + pad(startM) + '00';
+  var endStr     = dateBase + 'T' + pad(endH)   + pad(startM) + '00';
+  var title      = encodeURIComponent('Mission DELY DIAG — ' + nom + ' ' + prenom);
+  var details    = encodeURIComponent('Diagnostics : ' + (diags||typeBien) + '\nBien : ' + typeBien + '\nAdresse : ' + adresse);
+  var location   = encodeURIComponent(adresse);
+  var url = 'https://calendar.google.com/calendar/r/eventedit'
+    + '?text='   + title
+    + '&dates='  + startStr + '/' + endStr
+    + '&details='+ details
+    + '&location='+ location;
+  window.open(url, '_blank');
 }
 
 // ─── RAPPEL NOTIF ───
