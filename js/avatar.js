@@ -10,10 +10,18 @@ function initAvatar() {
 }
 
 function updateAvatarDisplay() {
-  var display = document.getElementById('avatar-display');
-  if (display) {
-    display.style.background = 'linear-gradient(135deg, ' + selectedAvatarColor + ', ' + selectedAvatarColor + '99)';
-    display.textContent = selectedAvatar;
+  var btn = document.getElementById('home-avatar-btn');
+  if (!btn) return;
+  var p = typeof getCompanyProfile === 'function' ? getCompanyProfile() : {};
+  if (p && p.avatar_photo) {
+    btn.innerHTML = '<img src="' + p.avatar_photo + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block"/>';
+    btn.style.background = 'none';
+    btn.style.padding = '0';
+    btn.style.overflow = 'hidden';
+  } else {
+    btn.innerHTML = selectedAvatar || '👤';
+    btn.style.background = 'linear-gradient(135deg, ' + selectedAvatarColor + ', ' + selectedAvatarColor + '99)';
+    btn.style.overflow = '';
   }
 }
 
