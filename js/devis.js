@@ -766,13 +766,15 @@ function calculerDiagsAuto() {
   document.querySelectorAll('#dv-diags-grid .diag-item').forEach(function(el) {
     var span = el.querySelector('span');
     var diag = span ? span.textContent.trim() : '';
-    var doit = obligatoires.indexOf(diag) !== -1;
+    // "Frais déplacement" toujours maintenu coché, même après calcul auto
+    var toujours = (diag === 'Frais déplacement');
+    var doit = obligatoires.indexOf(diag) !== -1 || toujours;
     if (doit) {
       el.classList.add('selected');
       var cb = el.querySelector('input[type="checkbox"]');
       if (cb) cb.checked = true;
-      el.style.borderColor = '#059669';
-      el.style.background  = '#05966912';
+      el.style.borderColor = toujours ? '#B45309' : '#059669';
+      el.style.background  = toujours ? '#FEF3C712' : '#05966912';
     } else {
       el.classList.remove('selected');
       var cb = el.querySelector('input[type="checkbox"]');
