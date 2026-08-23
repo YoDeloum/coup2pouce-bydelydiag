@@ -83,6 +83,10 @@ function renderMissionForm(body) {
       periode_construction: src.periode_construction || '',
       nb_pieces:            src.nb_pieces    || '',
       type_transaction:     src.type_transaction || '',
+      // Conserver le prix final saisi manuellement sur le devis (priorité sur le calcul auto)
+      total:                src.prix_final && parseFloat(src.prix_final) > 0
+                              ? parseFloat(src.prix_final).toFixed(2)
+                              : (src.total_ht ? parseFloat(src.total_ht).toFixed(2) : ''),
     };
     window._devisToMission = null; // Consommé
   }
@@ -165,7 +169,8 @@ function renderMissionForm(body) {
       <h3>📋 Diagnostics à réaliser</h3>
       <div class="diag-grid">
         ${diags.map(function(d) {
-          var isSel = (m.diags||[]).includes(d);
+          // Nouvelle mission sans diags sauvegardés → pré-cocher "Frais déplacement"
+          var isSel = m.diags != null ? m.diags.includes(d) : (d === 'Frais déplacement');
           var isTravel = d === 'Frais déplacement';
           return '<div class="diag-item ' + (isSel?'selected':'') + '" onclick="toggleDiag(this,\'' + d + '\')">'
             + '<input type="checkbox" ' + (isSel?'checked':'') + ' readonly/>'
