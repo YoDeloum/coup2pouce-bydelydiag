@@ -87,7 +87,8 @@ function renderDevisForm(body) {
   }
   var p      = getCompanyProfile();
   var tarifs = Object.assign({}, TARIFS_DEFAULT, JSON.parse(localStorage.getItem('dd_tarifs') || '{}'));
-  var sel    = devis.diagnostics || [];
+  // Pour un nouveau devis (diagnostics non encore définis), pré-cocher "Frais déplacement"
+  var sel    = devis.diagnostics != null ? devis.diagnostics : ['Frais déplacement'];
   var selDeps = devis.dependances || [];
   var today  = new Date().toISOString().split('T')[0];
   var statuts = ['Devis','Accepté','Intervention réalisée','Facturé','Payé','Annulé'];
