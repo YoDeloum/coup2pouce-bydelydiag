@@ -42,6 +42,13 @@ function renderProfilScreen() {
         <input type="file" accept="image/*" onchange="loadProfilLogo(this)" style="font-size:13px"/>
         ${p.logo ? '<button onclick="removeLogo()" style="margin-top:6px;padding:6px 12px;border-radius:7px;border:1px solid #EF4444;background:#fff;color:#EF4444;font-size:12px;font-weight:600;cursor:pointer">🗑️ Supprimer le logo</button>' : ''}
       </div>
+      <div class="profil-field" style="margin-top:14px;padding-top:14px;border-top:1px dashed #E2E5F0">
+        <label class="profil-label">👤 Photo de profil / Avatar</label>
+        <p style="font-size:11px;color:#9ca3af;margin-bottom:8px">Ta photo ou image s'affichera en haut à droite de l'application à la place de l'icône.</p>
+        ${p.avatar_photo ? '<img src="'+p.avatar_photo+'" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-bottom:8px;display:block;border:3px solid #2D6A4F"/>' : ''}
+        <input type="file" accept="image/*" onchange="loadProfilAvatar(this)" style="font-size:13px"/>
+        ${p.avatar_photo ? '<button onclick="removeProfilAvatar()" style="margin-top:6px;padding:6px 12px;border-radius:7px;border:1px solid #EF4444;background:#fff;color:#EF4444;font-size:12px;font-weight:600;cursor:pointer">🗑️ Supprimer la photo</button>' : ''}
+      </div>
     </div>
 
     <!-- Coordonnées -->
@@ -210,6 +217,25 @@ function renderProfilScreen() {
       <p style="font-size:10px;color:#9ca3af;text-align:center">L'import restaure toutes les données après confirmation. Les données actuelles seront remplacées.</p>
     </div>
 
+    <!-- Document infos mission -->
+    <div class="profil-section">
+      <div class="profil-section-title">📋 Document infos mission</div>
+      <p style="font-size:12px;color:#6B7280;margin-bottom:14px">Ce PDF sera automatiquement joint au mail de confirmation de RDV envoyé au client (liste des pièces à préparer, informations obligatoires, etc.).</p>
+      ${(function() {
+        var storedDocs = (function() { try { return JSON.parse(localStorage.getItem('dd_docs_reglementaires') || '{}'); } catch(e) { return {}; } })();
+        var stored = storedDocs['doc_mission'];
+        return '<div style="padding:12px;border:1.5px solid '+(stored?'#BBF7D0':'#E2E5F0')+';border-radius:10px;background:'+(stored?'#F0FDF4':'#FAFAFA')+'">'
+          + (stored ? '<div style="font-size:12px;font-weight:700;color:#065F46;margin-bottom:8px">✅ '+stored.name+'</div>' : '<div style="font-size:13px;color:#6B7280;margin-bottom:8px">📎 Aucun document chargé</div>')
+          + '<div style="display:flex;gap:8px">'
+          + '<label style="flex:1;padding:8px 12px;border-radius:8px;border:1.5px dashed #BBF7D0;background:#fff;font-size:12px;color:#2D6A4F;font-weight:600;cursor:pointer;text-align:center">'
+          + (stored ? '🔄 Remplacer' : '⬆️ Choisir le PDF')
+          + '<input type="file" accept=".pdf,application/pdf" style="display:none" onchange="uploadDocMission(this)"/>'
+          + '</label>'
+          + (stored ? '<button onclick="supprimerDocMission()" style="padding:8px 12px;border-radius:8px;border:1.5px solid #FCA5A5;background:#FFF;color:#EF4444;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🗑️</button>' : '')
+          + '</div></div>';
+      })()}
+    </div>
+
     <button class="profil-save-btn" onclick="saveProfilForm()">💾 Enregistrer le profil</button>
     <div id="profil-success" style="display:none;text-align:center;padding:12px;background:#D1FAE5;border-radius:10px;color:#065F46;font-weight:700;margin-bottom:16px">✅ Profil sauvegardé !</div>`;
 }
@@ -265,13 +291,71 @@ function loadProfilLogo(input) {
   if (!input.files || !input.files[0]) return;
   var reader = new FileReader();
   reader.onload = function(e) {
-    var p = getCompanyProfile();
-    p.logo = e.target.result;
-    saveCompanyProfile(p);
-    var img = document.getElementById('profil-logo-preview');
-    if (img) { img.src = e.target.result; img.style.display = 'block'; }
+    // Lire les dimensions réelles avant de sauvegarder
+    var imgEl = new Image();
+    imgEl.onload = function() {
+      var p = getCompanyProfile();
+      p.logo   = e.target.result;
+      p.logo_w = imgEl.naturalWidth;
+      p.logo_h = imgEl.naturalHeight;
+      saveCompanyProfile(p);
+      var preview = document.getElementById('profil-logo-preview');
+      if (preview) { preview.src = e.target.result; preview.style.display = 'block'; }
+    };
+    imgEl.src = e.target.result;
   };
   reader.readAsDataURL(input.files[0]);
+}
+
+function loadProfilAvatar(input) {
+  if (!input.files || !input.files[0]) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var p = getCompanyProfile();
+    p.avatar_photo = e.target.result;
+    saveCompanyProfile(p);
+    if (typeof updateAvatarDisplay === 'function') updateAvatarDisplay();
+    renderProfilScreen();
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+function removeProfilAvatar() {
+  var p = getCompanyProfile();
+  delete p.avatar_photo;
+  saveCompanyProfile(p);
+  if (typeof updateAvatarDisplay === 'function') updateAvatarDisplay();
+  renderProfilScreen();
+}
+
+function uploadDocMission(input) {
+  if (!input.files || !input.files[0]) return;
+  var file = input.files[0];
+  if (file.size > 3 * 1024 * 1024) {
+    alert('Ce fichier dépasse 3 Mo. Réduis la taille du PDF avant de l\'importer.');
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var docs = JSON.parse(localStorage.getItem('dd_docs_reglementaires') || '{}');
+      docs['doc_mission'] = { name: file.name, data: e.target.result };
+      localStorage.setItem('dd_docs_reglementaires', JSON.stringify(docs));
+    } catch(err) {
+      alert('Impossible de stocker le fichier. Essaie avec un PDF plus léger (moins de 2 Mo).');
+      return;
+    }
+    renderProfilScreen();
+  };
+  reader.readAsDataURL(file);
+}
+
+function supprimerDocMission() {
+  if (!confirm('Supprimer ce document ?')) return;
+  var docs = JSON.parse(localStorage.getItem('dd_docs_reglementaires') || '{}');
+  delete docs['doc_mission'];
+  localStorage.setItem('dd_docs_reglementaires', JSON.stringify(docs));
+  renderProfilScreen();
 }
 
 function removeLogo() {
