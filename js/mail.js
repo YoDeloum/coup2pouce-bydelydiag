@@ -10,16 +10,12 @@ function ouvrirMail(options) {
   var to      = options.to      || '';
   var subject = options.subject || '';
   var body    = options.body    || '';
-  var url = 'mailto:' + encodeURIComponent(to)
-    + '?subject=' + encodeURIComponent(subject)
-    + '&body='    + encodeURIComponent(body);
-  // Méthode la plus fiable sur PC et mobile
-  var a = document.createElement('a');
-  a.href = url;
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(function() { document.body.removeChild(a); }, 100);
+  // Ouvre Gmail directement dans le navigateur (fonctionne sans client mail installé)
+  var gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1'
+    + '&to='   + encodeURIComponent(to)
+    + '&su='   + encodeURIComponent(subject)
+    + '&body=' + encodeURIComponent(body);
+  window.open(gmailUrl, '_blank');
 }
 
 /**
