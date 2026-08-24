@@ -5,12 +5,50 @@
 
 // ─── UTILITAIRES ───────────────────────────
 
+// Lit les dimensions réelles d'un logo depuis son dataURL (synchrone — PNG et JPEG)
+function getImgDimsFromDataUrl(dataUrl) {
+  try {
+    var b64 = dataUrl.split(',')[1];
+    if (!b64) return null;
+    var bin = atob(b64);
+    // PNG : magic bytes 0x89 0x50, dimensions aux octets 16-23
+    if ((bin.charCodeAt(0) & 0xFF) === 0x89 && (bin.charCodeAt(1) & 0xFF) === 0x50 && bin.length >= 24) {
+      var w = ((bin.charCodeAt(16)&0xFF)<<24)|((bin.charCodeAt(17)&0xFF)<<16)|((bin.charCodeAt(18)&0xFF)<<8)|(bin.charCodeAt(19)&0xFF);
+      var h = ((bin.charCodeAt(20)&0xFF)<<24)|((bin.charCodeAt(21)&0xFF)<<16)|((bin.charCodeAt(22)&0xFF)<<8)|(bin.charCodeAt(23)&0xFF);
+      if (w > 0 && h > 0) return { w: w, h: h };
+    }
+    // JPEG : chercher marqueur SOF (0xFF 0xC0..C3)
+    if ((bin.charCodeAt(0)&0xFF) === 0xFF && (bin.charCodeAt(1)&0xFF) === 0xD8) {
+      var i = 2;
+      while (i < bin.length - 9) {
+        if ((bin.charCodeAt(i)&0xFF) !== 0xFF) break;
+        var marker = bin.charCodeAt(i+1)&0xFF;
+        var len = ((bin.charCodeAt(i+2)&0xFF)<<8)|(bin.charCodeAt(i+3)&0xFF);
+        if (marker >= 0xC0 && marker <= 0xC3) {
+          var h = ((bin.charCodeAt(i+5)&0xFF)<<8)|(bin.charCodeAt(i+6)&0xFF);
+          var w = ((bin.charCodeAt(i+7)&0xFF)<<8)|(bin.charCodeAt(i+8)&0xFF);
+          if (w > 0 && h > 0) return { w: w, h: h };
+        }
+        i += 2 + len;
+      }
+    }
+  } catch(e) {}
+  return null;
+}
+
 // Ajoute le logo en conservant les proportions dans une boîte max 28×24mm
-// logoW / logoH : dimensions réelles stockées au moment de l'upload (évite le chargement async)
 function pdfAddLogo(doc, logoDataUrl, x, y, logoW, logoH) {
   try {
-    var iw = (logoW && logoW > 0) ? logoW : 200;
-    var ih = (logoH && logoH > 0) ? logoH : 200;
+    var iw = (logoW && logoW > 0) ? logoW : 0;
+    var ih = (logoH && logoH > 0) ? logoH : 0;
+    // Si dimensions non stockées, les lire directement depuis les octets de l'image
+    if (!iw || !ih) {
+      var dims = getImgDimsFromDataUrl(logoDataUrl);
+      if (dims) { iw = dims.w; ih = dims.h; }
+    }
+    // Fallback ultime : ratio 3:1 typique d'un logo horizontal
+    if (!iw) iw = 300;
+    if (!ih) ih = 100;
     var maxW = 28, maxH = 24;
     var ratio = Math.min(maxW / iw, maxH / ih);
     var w = iw * ratio;
@@ -303,7 +341,8 @@ function genererPDFFacture(facture, _returnBlob, opts) {
   // Total
   var isHT   = (p.statut_fiscal || 'HT') === 'HT';
   var taux   = parseFloat(p.taux_tva || 20) / 100;
-  var ht     = parseFloat(facture.total_ht || 0);
+  // Priorité au prix forfaitaire saisi manuellement (prix_final), sinon calcul auto (total_ht)
+  var ht     = parseFloat(facture.prix_final && facture.prix_final > 0 ? facture.prix_final : (facture.total_ht || 0));
   var tva_mt = Math.round(ht * taux * 100) / 100;
   var ttc    = Math.round((ht + tva_mt) * 100) / 100;
 
