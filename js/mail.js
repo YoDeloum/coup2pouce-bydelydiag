@@ -13,7 +13,13 @@ function ouvrirMail(options) {
   var url = 'mailto:' + encodeURIComponent(to)
     + '?subject=' + encodeURIComponent(subject)
     + '&body='    + encodeURIComponent(body);
-  window.location.href = url;
+  // Méthode la plus fiable sur PC et mobile
+  var a = document.createElement('a');
+  a.href = url;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function() { document.body.removeChild(a); }, 100);
 }
 
 /**
