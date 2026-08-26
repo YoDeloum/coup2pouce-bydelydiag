@@ -10,14 +10,16 @@ function ouvrirMail(options) {
   var to      = options.to      || '';
   var subject = options.subject || '';
   var body    = options.body    || '';
-  // CC automatique vers l'adresse de l'utilisateur (profil société)
-  var p  = typeof getCompanyProfile === 'function' ? getCompanyProfile() : {};
-  var cc = options.cc !== undefined ? options.cc : (p.email || '');
+  // Copie automatique vers l'utilisateur (profil société, ou email de connexion en fallback)
+  var p        = typeof getCompanyProfile === 'function' ? getCompanyProfile() : {};
+  var userMail = p.email || localStorage.getItem('fb_email') || '';
+  var cc       = options.cc !== undefined ? options.cc : userMail;
   var gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1'
     + '&to='   + encodeURIComponent(to)
     + '&su='   + encodeURIComponent(subject)
     + '&body=' + encodeURIComponent(body)
-    + (cc ? '&cc=' + encodeURIComponent(cc) : '');
+    + (cc ? '&cc='  + encodeURIComponent(cc) : '')
+    + (cc ? '&bcc=' + encodeURIComponent(cc) : '');
   window.open(gmailUrl, '_blank');
 }
 
