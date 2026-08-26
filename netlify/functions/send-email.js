@@ -54,6 +54,7 @@ exports.handler = async function(event) {
   var fromName   = payload.fromName  || 'Coup 2 Pouce';
   var fromEmail  = payload.fromEmail || 'noreply@coup2pouce-pro.fr';
   var replyTo    = payload.replyTo   || '';
+  var cc         = payload.cc        || '';
 
   if (!to || !subject || !html) {
     return {
@@ -87,7 +88,8 @@ exports.handler = async function(event) {
         subject: subject,
         html: html,
         attachments: attachments
-      }, replyTo ? { reply_to: replyTo } : {}))
+      }, replyTo ? { reply_to: replyTo } : {},
+         cc      ? { cc: [cc] }          : {}))
     });
 
     var rawText = await res.text();
