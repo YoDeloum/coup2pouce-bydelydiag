@@ -306,10 +306,18 @@ function envoyerMailRapport(mission) {
 }
 
 /**
- * Relance client pour paiement d'une facture en attente
+ * Relance client pour paiement d'une facture en attente — avec PDF en pièce jointe
  */
 function envoyerRelanceFacture(facture) {
   if (!facture) { alert('Facture introuvable.'); return; }
+  if (!facture.client_email) {
+    alert('Renseigne d\'abord l\'email du client dans la facture.');
+    return;
+  }
+
+  var btn = document.querySelector('[onclick*="envoyerRelanceFacture"]');
+  if (btn) { btn.textContent = '⏳ Préparation...'; btn.disabled = true; }
+
   var p       = typeof getCompanyProfile === 'function' ? getCompanyProfile() : {};
   var societe = p.nom_societe || 'DELY DIAG';
   var prenom  = facture.client_prenom || '';
@@ -318,21 +326,62 @@ function envoyerRelanceFacture(facture) {
   var montant = ht.toFixed(2) + ' € HT';
 
   var subject = 'Relance — Facture N°' + (facture.numero_facture || '') + ' — ' + societe;
-  var body    = 'Bonjour ' + prenom + ',\n\n'
-    + 'Sauf erreur de ma part, je n\'ai pas encore reçu le règlement de la facture suivante :\n\n'
-    + '📄 Facture N° ' + (facture.numero_facture || '') + '\n'
-    + '💶 Montant : ' + montant + '\n'
-    + (facture.date_facture ? '📅 Date : ' + new Date(facture.date_facture).toLocaleDateString('fr-FR') + '\n' : '')
-    + '\n'
-    + (p.iban ? 'Virement bancaire :\nIBAN : ' + p.iban + '\n' : '')
-    + (p.lien_paiement ? 'Paiement en ligne : ' + p.lien_paiement + '\n' : '')
-    + '\nN\'hésitez pas à me contacter si vous avez la moindre question.\n\n'
-    + 'Cordialement,\n'
-    + (p.nom_responsable || societe) + '\n'
-    + (p.telephone || '') + '\n'
-    + (p.email || '');
 
-  ouvrirMail({ to: to, subject: subject, body: body });
+  var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto">'
+    + '<div style="background:#1B4332;padding:24px 32px;border-radius:8px 8px 0 0">'
+    + '<h1 style="color:#fff;margin:0;font-size:20px">' + societe + '</h1>'
+    + (p.telephone ? '<p style="color:#A7F3D0;margin:4px 0;font-size:13px">' + p.telephone + '</p>' : '')
+    + '</div>'
+    + '<div style="background:#F9FAFB;padding:28px 32px;border:1px solid #E5E7EB;border-top:none">'
+    + '<p style="font-size:15px;color:#111827">Bonjour ' + prenom + ',</p>'
+    + '<p style="color:#374151">Sauf erreur de notre part, nous n\'avons pas encore reçu le règlement correspondant à la facture ci-jointe.</p>'
+    + '<div style="background:#FEF3C7;border:2px solid #F59E0B;border-radius:8px;padding:16px 20px;margin:20px 0">'
+    + '<p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#92400E">📄 Facture N° ' + (facture.numero_facture || '') + '</p>'
+    + '<p style="margin:0 0 6px;font-size:16px;font-weight:800;color:#92400E">💶 ' + montant + '</p>'
+    + (facture.date_facture ? '<p style="margin:0;font-size:12px;color:#B45309">Date : ' + new Date(facture.date_facture).toLocaleDateString('fr-FR') + '</p>' : '')
+    + '</div>'
+    + (p.iban ? '<p style="color:#374151;font-size:13px">🏦 <strong>Virement bancaire :</strong><br/>IBAN : ' + p.iban + '</p>' : '')
+    + (p.lien_paiement ? '<p style="color:#374151;font-size:13px">💳 <strong>Paiement en ligne :</strong> <a href="' + p.lien_paiement + '">' + p.lien_paiement + '</a></p>' : '')
+    + '<p style="color:#6B7280;font-size:13px;margin-top:20px">N\'hésitez pas à nous contacter si vous avez la moindre question.</p>'
+    + '<p style="color:#374151;margin-top:20px">Cordialement,<br/><strong>' + (p.nom_responsable || societe) + '</strong><br/>'
+    + (p.telephone || '') + '<br/>' + (p.email || '') + '</p>'
+    + '</div></div>';
+
+  // Générer PDF facture (sans logo pour éviter 413)
+  var pdfResult = typeof genererPDFFacture === 'function' ? genererPDFFacture(facture, true, { skipLogo: true }) : null;
+  if (!pdfResult || !pdfResult.blob) {
+    if (btn) { btn.textContent = '🔔 Relancer le client'; btn.disabled = false; }
+    alert('Erreur lors de la génération du PDF.');
+    return;
+  }
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var base64 = e.target.result.split(',')[1];
+    var attachments = [{ filename: 'Facture_' + (facture.numero_facture || '') + '.pdf', content: base64 }];
+
+    fetch('/.netlify/functions/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: to, subject: subject, html: html, attachments: attachments,
+        fromName: societe, fromEmail: 'noreply@coup2pouce-pro.fr',
+        replyTo: p.email || '', cc: p.email || ''
+      })
+    })
+    .then(function(res) { return res.text().then(function(t) { return { status: res.status, text: t }; }); })
+    .then(function(r) {
+      if (btn) { btn.textContent = '🔔 Relancer le client'; btn.disabled = false; }
+      var data = JSON.parse(r.text);
+      if (data && data.success) alert('✅ Relance envoyée à ' + to + ' avec la facture en pièce jointe !');
+      else alert('⚠️ Erreur : ' + (data && data.error ? data.error : r.text));
+    })
+    .catch(function(err) {
+      if (btn) { btn.textContent = '🔔 Relancer le client'; btn.disabled = false; }
+      alert('❌ Erreur réseau : ' + err.message);
+    });
+  };
+  reader.readAsDataURL(pdfResult.blob);
 }
 
 // Utilitaire : date d'expiration devis (30 jours)
