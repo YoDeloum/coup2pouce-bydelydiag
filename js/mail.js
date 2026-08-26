@@ -10,11 +10,14 @@ function ouvrirMail(options) {
   var to      = options.to      || '';
   var subject = options.subject || '';
   var body    = options.body    || '';
-  // Ouvre Gmail directement dans le navigateur (fonctionne sans client mail installé)
+  // CC automatique vers l'adresse de l'utilisateur (profil société)
+  var p  = typeof getCompanyProfile === 'function' ? getCompanyProfile() : {};
+  var cc = options.cc !== undefined ? options.cc : (p.email || '');
   var gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1'
     + '&to='   + encodeURIComponent(to)
     + '&su='   + encodeURIComponent(subject)
-    + '&body=' + encodeURIComponent(body);
+    + '&body=' + encodeURIComponent(body)
+    + (cc ? '&cc=' + encodeURIComponent(cc) : '');
   window.open(gmailUrl, '_blank');
 }
 
@@ -157,7 +160,8 @@ function envoyerMailFacture(facture) {
         attachments: attachments,
         fromName:    p.nom_societe  || 'Coup 2 Pouce',
         fromEmail:   'noreply@coup2pouce-pro.fr',
-        replyTo:     p.email || ''
+        replyTo:     p.email || '',
+        cc:          p.email || ''
       })
     })
     .then(function(res) {
@@ -244,7 +248,8 @@ function envoyerMailRDVConfirme(mission) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       to: to, subject: subject, html: html, attachments: attachments,
-      fromName: societe, fromEmail: 'noreply@coup2pouce-pro.fr', replyTo: p.email || ''
+      fromName: societe, fromEmail: 'noreply@coup2pouce-pro.fr', replyTo: p.email || '',
+      cc: p.email || ''
     })
   })
   .then(function(res) { return res.json(); })
@@ -292,6 +297,36 @@ function envoyerMailRapport(mission) {
     + 'Diagnostics réalisés : ' + diags + '\n\n'
     + 'Vous trouverez également en pièce jointe votre facture acquittée.\n\n'
     + 'Nous restons disponibles pour toute question.\n\n'
+    + 'Cordialement,\n'
+    + (p.nom_responsable || societe) + '\n'
+    + (p.telephone || '') + '\n'
+    + (p.email || '');
+
+  ouvrirMail({ to: to, subject: subject, body: body });
+}
+
+/**
+ * Relance client pour paiement d'une facture en attente
+ */
+function envoyerRelanceFacture(facture) {
+  if (!facture) { alert('Facture introuvable.'); return; }
+  var p       = typeof getCompanyProfile === 'function' ? getCompanyProfile() : {};
+  var societe = p.nom_societe || 'DELY DIAG';
+  var prenom  = facture.client_prenom || '';
+  var to      = facture.client_email  || '';
+  var ht      = parseFloat(facture.prix_final && facture.prix_final > 0 ? facture.prix_final : (facture.total_ht || 0));
+  var montant = ht.toFixed(2) + ' € HT';
+
+  var subject = 'Relance — Facture N°' + (facture.numero_facture || '') + ' — ' + societe;
+  var body    = 'Bonjour ' + prenom + ',\n\n'
+    + 'Sauf erreur de ma part, je n\'ai pas encore reçu le règlement de la facture suivante :\n\n'
+    + '📄 Facture N° ' + (facture.numero_facture || '') + '\n'
+    + '💶 Montant : ' + montant + '\n'
+    + (facture.date_facture ? '📅 Date : ' + new Date(facture.date_facture).toLocaleDateString('fr-FR') + '\n' : '')
+    + '\n'
+    + (p.iban ? 'Virement bancaire :\nIBAN : ' + p.iban + '\n' : '')
+    + (p.lien_paiement ? 'Paiement en ligne : ' + p.lien_paiement + '\n' : '')
+    + '\nN\'hésitez pas à me contacter si vous avez la moindre question.\n\n'
     + 'Cordialement,\n'
     + (p.nom_responsable || societe) + '\n'
     + (p.telephone || '') + '\n'
