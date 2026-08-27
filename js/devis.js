@@ -664,7 +664,8 @@ function envoyerMailDevis(devis) {
         attachments: attachments,
         fromName:    p.nom_societe  || 'Coup 2 Pouce',
         fromEmail:   'noreply@coup2pouce-pro.fr',
-        replyTo:     p.email        || ''
+        replyTo:     p.email        || '',
+        cc:          p.email || localStorage.getItem('fb_email') || ''
       })
     });
   })
