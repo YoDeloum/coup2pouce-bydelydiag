@@ -195,8 +195,7 @@ function genererPDFDevis(devis, _returnBlob, opts) {
   if (isHT) {
     pdfText(doc, 'Total HT', 122, y + 9, {size:10, color:[200,230,210]});
     pdfText(doc, ht.toFixed(2) + ' €', 193, y + 9, {bold:true, size:10, color:[255,255,255], align:'right'});
-    pdfText(doc, p.mentions_legales && p.mentions_legales.includes('Dispensé') ? 'TVA non applicable — art. 293B CGI' : 'TVA ' + (devis.taux_tva||20) + '%', 122, y+17, {size:9, color:[180,220,190]});
-    pdfText(doc, p.mentions_legales && p.mentions_legales.includes('Dispensé') ? '' : tva_mt.toFixed(2) + ' €', 193, y+17, {size:9, color:[200,230,210], align:'right'});
+    pdfText(doc, 'TVA non applicable — art. 293B CGI', 122, y+17, {size:9, color:[180,220,190]});
   } else {
     pdfText(doc, 'Total HT', 122, y + 9, {size:9, color:[180,220,190]});
     pdfText(doc, ht.toFixed(2) + ' €', 193, y + 9, {size:9, color:[200,230,210], align:'right'});
@@ -214,6 +213,17 @@ function genererPDFDevis(devis, _returnBlob, opts) {
   }
 
   y += isHT ? 38 : 46;
+
+  // ── Mentions légales (avant conditions de paiement) ──
+  if (p.mentions_legales && p.mentions_legales.trim()) {
+    y += 8;
+    pdfText(doc, 'Mentions légales', 15, y, {bold:true, size:8, color:[107,114,128]});
+    y += 5;
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(120,120,120);
+    var _mlD = doc.splitTextToSize(p.mentions_legales.trim(), 180);
+    doc.text(_mlD, 15, y);
+    y += _mlD.length * 3.5;
+  }
 
   // ── Conditions de paiement ──
   y += 4;
@@ -238,8 +248,8 @@ function genererPDFDevis(devis, _returnBlob, opts) {
   // ── Pied de page ──
   var footerY = 285;
   pdfRect(doc, 0, footerY - 3, 210, 15, [245,247,250]);
-  pdfText(doc, p.mentions_legales || '', 15, footerY + 2, {size:7, color:[150,150,150]});
-  pdfText(doc, (p.nom_societe||'') + (p.siret ? ' — SIRET : ' + p.siret : ''), 195, footerY + 7, {size:7, color:[150,150,150], align:'right'});
+  pdfText(doc, (p.nom_societe||'') + (p.adresse ? ' — ' + p.adresse : '') + (p.siret ? ' — SIRET : ' + p.siret : ''), 15, footerY + 2, {size:7, color:[150,150,150]});
+  pdfText(doc, (p.telephone||'') + (p.email ? ' | ' + p.email : ''), 195, footerY + 7, {size:7, color:[150,150,150], align:'right'});
 
   var _pdfFilename = 'Devis_' + (devis.numero || 'XXXX') + '_' + (devis.client_nom || '') + '.pdf';
   if (_returnBlob) return { blob: doc.output('blob'), filename: _pdfFilename };
@@ -359,12 +369,23 @@ function genererPDFFacture(facture, _returnBlob, opts) {
     pdfRect(doc, 120, y+18, 75, 10, [10, 40, 25]);
     pdfText(doc, 'TOTAL',              122, y + 9,  {size:10, color:[200,230,210]});
     pdfText(doc, ht.toFixed(2) + ' €', 193, y + 9,  {bold:true, size:10, color:[255,255,255], align:'right'});
-    pdfText(doc, p.mentions_legales && p.mentions_legales.includes('Dispensé') ? 'TVA non applicable — art. 293B CGI' : 'TVA ' + (p.taux_tva||20) + '%', 122, y+16, {size:8, color:[170,210,185]});
+    pdfText(doc, 'TVA non applicable — art. 293B CGI', 122, y+16, {size:8, color:[170,210,185]});
     pdfText(doc, 'À PAYER',            122, y+25, {bold:true, size:11, color:[255,255,255]});
     pdfText(doc, ht.toFixed(2) + ' €', 193, y+25, {bold:true, size:12, color:[255,255,255], align:'right'});
   }
 
   y += isHT ? 36 : 44;
+
+  // ── Mentions légales (avant conditions de règlement) ──
+  if (p.mentions_legales && p.mentions_legales.trim()) {
+    y += 8;
+    pdfText(doc, 'Mentions légales', 15, y, {bold:true, size:8, color:[107,114,128]});
+    y += 5;
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(120,120,120);
+    var _mlF = doc.splitTextToSize(p.mentions_legales.trim(), 180);
+    doc.text(_mlF, 15, y);
+    y += _mlF.length * 3.5;
+  }
 
   // Paiement
   y += 4;
@@ -405,8 +426,8 @@ function genererPDFFacture(facture, _returnBlob, opts) {
   // Pied de page
   var footerY = 285;
   pdfRect(doc, 0, footerY - 3, 210, 15, [245,247,250]);
-  pdfText(doc, p.mentions_legales || '', 15, footerY + 2, {size:7, color:[150,150,150]});
-  pdfText(doc, (p.nom_societe||'') + (p.siret ? ' — SIRET : ' + p.siret : ''), 195, footerY + 7, {size:7, color:[150,150,150], align:'right'});
+  pdfText(doc, (p.nom_societe||'') + (p.adresse ? ' — ' + p.adresse : '') + (p.siret ? ' — SIRET : ' + p.siret : ''), 15, footerY + 2, {size:7, color:[150,150,150]});
+  pdfText(doc, (p.telephone||'') + (p.email ? ' | ' + p.email : ''), 195, footerY + 7, {size:7, color:[150,150,150], align:'right'});
   var _pdfFilename = 'Facture_' + (facture.numero_facture || 'XXXX') + '_' + (facture.client_nom || '') + '.pdf';
   if (_returnBlob) return { blob: doc.output('blob'), filename: _pdfFilename };
   doc.save(_pdfFilename);
@@ -521,8 +542,7 @@ function genererPDFSigne(devis) {
   if (isHT) {
     pdfText(doc, 'Total HT', 122, y + 9, {size:10, color:[200,230,210]});
     pdfText(doc, ht.toFixed(2) + ' €', 193, y + 9, {bold:true, size:10, color:[255,255,255], align:'right'});
-    pdfText(doc, p.mentions_legales && p.mentions_legales.includes('Dispensé') ? 'TVA non applicable — art. 293B CGI' : 'TVA ' + (devis.taux_tva||20) + '%', 122, y+17, {size:9, color:[180,220,190]});
-    pdfText(doc, p.mentions_legales && p.mentions_legales.includes('Dispensé') ? '' : tva_mt.toFixed(2) + ' €', 193, y+17, {size:9, color:[200,230,210], align:'right'});
+    pdfText(doc, 'TVA non applicable — art. 293B CGI', 122, y+17, {size:9, color:[180,220,190]});
   } else {
     pdfText(doc, 'Total HT', 122, y + 9, {size:9, color:[180,220,190]});
     pdfText(doc, ht.toFixed(2) + ' €', 193, y + 9, {size:9, color:[200,230,210], align:'right'});
@@ -538,6 +558,17 @@ function genererPDFSigne(devis) {
     pdfText(doc, ht.toFixed(2) + ' € HT', 193, y+27, {bold:true, size:12, color:[255,255,255], align:'right'});
   }
   y += isHT ? 38 : 46;
+
+  // ── Mentions légales (avant conditions de paiement) ──
+  if (p.mentions_legales && p.mentions_legales.trim()) {
+    y += 8;
+    pdfText(doc, 'Mentions légales', 15, y, {bold:true, size:8, color:[107,114,128]});
+    y += 5;
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(120,120,120);
+    var _mlS = doc.splitTextToSize(p.mentions_legales.trim(), 180);
+    doc.text(_mlS, 15, y);
+    y += _mlS.length * 3.5;
+  }
 
   // ── Conditions de paiement ──
   y += 4;
@@ -592,8 +623,8 @@ function genererPDFSigne(devis) {
   // ── Pied de page ──
   var footerY = 285;
   pdfRect(doc, 0, footerY - 3, 210, 15, [245,247,250]);
-  pdfText(doc, p.mentions_legales || '', 15, footerY + 2, {size:7, color:[150,150,150]});
-  pdfText(doc, (p.nom_societe||'') + (p.siret ? ' — SIRET : ' + p.siret : ''), 195, footerY + 7, {size:7, color:[150,150,150], align:'right'});
+  pdfText(doc, (p.nom_societe||'') + (p.adresse ? ' — ' + p.adresse : '') + (p.siret ? ' — SIRET : ' + p.siret : ''), 15, footerY + 2, {size:7, color:[150,150,150]});
+  pdfText(doc, (p.telephone||'') + (p.email ? ' | ' + p.email : ''), 195, footerY + 7, {size:7, color:[150,150,150], align:'right'});
 
   doc.save('DevisSigne_' + (devis.numero || 'XXXX') + '_' + (devis.client_nom || '') + '.pdf');
 }
