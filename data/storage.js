@@ -15,7 +15,8 @@ var _FS_KEYS = [
   'dd_devis_list',
   'dd_missions',
   'dd_factures_list',
-  'dd_docs_reglementaires',
+  // 'dd_docs_reglementaires' exclu du sync Firestore : les PDFs en base64 sont trop volumineux
+  // et Firestore écrase les données locales à chaque login. Ces docs restent en localStorage uniquement.
   'dd_avatar',
   'dd_avatar_color',
   'dd_prenom',
