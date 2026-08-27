@@ -163,7 +163,7 @@ function envoyerMailFacture(facture) {
         fromName:    p.nom_societe  || 'Coup 2 Pouce',
         fromEmail:   'noreply@coup2pouce-pro.fr',
         replyTo:     p.email || '',
-        cc:          p.email || ''
+        cc:          p.email || localStorage.getItem('fb_email') || ''
       })
     })
     .then(function(res) {
