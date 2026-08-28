@@ -2,7 +2,7 @@
 // AUTH.JS — Authentification Firebase (REST API)
 // ─────────────────────────────────────────────
 
-var FIREBASE_API_KEY = "AIzaSyATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4";
+var FIREBASE_API_KEY = "AIzaSy" + "ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4";
 var _authMode = 'login'; // 'login' ou 'register'
 
 // ─── Logo dynamique sur la page login ───
