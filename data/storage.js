@@ -66,8 +66,19 @@ function _fsPush(key, value) {
   var token = localStorage.getItem('fb_token');
   if (!uid || !token) return;
 
+  // Pour dd_company_profile : exclure logo/logo_w/logo_h (base64 trop volumineux pour Firestore)
+  var valueToSync = value;
+  if (key === 'dd_company_profile') {
+    try {
+      var _obj = JSON.parse(value);
+      var _stripped = Object.assign({}, _obj);
+      delete _stripped.logo; delete _stripped.logo_w; delete _stripped.logo_h;
+      valueToSync = JSON.stringify(_stripped);
+    } catch(e) {}
+  }
+
   var fields = {};
-  fields[key] = { stringValue: String(value) };
+  fields[key] = { stringValue: String(valueToSync) };
 
   var url = _FS_COL + uid + '?updateMask.fieldPaths=' + key;
   var opts = {
@@ -95,7 +106,21 @@ function _processSync(data, uid, callback) {
     _FS_KEYS.forEach(function(key) {
       var field = data.fields[key];
       if (field && field.stringValue !== undefined) {
-        _lsSetItem.call(localStorage, key, field.stringValue);
+        if (key === 'dd_company_profile') {
+          // Préserver logo/logo_w/logo_h locaux — Firestore ne les stocke pas (trop volumineux)
+          try {
+            var _cloud = JSON.parse(field.stringValue);
+            var _local = JSON.parse(localStorage.getItem(key) || '{}');
+            if (_local.logo)   _cloud.logo   = _local.logo;
+            if (_local.logo_w) _cloud.logo_w = _local.logo_w;
+            if (_local.logo_h) _cloud.logo_h = _local.logo_h;
+            _lsSetItem.call(localStorage, key, JSON.stringify(_cloud));
+          } catch(e) {
+            _lsSetItem.call(localStorage, key, field.stringValue);
+          }
+        } else {
+          _lsSetItem.call(localStorage, key, field.stringValue);
+        }
         cloudKeys[key] = true;
       }
     });
