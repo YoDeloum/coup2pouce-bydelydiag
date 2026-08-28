@@ -46,9 +46,12 @@ function renderDevisList(body) {
   updateDevisBadge();
 
   body.innerHTML = `
-    <button onclick="_devisEdit=null;renderDevisScreen('form')" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#059669,#10B981);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:16px">
-      ➕ Nouveau devis
-    </button>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button onclick="_devisEdit=null;renderDevisScreen('form')" style="flex:1;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#059669,#10B981);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">
+        ➕ Nouveau devis
+      </button>
+      <button onclick="ouvrirParamRelances()" style="padding:14px 16px;border-radius:12px;border:1.5px solid #E2E5F0;background:#fff;color:#6B7280;font-size:18px;cursor:pointer" title="Relances automatiques">⚙️</button>
+    </div>
     ${nbSignesNouveaux > 0 ? `<div style="background:#F0FDF4;border:1.5px solid #6EE7B7;border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px"><span style="font-size:20px">✅</span><div><div style="font-weight:700;color:#065F46;font-size:13px">${nbSignesNouveaux} devis signé${nbSignesNouveaux>1?'s':''} !</div><div style="font-size:11px;color:#6B7280">Ouvre le devis pour voir la signature</div></div></div>` : ''}
     <div style="font-size:12px;color:#6B7280;margin-bottom:12px;font-weight:600">${list.length} devis enregistré${list.length>1?'s':''}</div>
     ${sorted.length === 0 ? '<div style="text-align:center;padding:40px;color:#6B7280">Aucun devis créé</div>' : ''}
@@ -91,7 +94,7 @@ function renderDevisForm(body) {
   var sel    = devis.diagnostics != null ? devis.diagnostics : ['Frais déplacement'];
   var selDeps = devis.dependances || [];
   var today  = new Date().toISOString().split('T')[0];
-  var statuts = ['Devis','Accepté','Intervention réalisée','Facturé','Payé','Annulé'];
+  var statuts = ['Devis','Accepté','Refusé','Intervention réalisée','Facturé','Payé','Annulé'];
 
   body.innerHTML = `
     <button onclick="renderDevisScreen('list')" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:#059669;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:16px;font-family:inherit">← Retour</button>
@@ -211,6 +214,10 @@ function renderDevisForm(body) {
         <div class="devis-field">
           <label class="devis-label">Nombre de pièces</label>
           <input class="devis-input" id="dv-nb_pieces" type="number" min="1" max="99" value="${devis.nb_pieces||''}" placeholder="Ex : 4"/>
+        </div>
+        <div class="devis-field">
+          <label class="devis-label">Surface (m²)</label>
+          <input class="devis-input" id="dv-surface" type="number" min="1" max="9999" value="${devis.surface||''}" placeholder="Ex : 85"/>
         </div>
         <div class="devis-field" style="grid-column:1/-1">
           <label class="devis-label">Type de transaction</label>
@@ -427,6 +434,7 @@ function getDevisFormData() {
     statut_fiscal:        document.getElementById('dv-statut_fiscal')?.value       || p.statut_fiscal || 'HT',
     periode_construction: document.getElementById('dv-periode_construction')?.value || '',
     nb_pieces:            document.getElementById('dv-nb_pieces')?.value            || '',
+    surface:              document.getElementById('dv-surface')?.value              || '',
     type_transaction:     document.getElementById('dv-type_transaction')?.value     || '',
     gaz:                  document.getElementById('dv-gaz')?.value                  || '',
     dependances:          selDeps,
