@@ -5,6 +5,20 @@
 var FIREBASE_API_KEY = "AIzaSyATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4";
 var _authMode = 'login'; // 'login' ou 'register'
 
+// ─── Logo dynamique sur la page login ───
+(function() {
+  try {
+    var p = JSON.parse(localStorage.getItem('dd_company_profile') || '{}');
+    if (p.logo) {
+      var imgEl = document.querySelector('.login-logo img');
+      if (imgEl) {
+        imgEl.src = p.logo;
+        imgEl.style.cssText = 'max-height:80px;max-width:220px;width:auto;height:auto;display:block;margin:0 auto;object-fit:contain';
+      }
+    }
+  } catch(e) {}
+})();
+
 // ─── Bascule Login ↔ Inscription ───
 function toggleAuthMode() {
   _authMode = _authMode === 'login' ? 'register' : 'login';
