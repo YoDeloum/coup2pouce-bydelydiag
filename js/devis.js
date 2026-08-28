@@ -612,33 +612,35 @@ function envoyerMailDevis(devis) {
   })
   .catch(function() {}) // Silencieux si Firestore échoue — le mail sera quand même envoyé
   .then(function() {
-    // 5. Générer PDF devis en base64 (sans logo pour réduire la taille)
-    var pdfResult = genererPDFDevis(devis, true, { skipLogo: true });
-    if (!pdfResult) {
-      if (btn) { btn.textContent = '✉️ Envoyer par mail'; btn.disabled = false; }
-      alert('Erreur lors de la génération du PDF devis.');
-      return;
-    }
+    // 5. Compresser logo et générer PDF devis (logo inclus dans l'email)
     return new Promise(function(resolve) {
-      var reader = new FileReader();
-      reader.onload = function(e) {
-        var attachments = [];
-        attachments.push({
-          filename: pdfResult.filename,
-          content:  e.target.result.split(',')[1]
-        });
-        // Docs réglementaires (CGV, CGI, Consentement)
-        var docs = {};
-        try { docs = JSON.parse(localStorage.getItem('dd_docs_reglementaires') || '{}'); } catch(ex) {}
-        ['consentement', 'cgv', 'cgi'].forEach(function(id) {
-          if (docs[id] && docs[id].data) {
-            var b64 = docs[id].data.split(',')[1];
-            if (b64) attachments.push({ filename: docs[id].name || (id.toUpperCase() + '.pdf'), content: b64 });
-          }
-        });
-        resolve(attachments);
-      };
-      reader.readAsDataURL(pdfResult.blob);
+      _compressLogoForEmail(getCompanyProfile().logo, function(compressedLogo) {
+        var pdfResult = genererPDFDevis(devis, true, compressedLogo ? { compressedLogo: compressedLogo } : { skipLogo: true });
+        if (!pdfResult) {
+          if (btn) { btn.textContent = '✉️ Envoyer par mail'; btn.disabled = false; }
+          alert('Erreur lors de la génération du PDF devis.');
+          resolve(null); return;
+        }
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var attachments = [];
+          attachments.push({
+            filename: pdfResult.filename,
+            content:  e.target.result.split(',')[1]
+          });
+          // Docs réglementaires (CGV, CGI, Consentement)
+          var docs = {};
+          try { docs = JSON.parse(localStorage.getItem('dd_docs_reglementaires') || '{}'); } catch(ex) {}
+          ['consentement', 'cgv', 'cgi'].forEach(function(id) {
+            if (docs[id] && docs[id].data) {
+              var b64 = docs[id].data.split(',')[1];
+              if (b64) attachments.push({ filename: docs[id].name || (id.toUpperCase() + '.pdf'), content: b64 });
+            }
+          });
+          resolve(attachments);
+        };
+        reader.readAsDataURL(pdfResult.blob);
+      });
     });
   })
   .then(function(attachments) {
