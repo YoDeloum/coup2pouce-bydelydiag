@@ -134,3 +134,162 @@ function _enregistrerRelance(canal) {
   list[_devisEdit].relances.push({ date: new Date().toISOString(), canal: canal });
   saveAllDevis(list);
 }
+
+// ─────────────────────────────────────────────
+// RELANCES AUTOMATIQUES
+// ─────────────────────────────────────────────
+
+function _getRelanceSettings() {
+  try { return JSON.parse(localStorage.getItem('dd_relance_settings') || '{}'); } catch(e) { return {}; }
+}
+function _saveRelanceSettings(s) { localStorage.setItem('dd_relance_settings', JSON.stringify(s)); }
+function _getRelanceLog() {
+  try { return JSON.parse(localStorage.getItem('dd_relance_log') || '{}'); } catch(e) { return {}; }
+}
+function _saveRelanceLog(log) { localStorage.setItem('dd_relance_log', JSON.stringify(log)); }
+
+// ─── Vérification au démarrage ───
+function initAutoRelances() {
+  var s = _getRelanceSettings();
+  if (!s.actif) return;
+
+  var devisJ1 = parseInt(s.devis_j1)   || 2;
+  var devisJ2 = parseInt(s.devis_j2)   || 7;
+  var factJ1  = parseInt(s.facture_j1) || 5;
+  var factJ2  = parseInt(s.facture_j2) || 15;
+
+  var log   = _getRelanceLog();
+  var today = new Date(); today.setHours(0,0,0,0);
+  var p     = typeof getCompanyProfile === 'function' ? getCompanyProfile() : {};
+
+  // Devis en attente
+  var devisList = [];
+  try { devisList = JSON.parse(localStorage.getItem('dd_devis_list') || '[]'); } catch(e) {}
+  devisList.forEach(function(d, i) {
+    if (!d || d.statut !== 'Devis' || !d.client_email) return;
+    var dt = new Date(d.date || d.date_creation);
+    if (isNaN(dt)) return;
+    dt.setHours(0,0,0,0);
+    var jours = Math.floor((today - dt) / 86400000);
+    var id = d.numero || ('d' + i);
+    if (!log['dv_' + id + '_r1'] && jours >= devisJ1) {
+      _autoEnvoyerEmail(d, p, 'devis', 1);
+      log['dv_' + id + '_r1'] = new Date().toISOString();
+    } else if (log['dv_' + id + '_r1'] && !log['dv_' + id + '_r2'] && jours >= devisJ2) {
+      _autoEnvoyerEmail(d, p, 'devis', 2);
+      log['dv_' + id + '_r2'] = new Date().toISOString();
+    }
+  });
+
+  // Factures impayées
+  var factList = [];
+  try { factList = JSON.parse(localStorage.getItem('dd_factures_list') || '[]'); } catch(e) {}
+  factList.forEach(function(f, i) {
+    if (!f || f.statut === 'Payée' || f.statut === 'Payé' || !f.client_email) return;
+    var dt = new Date(f.date_facture || f.date);
+    if (isNaN(dt)) return;
+    dt.setHours(0,0,0,0);
+    var jours = Math.floor((today - dt) / 86400000);
+    var id = f.numero_facture || ('f' + i);
+    if (!log['fa_' + id + '_r1'] && jours >= factJ1) {
+      _autoEnvoyerEmail(f, p, 'facture', 1);
+      log['fa_' + id + '_r1'] = new Date().toISOString();
+    } else if (log['fa_' + id + '_r1'] && !log['fa_' + id + '_r2'] && jours >= factJ2) {
+      _autoEnvoyerEmail(f, p, 'facture', 2);
+      log['fa_' + id + '_r2'] = new Date().toISOString();
+    }
+  });
+
+  _saveRelanceLog(log);
+}
+
+function _autoEnvoyerEmail(doc, p, type, niveau) {
+  var societe = p.nom_societe || 'DELY DIAG';
+  var prenom  = doc.client_prenom || '';
+  var to      = doc.client_email;
+  var nLabel  = niveau === 1 ? 'Relance' : '2ème relance';
+  var subject, html;
+
+  if (type === 'devis') {
+    var montant = parseFloat(doc.total_ht || 0).toFixed(2) + ' € HT';
+    subject = nLabel + ' — Devis N°' + (doc.numero || '') + ' — ' + societe;
+    html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto">'
+      + '<div style="background:#1B4332;padding:24px 32px;border-radius:8px 8px 0 0"><h1 style="color:#fff;margin:0;font-size:20px">' + societe + '</h1>'
+      + (p.telephone ? '<p style="color:#A7F3D0;margin:4px 0;font-size:13px">' + p.telephone + '</p>' : '')
+      + '</div><div style="background:#F9FAFB;padding:28px 32px;border:1px solid #E5E7EB;border-top:none">'
+      + '<p style="font-size:15px;color:#111827">Bonjour ' + prenom + ',</p>'
+      + '<p style="color:#374151">Je me permets de revenir vers vous concernant le devis N°' + (doc.numero || '') + ' d\'un montant de <strong>' + montant + '</strong>, toujours disponible.</p>'
+      + '<p style="color:#374151">N\'hésitez pas à me contacter pour toute question.</p>'
+      + '<p style="color:#374151;margin-top:20px">Cordialement,<br/><strong>' + (p.nom_responsable || societe) + '</strong><br/>' + (p.telephone || '') + '</p>'
+      + '</div></div>';
+  } else {
+    var montantF = parseFloat(doc.prix_final && doc.prix_final > 0 ? doc.prix_final : (doc.total_ht || 0)).toFixed(2) + ' € HT';
+    subject = nLabel + ' — Facture N°' + (doc.numero_facture || '') + ' — ' + societe;
+    html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto">'
+      + '<div style="background:#1B4332;padding:24px 32px;border-radius:8px 8px 0 0"><h1 style="color:#fff;margin:0;font-size:20px">' + societe + '</h1>'
+      + (p.telephone ? '<p style="color:#A7F3D0;margin:4px 0;font-size:13px">' + p.telephone + '</p>' : '')
+      + '</div><div style="background:#F9FAFB;padding:28px 32px;border:1px solid #E5E7EB;border-top:none">'
+      + '<p style="font-size:15px;color:#111827">Bonjour ' + prenom + ',</p>'
+      + '<p style="color:#374151">Sauf erreur de notre part, nous n\'avons pas encore reçu le règlement de la facture N°' + (doc.numero_facture || '') + ' d\'un montant de <strong>' + montantF + '</strong>.</p>'
+      + (p.iban ? '<p style="color:#374151;font-size:13px">🏦 IBAN : ' + p.iban + '</p>' : '')
+      + (p.lien_paiement ? '<p style="color:#374151;font-size:13px">💳 <a href="' + p.lien_paiement + '">' + p.lien_paiement + '</a></p>' : '')
+      + '<p style="color:#374151;margin-top:20px">Cordialement,<br/><strong>' + (p.nom_responsable || societe) + '</strong><br/>' + (p.telephone || '') + '</p>'
+      + '</div></div>';
+  }
+
+  fetch('/.netlify/functions/send-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to: to, subject: subject, html: html,
+      fromName: societe, fromEmail: 'noreply@coup2pouce-pro.fr',
+      replyTo: p.email || '', cc: p.email || '' })
+  }).catch(function() {});
+}
+
+// ─── Modal paramètres relances ───
+function ouvrirParamRelances() {
+  var s = _getRelanceSettings();
+  var modal = document.createElement('div');
+  modal.id = 'param-relances-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:24px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">'
+    + '<h3 style="font-size:16px;font-weight:800;color:#1B4332;margin:0">⚙️ Relances automatiques</h3>'
+    + '<button onclick="document.getElementById(\'param-relances-modal\').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af">✕</button>'
+    + '</div>'
+    + '<div style="display:flex;align-items:center;gap:12px;padding:14px;background:#F0FDF4;border-radius:10px;margin-bottom:20px">'
+    + '<input type="checkbox" id="rel-actif" ' + (s.actif ? 'checked' : '') + ' style="width:18px;height:18px;accent-color:#2D6A4F;cursor:pointer;flex-shrink:0"/>'
+    + '<div><label for="rel-actif" style="font-weight:700;font-size:14px;color:#1B4332;cursor:pointer;display:block">Relances activées</label>'
+    + '<span style="font-size:12px;color:#6B7280">Envoi automatique à l\'ouverture de l\'app</span></div>'
+    + '</div>'
+    + '<div style="font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px">📄 Devis non répondu</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">'
+    + '<div><label style="font-size:12px;color:#374151;font-weight:600;display:block;margin-bottom:4px">1ère relance (J+)</label>'
+    + '<input id="rel-dv-j1" type="number" min="1" max="30" value="' + (s.devis_j1 || 2) + '" style="width:100%;padding:9px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:16px;text-align:center;font-family:inherit;box-sizing:border-box;outline:none"/></div>'
+    + '<div><label style="font-size:12px;color:#374151;font-weight:600;display:block;margin-bottom:4px">2ème relance (J+)</label>'
+    + '<input id="rel-dv-j2" type="number" min="1" max="60" value="' + (s.devis_j2 || 7) + '" style="width:100%;padding:9px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:16px;text-align:center;font-family:inherit;box-sizing:border-box;outline:none"/></div>'
+    + '</div>'
+    + '<div style="font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px">🧾 Factures impayées</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px">'
+    + '<div><label style="font-size:12px;color:#374151;font-weight:600;display:block;margin-bottom:4px">1ère relance (J+)</label>'
+    + '<input id="rel-fa-j1" type="number" min="1" max="30" value="' + (s.facture_j1 || 5) + '" style="width:100%;padding:9px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:16px;text-align:center;font-family:inherit;box-sizing:border-box;outline:none"/></div>'
+    + '<div><label style="font-size:12px;color:#374151;font-weight:600;display:block;margin-bottom:4px">2ème relance (J+)</label>'
+    + '<input id="rel-fa-j2" type="number" min="1" max="90" value="' + (s.facture_j2 || 15) + '" style="width:100%;padding:9px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:16px;text-align:center;font-family:inherit;box-sizing:border-box;outline:none"/></div>'
+    + '</div>'
+    + '<button onclick="_sauvegarderParamRelances()" style="width:100%;padding:13px;border-radius:10px;border:none;background:linear-gradient(135deg,#2D6A4F,#1B4332);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">💾 Enregistrer</button>'
+    + '<p style="font-size:11px;color:#9ca3af;text-align:center;margin-top:10px">Les relances partent par email (sans PDF) à chaque ouverture de l\'app.</p>'
+    + '</div>';
+  document.body.appendChild(modal);
+}
+
+function _sauvegarderParamRelances() {
+  _saveRelanceSettings({
+    actif:      document.getElementById('rel-actif').checked,
+    devis_j1:   parseInt(document.getElementById('rel-dv-j1').value)  || 2,
+    devis_j2:   parseInt(document.getElementById('rel-dv-j2').value)  || 7,
+    facture_j1: parseInt(document.getElementById('rel-fa-j1').value)  || 5,
+    facture_j2: parseInt(document.getElementById('rel-fa-j2').value)  || 15
+  });
+  document.getElementById('param-relances-modal').remove();
+  alert('✅ Paramètres enregistrés !');
+}
