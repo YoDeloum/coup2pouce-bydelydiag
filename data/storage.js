@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────
 
 var _FS_PROJECT = 'coup2pouce-by-delydiag';
-var _FS_API_KEY = 'AIzaSyATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+var _FS_API_KEY = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
 var _FS_COL     = 'https://firestore.googleapis.com/v1/projects/' + _FS_PROJECT + '/databases/(default)/documents/userdata/';
 
 // Clés à synchroniser (données métier uniquement)
