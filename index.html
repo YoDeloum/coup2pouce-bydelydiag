@@ -596,5 +596,51 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<!-- ═══════════════════════════════════════
+     BANDEAU MISE À JOUR PWA
+════════════════════════════════════════ -->
+<div id="pwa-update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:#2D6A4F;color:#fff;padding:12px 16px;display:none;align-items:center;justify-content:space-between;gap:12px;font-size:14px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.2)">
+  <span>🔄 Une mise à jour est disponible</span>
+  <button onclick="pwaApplyUpdate()" style="background:#fff;color:#2D6A4F;border:none;border-radius:8px;padding:7px 16px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">Actualiser</button>
+</div>
+
+<script>
+// ─── Enregistrement Service Worker + détection mise à jour ───
+(function() {
+  if (!('serviceWorker' in navigator)) return;
+  var _waitingSW = null;
+
+  navigator.serviceWorker.register('./sw.js').then(function(reg) {
+    // Mise à jour déjà en attente au moment du chargement
+    if (reg.waiting) { showUpdateBanner(reg.waiting); }
+
+    // Nouvelle mise à jour détectée pendant l'utilisation
+    reg.addEventListener('updatefound', function() {
+      var newSW = reg.installing;
+      newSW.addEventListener('statechange', function() {
+        if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+          showUpdateBanner(newSW);
+        }
+      });
+    });
+  });
+
+  function showUpdateBanner(sw) {
+    _waitingSW = sw;
+    var banner = document.getElementById('pwa-update-banner');
+    if (banner) banner.style.display = 'flex';
+  }
+
+  window.pwaApplyUpdate = function() {
+    if (_waitingSW) {
+      _waitingSW.postMessage({ type: 'SKIP_WAITING' });
+      navigator.serviceWorker.addEventListener('controllerchange', function() {
+        window.location.reload();
+      });
+    }
+  };
+})();
+</script>
+
 </body>
 </html>
