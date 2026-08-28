@@ -21,15 +21,17 @@ function renderMissionScreen() {
   var body = document.getElementById('mission-body');
   if (missionView === 'form') renderMissionForm(body);
   else if (missionView === 'dpe') renderDPEScreen(body);
+  else if (missionView === 'calendar') renderMissionCalendar(body);
   else renderMissionList(body);
 }
 
 function renderMissionList(body) {
   var sorted = missions.slice().reverse();
   body.innerHTML = `
-    <button onclick="newMission()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#E8650A,#F4A261);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:10px">
-      ➕ Nouvelle mission
-    </button>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button onclick="newMission()" style="flex:1;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#E8650A,#F4A261);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">➕ Nouvelle mission</button>
+      <button onclick="missionView='calendar';renderMissionScreen()" style="padding:14px 16px;border-radius:12px;border:1.5px solid #E2E5F0;background:#fff;color:#6B7280;font-size:18px;cursor:pointer" title="Vue calendrier">📅</button>
+    </div>
     ${sorted.length === 0 ? '<div style="text-align:center;padding:40px;color:#6B7280;font-size:14px">Aucune mission enregistrée</div>' : ''}
     ${sorted.map(function(m, i) {
       var realIdx = missions.length - 1 - i;
@@ -667,4 +669,125 @@ function dpeExporterPDF() {
 
   var fileName = 'RelévéDPE_' + (m ? (m.nom || 'mission') : 'export') + '_' + new Date().toISOString().split('T')[0] + '.pdf';
   doc.save(fileName);
+}
+
+// ─────────────────────────────────────────────
+// VUE CALENDRIER MISSIONS
+// ─────────────────────────────────────────────
+
+function renderMissionCalendar(body) {
+  var year  = _calYear;
+  var month = _calMonth;
+  var monthNames = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+  // Premier jour du mois (0=dim → ajustement lundi=0)
+  var firstDow    = new Date(year, month, 1).getDay();
+  var startOffset = (firstDow === 0) ? 6 : firstDow - 1;
+  var daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  // Aujourd'hui
+  var now      = new Date();
+  var todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+
+  // Indexer missions par date
+  var byDate = {};
+  missions.forEach(function(m, idx) {
+    var d = m.date || m.date_mission;
+    if (d) {
+      if (!byDate[d]) byDate[d] = [];
+      byDate[d].push({m: m, idx: idx});
+    }
+  });
+
+  // Générer les cellules
+  var rows = Math.ceil((startOffset + daysInMonth) / 7);
+  var cells = '';
+  for (var r = 0; r < rows; r++) {
+    for (var c = 0; c < 7; c++) {
+      var day = r * 7 + c - startOffset + 1;
+      if (day < 1 || day > daysInMonth) {
+        cells += '<div style="min-height:54px;background:#F9FAFB;border-radius:8px"></div>';
+      } else {
+        var ds        = year + '-' + String(month+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+        var list      = byDate[ds] || [];
+        var isToday   = ds === todayStr;
+        var hasMiss   = list.length > 0;
+        var bgCell    = isToday ? '#2D6A4F' : (hasMiss ? '#FFF7ED' : '#fff');
+        var borderCell= isToday ? '2px solid #2D6A4F' : (hasMiss ? '1.5px solid #FED7AA' : '1px solid #E2E5F0');
+        var dots      = hasMiss
+          ? '<div style="display:flex;gap:3px;margin-top:4px;flex-wrap:wrap">'
+              + list.slice(0,3).map(function() { return '<div style="width:6px;height:6px;border-radius:50%;background:#E8650A"></div>'; }).join('')
+              + (list.length > 3 ? '<span style="font-size:9px;color:#E8650A;font-weight:700">+' + (list.length-3) + '</span>' : '')
+            + '</div>'
+          : '';
+        cells += '<div onclick="' + (hasMiss ? '_showDayMissions(\'' + ds + '\')' : '') + '" style="min-height:54px;background:' + bgCell + ';border:' + borderCell + ';border-radius:8px;padding:6px;cursor:' + (hasMiss ? 'pointer' : 'default') + '">'
+          + '<div style="font-size:13px;font-weight:700;color:' + (isToday ? '#fff' : '#1A1D2E') + '">' + day + '</div>'
+          + dots
+          + '</div>';
+      }
+    }
+  }
+
+  body.innerHTML = ''
+    // Toggle liste / calendrier
+    + '<div style="display:flex;gap:8px;margin-bottom:16px">'
+    + '<button onclick="missionView=\'list\';renderMissionScreen()" style="flex:1;padding:12px;border-radius:10px;border:1.5px solid #E2E5F0;background:#fff;color:#6B7280;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">📋 Liste</button>'
+    + '<button onclick="newMission()" style="flex:1;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#E8650A,#F4A261);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">➕ Nouvelle</button>'
+    + '<button style="flex:1;padding:12px;border-radius:10px;border:2px solid #E8650A;background:#FFF7ED;color:#E8650A;font-size:14px;font-weight:700;font-family:inherit">📅 Calendrier</button>'
+    + '</div>'
+    // Navigation mois
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
+    + '<button onclick="_calMonth--;if(_calMonth<0){_calMonth=11;_calYear--;}renderMissionScreen()" style="background:#F5F6FA;border:none;border-radius:8px;padding:8px 16px;font-size:20px;cursor:pointer;font-weight:700">‹</button>'
+    + '<div style="font-size:16px;font-weight:800;color:#1A1D2E">' + monthNames[month] + ' ' + year + '</div>'
+    + '<button onclick="_calMonth++;if(_calMonth>11){_calMonth=0;_calYear++;}renderMissionScreen()" style="background:#F5F6FA;border:none;border-radius:8px;padding:8px 16px;font-size:20px;cursor:pointer;font-weight:700">›</button>'
+    + '</div>'
+    // En-têtes jours
+    + '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px">'
+    + ['Lu','Ma','Me','Je','Ve','Sa','Di'].map(function(d) {
+        return '<div style="text-align:center;font-size:11px;font-weight:700;color:#9CA3AF;padding:3px 0">' + d + '</div>';
+      }).join('')
+    + '</div>'
+    // Grille
+    + '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">' + cells + '</div>'
+    // Légende
+    + '<div style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12px;color:#6B7280;flex-wrap:wrap">'
+    + '<div style="width:8px;height:8px;border-radius:50%;background:#E8650A"></div><span>Mission</span>'
+    + '<div style="width:14px;height:14px;border-radius:4px;background:#2D6A4F;margin-left:8px"></div><span>Aujourd\'hui</span>'
+    + '</div>';
+}
+
+function _showDayMissions(dateStr) {
+  var parts  = dateStr.split('-');
+  var monthNames = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  var label  = parseInt(parts[2]) + ' ' + monthNames[parseInt(parts[1])-1] + ' ' + parts[0];
+  var list   = missions.reduce(function(acc, m, idx) {
+    if ((m.date || m.date_mission) === dateStr) acc.push({m: m, idx: idx});
+    return acc;
+  }, []);
+
+  var modal = document.createElement('div');
+  modal.id  = 'day-missions-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:flex-end;justify-content:center';
+  modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px 16px 0 0;padding:20px;width:100%;max-width:480px;max-height:70vh;overflow-y:auto">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
+    + '<h3 style="font-size:15px;font-weight:800;color:#1B4332;margin:0">📅 ' + label + '</h3>'
+    + '<button onclick="document.getElementById(\'day-missions-modal\').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af">✕</button>'
+    + '</div>'
+    + list.map(function(item) {
+        var m = item.m;
+        return '<div onclick="document.getElementById(\'day-missions-modal\').remove();editMission(' + item.idx + ')" style="background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:10px;padding:12px 14px;margin-bottom:10px;cursor:pointer">'
+          + '<div style="font-weight:700;font-size:14px;color:#1A1D2E">' + (m.societe ? m.societe + ' — ' : '') + (m.nom || '') + ' ' + (m.prenom || '') + '</div>'
+          + '<div style="font-size:12px;color:#6B7280;margin-top:3px">📍 ' + (m.adresse || 'Adresse non renseignée') + '</div>'
+          + (m.heure ? '<div style="font-size:12px;color:#E8650A;font-weight:600;margin-top:3px">🕐 ' + m.heure + '</div>' : '')
+          + '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px">'
+          + (m.diags || []).slice(0,4).map(function(d) {
+              return '<span style="font-size:10px;padding:2px 8px;border-radius:999px;background:#2D6A4F18;color:#2D6A4F;font-weight:600">' + d + '</span>';
+            }).join('')
+          + '</div></div>';
+      }).join('')
+    + '</div>';
+
+  document.body.appendChild(modal);
 }
