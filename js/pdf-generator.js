@@ -82,6 +82,26 @@ function pdfRect(doc, x, y, w, h, color) {
   doc.rect(x, y, w, h, 'F');
 }
 
+// ─── COMPRESSION LOGO POUR EMAIL ───────────────────────────
+// Réduit le logo en JPEG 400px max / qualité 0.65 pour éviter les erreurs 413
+function _compressLogoForEmail(logoDataUrl, callback) {
+  if (!logoDataUrl || !logoDataUrl.startsWith('data:image')) { callback(null); return; }
+  var img = new Image();
+  img.onload = function() {
+    try {
+      var maxDim = 400;
+      var scale  = Math.min(maxDim / img.naturalWidth, maxDim / img.naturalHeight, 1);
+      var c = document.createElement('canvas');
+      c.width  = Math.round(img.naturalWidth  * scale);
+      c.height = Math.round(img.naturalHeight * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      callback(c.toDataURL('image/jpeg', 0.65));
+    } catch(e) { callback(null); }
+  };
+  img.onerror = function() { callback(null); };
+  img.src = logoDataUrl;
+}
+
 // ─── DEVIS PDF ─────────────────────────────
 function genererPDFDevis(devis, _returnBlob, opts) {
   opts = opts || {};
@@ -91,7 +111,8 @@ function genererPDFDevis(devis, _returnBlob, opts) {
   var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   var p   = getCompanyProfile();
   // Pour l'envoi par mail : ignorer le logo (trop lourd pour Netlify)
-  if (opts.skipLogo) { p = Object.assign({}, p); delete p.logo; }
+  if (opts.compressedLogo) { p = Object.assign({}, p); p.logo = opts.compressedLogo; }
+  else if (opts.skipLogo) { p = Object.assign({}, p); delete p.logo; }
   var y   = 15;
   var tplEpure = (p.pdf_template || 'standard') === 'epure';
 
@@ -106,8 +127,8 @@ function genererPDFDevis(devis, _returnBlob, opts) {
       textX = pdfAddLogo(doc, p.logo, 15, 8, p.logo_w, p.logo_h);
     }
     pdfText(doc, p.nom_societe || 'DELY DIAG', textX, 18, {bold:true, size:14, color:[27,67,50]});
-    pdfText(doc, (p.forme_juridique || '') + (p.siret ? ' — SIRET : ' + p.siret : ''), textX, 24, {size:8, color:[107,114,128]});
-    pdfText(doc, (p.adresse || '') + (p.code_postal ? ', ' + p.code_postal + ' ' + (p.ville||'') : ''), textX, 30, {size:8, color:[107,114,128]});
+    pdfText(doc, (p.forme_juridique || '') + (p.nom_responsable ? ' ' + p.nom_responsable : '') + (p.siret ? ' — SIRET : ' + p.siret : ''), textX, 24, {size:8, color:[107,114,128]});
+    pdfText(doc, (p.adresse ? p.adresse + (p.code_postal ? ', ' : '') : '') + (p.code_postal ? p.code_postal + ' ' + (p.ville||'') : ''), textX, 30, {size:8, color:[107,114,128]});
     pdfText(doc, (p.telephone || '') + (p.email ? '  |  ' + p.email : ''), textX, 36, {size:8, color:[107,114,128]});
     pdfText(doc, 'DEVIS', 195, 18, {bold:true, size:20, color:[27,67,50], align:'right'});
     pdfText(doc, 'N° ' + (devis.numero || ''), 195, 26, {bold:true, size:10, color:[45,106,79], align:'right'});
@@ -121,8 +142,8 @@ function genererPDFDevis(devis, _returnBlob, opts) {
       textX = pdfAddLogo(doc, p.logo, 15, 8, p.logo_w, p.logo_h);
     }
     pdfText(doc, p.nom_societe || 'DELY DIAG', textX, 18, {bold:true, size:16, color:[255,255,255]});
-    pdfText(doc, (p.forme_juridique || '') + (p.siret ? ' — SIRET : ' + p.siret : ''), textX, 25, {size:9, color:[200,230,210]});
-    pdfText(doc, (p.adresse || '') + (p.code_postal ? ', ' + p.code_postal + ' ' + (p.ville||'') : ''), textX, 31, {size:9, color:[200,230,210]});
+    pdfText(doc, (p.forme_juridique || '') + (p.nom_responsable ? ' ' + p.nom_responsable : '') + (p.siret ? ' — SIRET : ' + p.siret : ''), textX, 25, {size:9, color:[200,230,210]});
+    pdfText(doc, (p.adresse ? p.adresse + (p.code_postal ? ', ' : '') : '') + (p.code_postal ? p.code_postal + ' ' + (p.ville||'') : ''), textX, 31, {size:9, color:[200,230,210]});
     pdfText(doc, (p.telephone || '') + (p.email ? '  |  ' + p.email : ''), textX, 37, {size:9, color:[200,230,210]});
     pdfText(doc, 'DEVIS', 195, 18, {bold:true, size:22, color:[255,255,255], align:'right'});
     pdfText(doc, 'N° ' + (devis.numero || ''), 195, 26, {bold:true, size:11, color:[180,230,200], align:'right'});
@@ -152,7 +173,7 @@ function genererPDFDevis(devis, _returnBlob, opts) {
   pdfText(doc, 'Réalisation de diagnostics immobiliers', 15, y + 13, {size:10, color:[30,30,30]});
   pdfText(doc, 'Bien : ' + (devis.bien_adresse || ''), 15, y + 20, {size:9, color:[80,80,80]});
   pdfText(doc, 'Type : ' + (devis.bien_type || '') + (devis.type_transaction ? ' — ' + devis.type_transaction : ''), 15, y + 27, {size:9, color:[80,80,80]});
-  pdfText(doc, 'Date prévue : ' + (devis.date_mission ? new Date(devis.date_mission).toLocaleDateString('fr-FR') : 'À définir'), 15, y + 34, {size:9, color:[80,80,80]});
+  // Date prévue : visible uniquement dans la mission, pas sur le devis client
 
   y += 48;
   y = pdfAddLine(doc, y);
@@ -266,7 +287,8 @@ function genererPDFFacture(facture, _returnBlob, opts) {
   var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   var p   = getCompanyProfile();
   // Pour l'envoi par mail : ignorer le logo (trop lourd pour Netlify)
-  if (opts.skipLogo) { p = Object.assign({}, p); delete p.logo; }
+  if (opts.compressedLogo) { p = Object.assign({}, p); p.logo = opts.compressedLogo; }
+  else if (opts.skipLogo) { p = Object.assign({}, p); delete p.logo; }
   var y   = 15;
   var tplEpureF = (p.pdf_template || 'standard') === 'epure';
 
@@ -280,8 +302,8 @@ function genererPDFFacture(facture, _returnBlob, opts) {
       textXf = pdfAddLogo(doc, p.logo, 15, 8, p.logo_w, p.logo_h);
     }
     pdfText(doc, p.nom_societe || 'DELY DIAG', textXf, 18, {bold:true, size:14, color:[27,67,50]});
-    pdfText(doc, (p.forme_juridique || '') + (p.siret ? ' — SIRET : ' + p.siret : ''), textXf, 24, {size:8, color:[107,114,128]});
-    pdfText(doc, (p.adresse || '') + (p.code_postal ? ', ' + p.code_postal + ' ' + (p.ville||'') : ''), textXf, 30, {size:8, color:[107,114,128]});
+    pdfText(doc, (p.forme_juridique || '') + (p.nom_responsable ? ' ' + p.nom_responsable : '') + (p.siret ? ' — SIRET : ' + p.siret : ''), textXf, 24, {size:8, color:[107,114,128]});
+    pdfText(doc, (p.adresse ? p.adresse + (p.code_postal ? ', ' : '') : '') + (p.code_postal ? p.code_postal + ' ' + (p.ville||'') : ''), textXf, 30, {size:8, color:[107,114,128]});
     pdfText(doc, (p.telephone || '') + (p.email ? '  |  ' + p.email : ''), textXf, 36, {size:8, color:[107,114,128]});
     pdfText(doc, 'FACTURE', 195, 18, {bold:true, size:20, color:[27,67,50], align:'right'});
     pdfText(doc, 'N° ' + (facture.numero_facture || ''), 195, 26, {bold:true, size:10, color:[45,106,79], align:'right'});
@@ -294,8 +316,8 @@ function genererPDFFacture(facture, _returnBlob, opts) {
       textXf = pdfAddLogo(doc, p.logo, 15, 8, p.logo_w, p.logo_h);
     }
     pdfText(doc, p.nom_societe || 'DELY DIAG', textXf, 18, {bold:true, size:16, color:[255,255,255]});
-    pdfText(doc, (p.forme_juridique || '') + (p.siret ? ' — SIRET : ' + p.siret : ''), textXf, 25, {size:9, color:[170,210,185]});
-    pdfText(doc, (p.adresse || '') + (p.code_postal ? ', ' + p.code_postal + ' ' + (p.ville||'') : ''), textXf, 31, {size:9, color:[170,210,185]});
+    pdfText(doc, (p.forme_juridique || '') + (p.nom_responsable ? ' ' + p.nom_responsable : '') + (p.siret ? ' — SIRET : ' + p.siret : ''), textXf, 25, {size:9, color:[170,210,185]});
+    pdfText(doc, (p.adresse ? p.adresse + (p.code_postal ? ', ' : '') : '') + (p.code_postal ? p.code_postal + ' ' + (p.ville||'') : ''), textXf, 31, {size:9, color:[170,210,185]});
     pdfText(doc, (p.telephone || '') + (p.email ? '  |  ' + p.email : ''), textXf, 37, {size:9, color:[170,210,185]});
     pdfText(doc, 'FACTURE', 195, 18, {bold:true, size:22, color:[255,255,255], align:'right'});
     pdfText(doc, 'N° ' + (facture.numero_facture || ''), 195, 26, {bold:true, size:11, color:[170,230,190], align:'right'});
@@ -460,8 +482,8 @@ function genererPDFSigne(devis) {
     var textX = 15;
     if (p.logo && p.logo.startsWith('data:image')) textX = pdfAddLogo(doc, p.logo, 15, 8, p.logo_w, p.logo_h);
     pdfText(doc, p.nom_societe || 'DELY DIAG', textX, 18, {bold:true, size:14, color:[27,67,50]});
-    pdfText(doc, (p.forme_juridique || '') + (p.siret ? ' — SIRET : ' + p.siret : ''), textX, 24, {size:8, color:[107,114,128]});
-    pdfText(doc, (p.adresse || '') + (p.code_postal ? ', ' + p.code_postal + ' ' + (p.ville||'') : ''), textX, 30, {size:8, color:[107,114,128]});
+    pdfText(doc, (p.forme_juridique || '') + (p.nom_responsable ? ' ' + p.nom_responsable : '') + (p.siret ? ' — SIRET : ' + p.siret : ''), textX, 24, {size:8, color:[107,114,128]});
+    pdfText(doc, (p.adresse ? p.adresse + (p.code_postal ? ', ' : '') : '') + (p.code_postal ? p.code_postal + ' ' + (p.ville||'') : ''), textX, 30, {size:8, color:[107,114,128]});
     pdfText(doc, (p.telephone || '') + (p.email ? '  |  ' + p.email : ''), textX, 36, {size:8, color:[107,114,128]});
     pdfText(doc, 'DEVIS SIGNÉ', 195, 18, {bold:true, size:20, color:[27,67,50], align:'right'});
     pdfText(doc, 'N° ' + (devis.numero || ''), 195, 26, {bold:true, size:10, color:[45,106,79], align:'right'});
@@ -472,8 +494,8 @@ function genererPDFSigne(devis) {
     var textX = 15;
     if (p.logo && p.logo.startsWith('data:image')) textX = pdfAddLogo(doc, p.logo, 15, 8, p.logo_w, p.logo_h);
     pdfText(doc, p.nom_societe || 'DELY DIAG', textX, 18, {bold:true, size:16, color:[255,255,255]});
-    pdfText(doc, (p.forme_juridique || '') + (p.siret ? ' — SIRET : ' + p.siret : ''), textX, 25, {size:9, color:[200,230,210]});
-    pdfText(doc, (p.adresse || '') + (p.code_postal ? ', ' + p.code_postal + ' ' + (p.ville||'') : ''), textX, 31, {size:9, color:[200,230,210]});
+    pdfText(doc, (p.forme_juridique || '') + (p.nom_responsable ? ' ' + p.nom_responsable : '') + (p.siret ? ' — SIRET : ' + p.siret : ''), textX, 25, {size:9, color:[200,230,210]});
+    pdfText(doc, (p.adresse ? p.adresse + (p.code_postal ? ', ' : '') : '') + (p.code_postal ? p.code_postal + ' ' + (p.ville||'') : ''), textX, 31, {size:9, color:[200,230,210]});
     pdfText(doc, (p.telephone || '') + (p.email ? '  |  ' + p.email : ''), textX, 37, {size:9, color:[200,230,210]});
     pdfText(doc, 'DEVIS SIGNÉ', 195, 18, {bold:true, size:22, color:[255,255,255], align:'right'});
     pdfText(doc, 'N° ' + (devis.numero || ''), 195, 26, {bold:true, size:11, color:[180,230,200], align:'right'});
@@ -503,7 +525,7 @@ function genererPDFSigne(devis) {
   pdfText(doc, 'Réalisation de diagnostics immobiliers', 15, y + 13, {size:10, color:[30,30,30]});
   pdfText(doc, 'Bien : ' + (devis.bien_adresse || ''), 15, y + 20, {size:9, color:[80,80,80]});
   pdfText(doc, 'Type : ' + (devis.bien_type || '') + (devis.type_transaction ? ' — ' + devis.type_transaction : ''), 15, y + 27, {size:9, color:[80,80,80]});
-  pdfText(doc, 'Date prévue : ' + (devis.date_mission ? new Date(devis.date_mission).toLocaleDateString('fr-FR') : 'À définir'), 15, y + 34, {size:9, color:[80,80,80]});
+  // Date prévue : visible uniquement dans la mission, pas sur le devis client
 
   y += 48;
   y = pdfAddLine(doc, y);
