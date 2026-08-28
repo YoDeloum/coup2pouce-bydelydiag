@@ -172,10 +172,10 @@ function initApp() {
   checkCertifRappels();
   renderHome();
 
-  // PWA Service Worker
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(function() {});
-  }
+  // Relances automatiques — après 8s (laisse le temps au login + sync Firestore)
+  setTimeout(function() {
+    if (typeof initAutoRelances === 'function') initAutoRelances();
+  }, 8000);
 
   // Raccourci Enter sur le champ mot de passe
   var pwdInput = document.getElementById('login-password');
