@@ -100,8 +100,9 @@ function envoyerMailFacture(facture) {
 
   var subject = 'Facture N°' + (facture.numero_facture || '') + ' — ' + societe;
 
-  // 1. Générer PDF facture en blob
-  var pdfResult = (typeof genererPDFFacture === 'function') ? genererPDFFacture(facture, true, { skipLogo: true }) : null;
+  // 1. Compresser logo puis générer PDF facture en blob
+  _compressLogoForEmail(p.logo, function(compressedLogo) {
+  var pdfResult = (typeof genererPDFFacture === 'function') ? genererPDFFacture(facture, true, compressedLogo ? { compressedLogo: compressedLogo } : { skipLogo: true }) : null;
   if (!pdfResult || !pdfResult.blob) {
     if (btn) { btn.textContent = '✉️ Envoyer par mail'; btn.disabled = false; }
     alert('Erreur lors de la génération du PDF facture.');
@@ -188,6 +189,7 @@ function envoyerMailFacture(facture) {
     });
   };
   reader.readAsDataURL(pdfResult.blob);
+  }); // fin _compressLogoForEmail
 }
 
 /**
@@ -349,8 +351,9 @@ function envoyerRelanceFacture(facture) {
     + (p.telephone || '') + '<br/>' + (p.email || '') + '</p>'
     + '</div></div>';
 
-  // Générer PDF facture (sans logo pour éviter 413)
-  var pdfResult = typeof genererPDFFacture === 'function' ? genererPDFFacture(facture, true, { skipLogo: true }) : null;
+  // Compresser logo puis générer PDF facture
+  _compressLogoForEmail(p.logo, function(compressedLogo) {
+  var pdfResult = typeof genererPDFFacture === 'function' ? genererPDFFacture(facture, true, compressedLogo ? { compressedLogo: compressedLogo } : { skipLogo: true }) : null;
   if (!pdfResult || !pdfResult.blob) {
     if (btn) { btn.textContent = '🔔 Relancer le client'; btn.disabled = false; }
     alert('Erreur lors de la génération du PDF.');
@@ -384,6 +387,7 @@ function envoyerRelanceFacture(facture) {
     });
   };
   reader.readAsDataURL(pdfResult.blob);
+  }); // fin _compressLogoForEmail
 }
 
 // Utilitaire : date d'expiration devis (30 jours)
