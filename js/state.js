@@ -19,7 +19,9 @@ var selectedAvatarColor = localStorage.getItem('dd_avatar_color') || '#2D6A4F';
 // Missions
 var missions = JSON.parse(localStorage.getItem('dd_missions') || '[]');
 var currentMissionIdx = null;
-var missionView = 'list'; // 'list' | 'form'
+var missionView = 'list'; // 'list' | 'form' | 'calendar'
+var _calYear  = new Date().getFullYear();
+var _calMonth = new Date().getMonth(); // 0-based
 
 // Checklist
 var selectedMods  = [];
