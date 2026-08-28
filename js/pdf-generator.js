@@ -219,10 +219,11 @@ function genererPDFDevis(devis, _returnBlob, opts) {
     y += 8;
     pdfText(doc, 'Mentions légales', 15, y, {bold:true, size:8, color:[107,114,128]});
     y += 5;
-    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(120,120,120);
     var _mlD = doc.splitTextToSize(p.mentions_legales.trim(), 180);
-    doc.text(_mlD, 15, y);
-    y += _mlD.length * 3.5;
+    _mlD.forEach(function(line) {
+      pdfText(doc, line, 15, y, {size:7, color:[120,120,120]});
+      y += 3.5;
+    });
   }
 
   // ── Conditions de paiement ──
@@ -381,10 +382,11 @@ function genererPDFFacture(facture, _returnBlob, opts) {
     y += 8;
     pdfText(doc, 'Mentions légales', 15, y, {bold:true, size:8, color:[107,114,128]});
     y += 5;
-    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(120,120,120);
     var _mlF = doc.splitTextToSize(p.mentions_legales.trim(), 180);
-    doc.text(_mlF, 15, y);
-    y += _mlF.length * 3.5;
+    _mlF.forEach(function(line) {
+      pdfText(doc, line, 15, y, {size:7, color:[120,120,120]});
+      y += 3.5;
+    });
   }
 
   // Paiement
@@ -564,10 +566,11 @@ function genererPDFSigne(devis) {
     y += 8;
     pdfText(doc, 'Mentions légales', 15, y, {bold:true, size:8, color:[107,114,128]});
     y += 5;
-    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(120,120,120);
     var _mlS = doc.splitTextToSize(p.mentions_legales.trim(), 180);
-    doc.text(_mlS, 15, y);
-    y += _mlS.length * 3.5;
+    _mlS.forEach(function(line) {
+      pdfText(doc, line, 15, y, {size:7, color:[120,120,120]});
+      y += 3.5;
+    });
   }
 
   // ── Conditions de paiement ──
