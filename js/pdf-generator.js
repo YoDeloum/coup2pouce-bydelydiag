@@ -94,7 +94,10 @@ function _compressLogoForEmail(logoDataUrl, callback) {
       var c = document.createElement('canvas');
       c.width  = Math.round(img.naturalWidth  * scale);
       c.height = Math.round(img.naturalHeight * scale);
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      var ctx = c.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(img, 0, 0, c.width, c.height);
       callback(c.toDataURL('image/jpeg', 0.65));
     } catch(e) { callback(null); }
   };
