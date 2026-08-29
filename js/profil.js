@@ -236,6 +236,12 @@ function renderProfilScreen() {
       })()}
     </div>
 
+    <div class="profil-section" style="border:2px solid #E8650A;background:#FFF7ED">
+      <div class="profil-section-title" style="color:#C2410C">🏢 Espace prescripteurs</div>
+      <p style="font-size:13px;color:#6B7280;margin:0 0 12px">Gérez vos agences et notaires partenaires. Chacun reçoit un lien unique pour consulter vos disponibilités et réserver un créneau.</p>
+      <button onclick="ouvrirGestionPrescripteurs()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #E8650A;background:#fff;color:#E8650A;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">⚙️ Gérer les prescripteurs</button>
+    </div>
+
     <button class="profil-save-btn" onclick="saveProfilForm()">💾 Enregistrer le profil</button>
     <div id="profil-success" style="display:none;text-align:center;padding:12px;background:#D1FAE5;border-radius:10px;color:#065F46;font-weight:700;margin-bottom:16px">✅ Profil sauvegardé !</div>`;
 }
