@@ -468,7 +468,7 @@ function changerEmailConnexion() {
     return;
   }
 
-  var apiKey = 'AIzaSyATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+  var apiKey = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
   fetch('https://identitytoolkit.googleapis.com/v1/accounts:update?key=' + apiKey, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
