@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Prise de RDV — Coup 2 Pouce</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#F5F7FA; min-height:100vh; }
+    .header { background:linear-gradient(135deg,#2D6A4F,#1B4332); padding:20px 24px; }
+    .header h1 { color:#fff; margin:0; font-size:20px; font-weight:800; }
+    .header p  { color:#A7F3D0; margin:4px 0 0; font-size:13px; }
+    .container { max-width:480px; margin:0 auto; padding:20px 16px; }
+    .card { background:#fff; border-radius:14px; padding:20px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,.06); }
+    .card-title { font-size:13px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:.7px; margin-bottom:14px; }
+    .nav-month { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+    .nav-btn { background:#F5F6FA; border:none; border-radius:8px; padding:8px 16px; font-size:20px; cursor:pointer; font-weight:700; color:#374151; }
+    .nav-btn:hover { background:#E2E5F0; }
+    .month-label { font-size:16px; font-weight:800; color:#1A1D2E; }
+    .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+    .cal-head { text-align:center; font-size:11px; font-weight:700; color:#9CA3AF; padding:4px 0; }
+    .cal-day { min-height:52px; border-radius:8px; padding:6px; border:1px solid #E2E5F0; background:#fff; cursor:default; position:relative; }
+    .cal-day.empty { background:#F9FAFB; border-color:#F0F0F0; }
+    .cal-day.today { border:2px solid #2D6A4F; background:#F0FDF4; }
+    .cal-day.busy { background:#FEE2E2; border-color:#FCA5A5; cursor:default; }
+    .cal-day.partial { background:#FFF7ED; border-color:#FED7AA; cursor:pointer; }
+    .cal-day.free { background:#F0FDF4; border-color:#6EE7B7; cursor:pointer; }
+    .cal-day.free:hover, .cal-day.partial:hover { transform:scale(1.05); transition:transform .1s; }
+    .cal-day.past { background:#F9FAFB; border-color:#F0F0F0; opacity:.5; cursor:default; }
+    .day-num { font-size:13px; font-weight:700; color:#1A1D2E; }
+    .day-dots { display:flex; gap:3px; flex-wrap:wrap; margin-top:4px; }
+    .dot-busy { width:7px; height:7px; border-radius:50%; background:#EF4444; }
+    .dot-free { width:7px; height:7px; border-radius:50%; background:#059669; }
+    .legend { display:flex; flex-wrap:wrap; gap:12px; font-size:12px; color:#6B7280; margin-bottom:16px; }
+    .legend-item { display:flex; align-items:center; gap:5px; }
+    .legend-dot { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+    .slot-btn { display:block; width:100%; padding:12px 16px; border-radius:10px; border:2px solid #6EE7B7; background:#F0FDF4; color:#065F46; font-size:14px; font-weight:700; cursor:pointer; margin-bottom:8px; text-align:left; font-family:inherit; transition:all .15s; }
+    .slot-btn:hover { background:#D1FAE5; border-color:#059669; }
+    .slot-btn.busy { border-color:#FCA5A5; background:#FEE2E2; color:#991B1B; cursor:not-allowed; }
+    input, select, textarea { width:100%; padding:11px 14px; border-radius:8px; border:1.5px solid #E2E5F0; font-size:14px; font-family:inherit; box-sizing:border-box; margin-bottom:10px; outline:none; }
+    input:focus, select:focus { border-color:#2D6A4F; }
+    .btn-primary { width:100%; padding:14px; border-radius:10px; border:none; background:linear-gradient(135deg,#2D6A4F,#1B4332); color:#fff; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; }
+    .btn-primary:disabled { opacity:.5; cursor:default; }
+    .modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.5); z-index:999; display:flex; align-items:flex-end; justify-content:center; }
+    .modal-box { background:#fff; border-radius:16px 16px 0 0; padding:24px; width:100%; max-width:480px; max-height:85vh; overflow-y:auto; }
+    .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
+    .modal-title { font-size:16px; font-weight:800; color:#1B4332; margin:0; }
+    .btn-close { background:none; border:none; font-size:22px; cursor:pointer; color:#9CA3AF; }
+    .loading { text-align:center; padding:40px; color:#6B7280; font-size:14px; }
+    .error-box { text-align:center; padding:40px 20px; }
+    .error-box h2 { color:#EF4444; font-size:18px; margin-bottom:8px; }
+    .error-box p { color:#6B7280; font-size:14px; }
+    .success-box { text-align:center; padding:30px 20px; }
+    .success-box .icon { font-size:60px; margin-bottom:16px; }
+    .success-box h2 { color:#065F46; font-size:20px; font-weight:800; margin-bottom:8px; }
+    .success-box p { color:#6B7280; font-size:14px; }
+    .label { font-size:12px; font-weight:700; color:#374151; display:block; margin-bottom:4px; }
+    .required { color:#EF4444; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📅 Prise de RDV</h1>
+  <p id="header-agence">Chargement...</p>
+</div>
+
+<div class="container" id="app">
+  <div class="loading">⏳ Chargement des disponibilités...</div>
+</div>
+
+<!-- Modal de réservation -->
+<div class="modal-overlay" id="booking-modal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 class="modal-title">📝 Confirmer la réservation</h2>
+      <button class="btn-close" onclick="fermerModal()">✕</button>
+    </div>
+    <div id="slot-recap" style="background:#F0FDF4;border:1.5px solid #6EE7B7;border-radius:10px;padding:12px 14px;margin-bottom:18px;font-weight:700;color:#065F46;font-size:14px"></div>
+
+    <label class="label">Adresse du bien <span class="required">*</span></label>
+    <input type="text" id="book-adresse" placeholder="12 rue des Lilas, 75001 Paris"/>
+
+    <label class="label">Type de bien</label>
+    <select id="book-type">
+      <option value="">— Sélectionner —</option>
+      <option>Appartement</option>
+      <option>Maison</option>
+      <option>Local commercial</option>
+      <option>Autre</option>
+    </select>
+
+    <label class="label">Nom du contact (propriétaire / vendeur)</label>
+    <input type="text" id="book-nom" placeholder="Dupont Jean"/>
+
+    <label class="label">Téléphone</label>
+    <input type="tel" id="book-tel" placeholder="06 00 00 00 00"/>
+
+    <label class="label">Email</label>
+    <input type="email" id="book-email" placeholder="contact@exemple.fr"/>
+
+    <button class="btn-primary" id="book-btn" onclick="confirmerReservation()">✅ Envoyer la demande</button>
+    <p style="font-size:11px;color:#9CA3AF;text-align:center;margin-top:10px">Votre demande sera transmise au diagnostiqueur qui vous confirmera le RDV.</p>
+  </div>
+</div>
+
+<script>
+// ─── Variables globales ───
+var _code       = '';
+var _agence     = '';
+var _busy       = [];
+var _selectedDate  = '';
+var _selectedHeure = '';
+var _calYear    = new Date().getFullYear();
+var _calMonth   = new Date().getMonth();
+
+var SLOTS       = ['09:30', '11:30', '13:30', '15:30', '17:30'];
+var MONTH_NAMES = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+var TODAY       = new Date(); TODAY.setHours(0,0,0,0);
+
+// ─── Init ───
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  _code = params.get('code') || '';
+  if (!_code) {
+    afficherErreur('Lien invalide', 'Ce lien ne contient pas de code prescripteur.');
+    return;
+  }
+  chargerDisponibilites();
+})();
+
+function chargerDisponibilites() {
+  fetch('/.netlify/functions/get-slots?code=' + _code)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.valid) {
+        afficherErreur('Accès refusé', data.error || 'Code invalide ou désactivé.');
+        return;
+      }
+      _agence = data.agence || '';
+      _busy   = data.busy   || [];
+      document.getElementById('header-agence').textContent = _agence;
+      afficherCalendrier();
+    })
+    .catch(function() {
+      afficherErreur('Erreur réseau', 'Impossible de charger les disponibilités. Réessaie dans quelques instants.');
+    });
+}
+
+// ─── Rendu calendrier ───
+function afficherCalendrier() {
+  var year  = _calYear;
+  var month = _calMonth;
+
+  var firstDow    = new Date(year, month, 1).getDay();
+  var startOffset = (firstDow === 0) ? 6 : firstDow - 1;
+  var daysInMonth = new Date(year, month + 1, 0).getDate();
+  var todayStr    = _dateStr(TODAY);
+
+  // Index busy : { "YYYY-MM-DD_HH:MM": true }
+  var busyIndex = {};
+  _busy.forEach(function(b) { busyIndex[b.date + '_' + b.heure] = true; });
+
+  function isDayBusy(ds) {
+    // Vérifie si tous les créneaux du jour sont occupés
+    return SLOTS.every(function(s) { return !!busyIndex[ds + '_' + s]; });
+  }
+  function isDayPartial(ds) {
+    return SLOTS.some(function(s) { return !!busyIndex[ds + '_' + s]; }) && !isDayBusy(ds);
+  }
+  function isPast(ds) {
+    var d = new Date(ds); d.setHours(0,0,0,0);
+    return d <= TODAY;
+  }
+  function isWeekend(day) {
+    var dow = new Date(year, month, day).getDay();
+    return dow === 0 || dow === 6;
+  }
+
+  // Cellules
+  var rows = Math.ceil((startOffset + daysInMonth) / 7);
+  var cells = '';
+  for (var r = 0; r < rows; r++) {
+    for (var c = 0; c < 7; c++) {
+      var day = r * 7 + c - startOffset + 1;
+      if (day < 1 || day > daysInMonth) {
+        cells += '<div class="cal-day empty"></div>';
+      } else {
+        var ds      = _dateStr(new Date(year, month, day));
+        var past    = isPast(ds);
+        var weekend = isWeekend(day);
+        var cls     = 'cal-day';
+        var onclick = '';
+        var dots    = '';
+
+        if (ds === todayStr)    cls += ' today';
+        if (past || weekend) {
+          cls += ' past';
+        } else if (isDayBusy(ds)) {
+          cls += ' busy';
+          dots = '<div class="day-dots">' + SLOTS.map(function() { return '<div class="dot-busy"></div>'; }).join('') + '</div>';
+        } else if (isDayPartial(ds)) {
+          cls += ' partial';
+          onclick = 'ouvrirJour(\'' + ds + '\')';
+          var freeDots = SLOTS.map(function(s) {
+            return '<div class="' + (busyIndex[ds + '_' + s] ? 'dot-busy' : 'dot-free') + '"></div>';
+          }).join('');
+          dots = '<div class="day-dots">' + freeDots + '</div>';
+        } else {
+          cls += ' free';
+          onclick = 'ouvrirJour(\'' + ds + '\')';
+          dots = '<div class="day-dots">' + SLOTS.map(function() { return '<div class="dot-free"></div>'; }).join('') + '</div>';
+        }
+
+        cells += '<div class="' + cls + '" ' + (onclick ? 'onclick="' + onclick + '"' : '') + '>'
+          + '<div class="day-num">' + day + '</div>'
+          + dots
+          + '</div>';
+      }
+    }
+  }
+
+  var html = '<div class="card">'
+    + '<div class="card-title">📅 Choisissez une date</div>'
+    + '<div class="legend">'
+    + '<div class="legend-item"><div class="legend-dot" style="background:#D1FAE5;border:1.5px solid #6EE7B7"></div> Disponible</div>'
+    + '<div class="legend-item"><div class="legend-dot" style="background:#FFF7ED;border:1.5px solid #FED7AA"></div> Partiellement libre</div>'
+    + '<div class="legend-item"><div class="legend-dot" style="background:#FEE2E2;border:1.5px solid #FCA5A5"></div> Complet</div>'
+    + '</div>'
+    + '<div class="nav-month">'
+    + '<button class="nav-btn" onclick="changerMois(-1)">‹</button>'
+    + '<div class="month-label">' + MONTH_NAMES[month] + ' ' + year + '</div>'
+    + '<button class="nav-btn" onclick="changerMois(1)">›</button>'
+    + '</div>'
+    + '<div class="cal-grid">'
+    + ['Lu','Ma','Me','Je','Ve','Sa','Di'].map(function(d) { return '<div class="cal-head">' + d + '</div>'; }).join('')
+    + cells
+    + '</div>'
+    + '</div>';
+
+  document.getElementById('app').innerHTML = html;
+}
+
+function changerMois(delta) {
+  _calMonth += delta;
+  if (_calMonth < 0)  { _calMonth = 11; _calYear--; }
+  if (_calMonth > 11) { _calMonth = 0;  _calYear++; }
+  afficherCalendrier();
+}
+
+// ─── Ouverture d'un jour (créneaux) ───
+function ouvrirJour(ds) {
+  var parts   = ds.split('-');
+  var dateFr  = parseInt(parts[2]) + ' ' + MONTH_NAMES[parseInt(parts[1])-1] + ' ' + parts[0];
+  var busyIndex = {};
+  _busy.forEach(function(b) { busyIndex[b.date + '_' + b.heure] = true; });
+
+  var slotsHtml = SLOTS.map(function(s) {
+    var isBusy = !!busyIndex[ds + '_' + s];
+    if (isBusy) {
+      return '<button class="slot-btn busy" disabled>🔴 ' + s + ' — Occupé</button>';
+    }
+    return '<button class="slot-btn" onclick="ouvrirReservation(\'' + ds + '\',\'' + s + '\')">🟢 ' + s + ' — Disponible</button>';
+  }).join('');
+
+  var modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.id = 'slots-modal';
+  modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+  modal.innerHTML = '<div class="modal-box">'
+    + '<div class="modal-header">'
+    + '<h2 class="modal-title">📅 ' + dateFr + '</h2>'
+    + '<button class="btn-close" onclick="document.getElementById(\'slots-modal\').remove()">✕</button>'
+    + '</div>'
+    + slotsHtml
+    + '</div>';
+  document.body.appendChild(modal);
+}
+
+// ─── Réservation d'un créneau ───
+function ouvrirReservation(ds, heure) {
+  var modal = document.getElementById('slots-modal');
+  if (modal) modal.remove();
+
+  _selectedDate  = ds;
+  _selectedHeure = heure;
+
+  var parts  = ds.split('-');
+  var dateFr = parseInt(parts[2]) + ' ' + MONTH_NAMES[parseInt(parts[1])-1] + ' ' + parts[0];
+  document.getElementById('slot-recap').textContent = '📅 ' + dateFr + ' à ' + heure;
+  document.getElementById('book-adresse').value = '';
+  document.getElementById('book-type').value    = '';
+  document.getElementById('book-nom').value     = '';
+  document.getElementById('book-tel').value     = '';
+  document.getElementById('book-email').value   = '';
+  document.getElementById('book-btn').disabled  = false;
+  document.getElementById('book-btn').textContent = '✅ Envoyer la demande';
+  document.getElementById('booking-modal').style.display = 'flex';
+}
+
+function fermerModal() {
+  document.getElementById('booking-modal').style.display = 'none';
+}
+
+function confirmerReservation() {
+  var adresse = (document.getElementById('book-adresse').value || '').trim();
+  if (!adresse) { alert('L\'adresse du bien est obligatoire.'); return; }
+
+  var btn = document.getElementById('book-btn');
+  btn.disabled    = true;
+  btn.textContent = '⏳ Envoi en cours...';
+
+  fetch('/.netlify/functions/book-slot', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      code:          _code,
+      date:          _selectedDate,
+      heure:         _selectedHeure,
+      adresse:       adresse,
+      type_bien:     document.getElementById('book-type').value,
+      contact_nom:   document.getElementById('book-nom').value,
+      contact_tel:   document.getElementById('book-tel').value,
+      contact_email: document.getElementById('book-email').value
+    })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    fermerModal();
+    if (data.success) {
+      afficherSucces();
+    } else {
+      alert('Erreur : ' + (data.error || 'Impossible d\'envoyer la demande.'));
+      btn.disabled    = false;
+      btn.textContent = '✅ Envoyer la demande';
+    }
+  })
+  .catch(function() {
+    fermerModal();
+    alert('Erreur réseau. Vérifie ta connexion et réessaie.');
+    btn.disabled    = false;
+    btn.textContent = '✅ Envoyer la demande';
+  });
+}
+
+// ─── États UI ───
+function afficherSucces() {
+  var parts  = _selectedDate.split('-');
+  var dateFr = parseInt(parts[2]) + ' ' + MONTH_NAMES[parseInt(parts[1])-1] + ' ' + parts[0];
+  document.getElementById('app').innerHTML = '<div class="card success-box">'
+    + '<div class="icon">✅</div>'
+    + '<h2>Demande envoyée !</h2>'
+    + '<p>Votre demande de RDV pour le <strong>' + dateFr + ' à ' + _selectedHeure + '</strong> a bien été transmise au diagnostiqueur.</p>'
+    + '<p style="margin-top:12px">Il vous contactera pour confirmer le rendez-vous.</p>'
+    + '</div>';
+}
+
+function afficherErreur(titre, msg) {
+  document.getElementById('header-agence').textContent = 'Espace prescripteur';
+  document.getElementById('app').innerHTML = '<div class="card error-box">'
+    + '<h2>⚠️ ' + titre + '</h2><p>' + msg + '</p></div>';
+}
+
+// ─── Utilitaire date ───
+function _dateStr(d) {
+  return d.getFullYear() + '-'
+    + String(d.getMonth()+1).padStart(2,'0') + '-'
+    + String(d.getDate()).padStart(2,'0');
+}
+</script>
+
+</body>
+</html>
