@@ -243,6 +243,8 @@ function renderProfilScreen() {
     </div>
 
     <button class="profil-save-btn" onclick="saveProfilForm()">💾 Enregistrer le profil</button>
+
+    <button onclick="forcerSyncCloud(this)" style="width:100%;padding:12px;border-radius:10px;border:1.5px solid #0891B2;background:#fff;color:#0891B2;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:10px">☁️ Forcer la synchronisation vers le cloud</button>
     <div id="profil-success" style="display:none;text-align:center;padding:12px;background:#D1FAE5;border-radius:10px;color:#065F46;font-weight:700;margin-bottom:16px">✅ Profil sauvegardé !</div>`;
 }
 
