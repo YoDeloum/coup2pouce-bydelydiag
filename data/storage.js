@@ -166,6 +166,28 @@ function _doSync(uid, token, callback) {
   .catch(function() { if (callback) callback(); });
 }
 
+// ─── Force push : envoie TOUTES les clés locales vers Firestore ───
+function forcerSyncCloud(btn) {
+  var uid   = localStorage.getItem('fb_uid');
+  var token = localStorage.getItem('fb_token');
+  if (!uid || !token) { alert('Tu dois être connecté pour synchroniser.'); return; }
+
+  if (btn) { btn.textContent = '⏳ Synchronisation...'; btn.disabled = true; }
+
+  var pushed = 0;
+  _FS_KEYS.forEach(function(key) {
+    var val = localStorage.getItem(key);
+    if (val) { _fsPush(key, val); pushed++; }
+  });
+
+  setTimeout(function() {
+    if (btn) { btn.textContent = '✅ Synchronisé (' + pushed + ' éléments)'; btn.disabled = false; }
+    setTimeout(function() {
+      if (btn) btn.textContent = '☁️ Forcer la synchronisation vers le cloud';
+    }, 3000);
+  }, 1500);
+}
+
 // ─── Point d'entrée : sync au login ───
 function syncFromFirestore(callback) {
   var uid   = localStorage.getItem('fb_uid');
