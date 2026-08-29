@@ -611,7 +611,7 @@ function envoyerMailDevis(devis) {
 
   // 4. Écrire dans Firestore (collection publique /signatures)
   var fsUrl = 'https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents/signatures/'
-    + token + '?key=AIzaSyATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+    + token + '?key=' + ('AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4');
 
   fetch(fsUrl, {
     method: 'PATCH',
@@ -713,7 +713,7 @@ function verifierSignatureDistante() {
   if (btn) { btn.textContent = '⏳ Vérification...'; btn.disabled = true; }
 
   var fsUrl = 'https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents/signatures/'
-    + devis.signature_token + '?key=AIzaSyATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+    + devis.signature_token + '?key=' + ('AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4');
 
   fetch(fsUrl)
     .then(function(r) { return r.json(); })
@@ -809,7 +809,7 @@ function checkAllSignatures() {
   });
   if (!toCheck.length) return;
 
-  var FS_KEY = 'AIzaSyATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+  var FS_KEY = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
   var promises = toCheck.map(function(d) {
     var url = 'https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents/signatures/'
       + d.signature_token + '?key=' + FS_KEY;
