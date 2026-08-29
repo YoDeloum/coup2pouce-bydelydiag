@@ -148,10 +148,26 @@ function _getRelanceLog() {
 }
 function _saveRelanceLog(log) { localStorage.setItem('dd_relance_log', JSON.stringify(log)); }
 
+// ─── Identifiant stable pour un devis ou une facture ───
+// On n'utilise JAMAIS l'index (qui change si on ajoute/supprime des éléments)
+function _relanceId(doc, prefix) {
+  var num = (doc.numero || doc.numero_facture || '').toString().trim();
+  if (num) return prefix + '_' + num;
+  // Fallback : date_creation + email (stable même si l'ordre change)
+  var dc = (doc.date_creation || doc.date || '').toString().slice(0, 16);
+  var em = (doc.client_email  || '').replace(/[^a-zA-Z0-9]/g, '');
+  return prefix + '_' + dc + '_' + em;
+}
+
 // ─── Vérification au démarrage ───
 function initAutoRelances() {
   var s = _getRelanceSettings();
   if (!s.actif) return;
+
+  // Garde-fou : une seule exécution par jour par appareil
+  var todayStr = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+  if (localStorage.getItem('dd_relance_run') === todayStr) return;
+  localStorage.setItem('dd_relance_run', todayStr);
 
   var devisJ1 = parseInt(s.devis_j1)   || 2;
   var devisJ2 = parseInt(s.devis_j2)   || 7;
@@ -162,41 +178,41 @@ function initAutoRelances() {
   var today = new Date(); today.setHours(0,0,0,0);
   var p     = typeof getCompanyProfile === 'function' ? getCompanyProfile() : {};
 
-  // Devis en attente
+  // ── Devis en attente ──
   var devisList = [];
   try { devisList = JSON.parse(localStorage.getItem('dd_devis_list') || '[]'); } catch(e) {}
-  devisList.forEach(function(d, i) {
+  devisList.forEach(function(d) {
     if (!d || d.statut !== 'Devis' || !d.client_email) return;
     var dt = new Date(d.date || d.date_creation);
     if (isNaN(dt)) return;
     dt.setHours(0,0,0,0);
     var jours = Math.floor((today - dt) / 86400000);
-    var id = d.numero || ('d' + i);
-    if (!log['dv_' + id + '_r1'] && jours >= devisJ1) {
+    var id = _relanceId(d, 'dv');
+    if (!log[id + '_r1'] && jours >= devisJ1) {
       _autoEnvoyerEmail(d, p, 'devis', 1);
-      log['dv_' + id + '_r1'] = new Date().toISOString();
-    } else if (log['dv_' + id + '_r1'] && !log['dv_' + id + '_r2'] && jours >= devisJ2) {
+      log[id + '_r1'] = todayStr;
+    } else if (log[id + '_r1'] && !log[id + '_r2'] && jours >= devisJ2) {
       _autoEnvoyerEmail(d, p, 'devis', 2);
-      log['dv_' + id + '_r2'] = new Date().toISOString();
+      log[id + '_r2'] = todayStr;
     }
   });
 
-  // Factures impayées
+  // ── Factures impayées ──
   var factList = [];
   try { factList = JSON.parse(localStorage.getItem('dd_factures_list') || '[]'); } catch(e) {}
-  factList.forEach(function(f, i) {
+  factList.forEach(function(f) {
     if (!f || f.statut === 'Payée' || f.statut === 'Payé' || !f.client_email) return;
     var dt = new Date(f.date_facture || f.date);
     if (isNaN(dt)) return;
     dt.setHours(0,0,0,0);
     var jours = Math.floor((today - dt) / 86400000);
-    var id = f.numero_facture || ('f' + i);
-    if (!log['fa_' + id + '_r1'] && jours >= factJ1) {
+    var id = _relanceId(f, 'fa');
+    if (!log[id + '_r1'] && jours >= factJ1) {
       _autoEnvoyerEmail(f, p, 'facture', 1);
-      log['fa_' + id + '_r1'] = new Date().toISOString();
-    } else if (log['fa_' + id + '_r1'] && !log['fa_' + id + '_r2'] && jours >= factJ2) {
+      log[id + '_r1'] = todayStr;
+    } else if (log[id + '_r1'] && !log[id + '_r2'] && jours >= factJ2) {
       _autoEnvoyerEmail(f, p, 'facture', 2);
-      log['fa_' + id + '_r2'] = new Date().toISOString();
+      log[id + '_r2'] = todayStr;
     }
   });
 
