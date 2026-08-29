@@ -24,7 +24,11 @@ var _FS_KEYS = [
   'dd_avis_msg',
   'dd_stats_objectif',
   'certif_planning',
-  'dd_dark'
+  'dd_dark',
+  'dd_relance_log',
+  'dd_relance_run',
+  'dd_relance_settings',
+  'dd_prescripteurs'
 ];
 
 var _lsSetItem = Storage.prototype.setItem;
