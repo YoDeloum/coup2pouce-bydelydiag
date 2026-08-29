@@ -35,6 +35,10 @@ Storage.prototype.setItem = function(key, value) {
   if (this === localStorage && _FS_KEYS.indexOf(key) !== -1) {
     _fsPush(key, value);
   }
+  // Sync créneaux publics pour les prescripteurs quand les missions changent
+  if (this === localStorage && key === 'dd_missions') {
+    if (typeof updatePublicSlots === 'function') updatePublicSlots();
+  }
 };
 
 // ─── Rafraîchissement automatique du token ───
