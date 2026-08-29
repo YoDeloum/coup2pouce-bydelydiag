@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────
-// PROFIL.JS — Profil société / licencié
+// PROFIL.JS — Profil société / licencié v2
 // ─────────────────────────────────────────────
 
 function openProfil() {
