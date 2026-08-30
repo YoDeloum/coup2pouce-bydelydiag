@@ -145,6 +145,31 @@
     <label class="label">Commentaires / infos complémentaires</label>
     <textarea id="book-notes" placeholder="Code d'accès, informations utiles..." style="min-height:70px;resize:vertical"></textarea>
 
+    <!-- Section diagnostics + tarif estimé -->
+    <div id="presc-diags-section" style="display:none;border-top:2px solid #E5E7EB;padding-top:16px;margin-top:4px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <p class="label" style="margin:0">⚡ Diagnostics estimés</p>
+        <button type="button" onclick="calculerDiagsPresc()" style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid #6366F1;background:#fff;color:#6366F1;cursor:pointer;font-family:inherit;font-weight:700">Recalculer</button>
+      </div>
+      <p style="font-size:11px;color:#9CA3AF;margin:0 0 10px">Calculé automatiquement selon les informations du bien. Vous pouvez décocher des diagnostics.</p>
+      <div id="presc-diags-list"></div>
+      <div style="background:#F0FDF4;border-radius:10px;padding:12px 14px;margin-top:10px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:#374151;margin-bottom:4px">
+          <span>Sous-total HT</span>
+          <span id="presc-subtotal">0,00 €</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:#E8650A;margin-bottom:4px">
+          <span>Remise prescripteur (-10%)</span>
+          <span id="presc-remise">0,00 €</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:800;color:#065F46;border-top:1px solid #A7F3D0;padding-top:8px;margin-top:4px">
+          <span>Total net HT</span>
+          <span id="presc-total">0,00 €</span>
+        </div>
+        <p style="font-size:10px;color:#9CA3AF;margin:6px 0 0;text-align:center">Estimation indicative — confirmée par le diagnostiqueur</p>
+      </div>
+    </div>
+
     <button class="btn-primary" id="book-btn" onclick="confirmerReservation()">✅ Envoyer la demande</button>
     <p style="font-size:11px;color:#9CA3AF;text-align:center;margin-top:10px">Votre demande sera transmise au diagnostiqueur qui vous confirmera le RDV.</p>
   </div>
@@ -155,8 +180,94 @@
 var _code       = '';
 var _agence     = '';
 var _busy       = [];
+var _tarifs     = {};
 var _selectedDate  = '';
 var _selectedHeure = '';
+
+// ─── Tarifs par défaut ───
+var TARIFS_DEF = {
+  'DPE': 120, 'Amiante': 150, 'Plomb': 100, 'Électricité': 150, 'Gaz': 120,
+  'Termites': 100, 'ERP': 30, 'Carrez': 80, 'Boutin': 80, 'Frais déplacement': 50
+};
+
+function _getTarif(diag) {
+  var t = _tarifs[diag];
+  if (t === undefined) t = TARIFS_DEF[diag];
+  return parseFloat(t || 0);
+}
+
+// ─── Moteur de règles (copie de diagnostics-rules.js) ───
+function _calcObligatoires(params) {
+  var periode     = params.periode     || '';
+  var transaction = params.transaction || '';
+  var typeBien    = params.typeBien    || '';
+  var gaz         = params.gaz         || false;
+  if (!transaction || !periode) return [];
+  var result = [];
+  var avant1949 = (periode === 'Avant 1949');
+  var avant1997 = (avant1949 || periode === '1949-1997');
+  var avant2011 = (avant1997 || periode === '1997-2011');
+  var maison  = (typeBien === 'Maison');
+  var appart  = (typeBien === 'Appartement');
+  var vente   = (transaction === 'Vente');
+  var location= (transaction === 'Location');
+  result.push('DPE');
+  if (avant2011) result.push('Électricité');
+  if (gaz && avant2011) result.push('Gaz');
+  if (avant1949) result.push('Plomb');
+  if (avant1997 && !(location && maison)) result.push('Amiante');
+  result.push('ERP');
+  if (vente && appart) result.push('Carrez');
+  if (location) result.push('Boutin');
+  return result;
+}
+
+function _normPeriode(p) {
+  if (!p) return '';
+  if (p.indexOf('Avant') !== -1) return 'Avant 1949';
+  if (p.indexOf('1997') !== -1) return '1949-1997';
+  if (p.indexOf('Après') !== -1) return 'Après 2011';
+  return '';
+}
+
+// ─── Calcul automatique diagnostics prescripteur ───
+function calculerDiagsPresc() {
+  var typeBien    = document.getElementById('book-type').value;
+  var transaction = document.getElementById('book-transaction').value;
+  var periode     = _normPeriode(document.getElementById('book-periode').value);
+  var gaz         = document.getElementById('book-gaz').value === 'Oui';
+  if (!transaction || !periode) {
+    document.getElementById('presc-diags-section').style.display = 'none';
+    return;
+  }
+  var obligatoires = _calcObligatoires({ periode: periode, transaction: transaction, typeBien: typeBien, gaz: gaz });
+  if (obligatoires.indexOf('Frais déplacement') === -1) obligatoires.push('Frais déplacement');
+  var html = obligatoires.map(function(d) {
+    var prix = _getTarif(d);
+    return '<label style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:7px;border:1px solid #E5E7EB;margin-bottom:6px;cursor:pointer;background:#fff">'
+      + '<div style="display:flex;align-items:center;gap:8px;font-size:13px">'
+      + '<input type="checkbox" class="presc-diag-cb" data-diag="' + d + '" data-prix="' + prix + '" checked onchange="updatePrescTotal()"/>'
+      + '<span>' + d + '</span>'
+      + '</div>'
+      + '<span style="font-size:13px;font-weight:700;color:#059669">' + prix.toFixed(2) + ' €</span>'
+      + '</label>';
+  }).join('');
+  document.getElementById('presc-diags-list').innerHTML = html;
+  document.getElementById('presc-diags-section').style.display = 'block';
+  updatePrescTotal();
+}
+
+function updatePrescTotal() {
+  var subtotal = 0;
+  document.querySelectorAll('.presc-diag-cb:checked').forEach(function(cb) {
+    subtotal += parseFloat(cb.dataset.prix) || 0;
+  });
+  var remise = subtotal * 0.10;
+  var total  = subtotal - remise;
+  document.getElementById('presc-subtotal').textContent = subtotal.toFixed(2).replace('.', ',') + ' €';
+  document.getElementById('presc-remise').textContent   = '-' + remise.toFixed(2).replace('.', ',') + ' €';
+  document.getElementById('presc-total').textContent    = total.toFixed(2).replace('.', ',') + ' €';
+}
 var _calYear    = new Date().getFullYear();
 var _calMonth   = new Date().getMonth();
 
@@ -183,8 +294,9 @@ function chargerDisponibilites() {
         afficherErreur('Accès refusé', data.error || 'Code invalide ou désactivé.');
         return;
       }
-      _agence = data.agence || '';
-      _busy   = data.busy   || [];
+      _agence  = data.agence  || '';
+      _busy    = data.busy    || [];
+      _tarifs  = data.tarifs  || {};
       document.getElementById('header-agence').textContent = _agence;
       afficherCalendrier();
     })
@@ -349,9 +461,19 @@ function ouvrirReservation(ds, heure) {
   document.getElementById('book-tel').value     = '';
   document.getElementById('book-email').value   = '';
   document.getElementById('book-notes').value   = '';
+  document.getElementById('presc-diags-section').style.display = 'none';
+  document.getElementById('presc-diags-list').innerHTML = '';
   document.getElementById('book-btn').disabled  = false;
   document.getElementById('book-btn').textContent = '✅ Envoyer la demande';
   document.getElementById('booking-modal').style.display = 'flex';
+  // Listeners pour calcul auto
+  ['book-type','book-transaction','book-periode','book-gaz'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && !el._prescListener) {
+      el.addEventListener('change', calculerDiagsPresc);
+      el._prescListener = true;
+    }
+  });
 }
 
 function fermerModal() {
@@ -384,7 +506,13 @@ function confirmerReservation() {
       contact_nom:   document.getElementById('book-nom').value,
       contact_tel:   document.getElementById('book-tel').value,
       contact_email: document.getElementById('book-email').value,
-      notes:         document.getElementById('book-notes').value
+      notes:         document.getElementById('book-notes').value,
+      diagnostics:   (function(){
+        var diags = [];
+        document.querySelectorAll('.presc-diag-cb:checked').forEach(function(cb){ diags.push(cb.dataset.diag); });
+        return diags.join(', ');
+      })(),
+      total_ht:      document.getElementById('presc-total').textContent.replace(',','.').replace(' €','').trim() || ''
     })
   })
   .then(function(r) { return r.json(); })
