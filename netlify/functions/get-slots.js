@@ -54,10 +54,20 @@ exports.handler = async function(event) {
       });
     }
 
+    // 3. Récupérer les tarifs du diagnostiqueur
+    var tarifsObj = {};
+    try {
+      var userRes = await fetch(FS_BASE + '/userdata/' + uid + '?key=' + FS_KEY);
+      var userDoc = await userRes.json();
+      if (userDoc.fields && userDoc.fields.dd_tarifs && userDoc.fields.dd_tarifs.stringValue) {
+        tarifsObj = JSON.parse(userDoc.fields.dd_tarifs.stringValue);
+      }
+    } catch(e) {}
+
     return {
       statusCode: 200,
       headers: CORS,
-      body: JSON.stringify({ valid: true, agence: agence, nom: nom, email_diag: emailDiag, busy: busy })
+      body: JSON.stringify({ valid: true, agence: agence, nom: nom, email_diag: emailDiag, busy: busy, tarifs: tarifsObj })
     };
 
   } catch(e) {
