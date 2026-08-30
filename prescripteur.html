@@ -90,6 +90,49 @@
       <option>Autre</option>
     </select>
 
+    <label class="label">Type de transaction</label>
+    <select id="book-transaction">
+      <option value="">— Sélectionner —</option>
+      <option>Vente</option>
+      <option>Location</option>
+      <option>Avant travaux</option>
+      <option>Autre</option>
+    </select>
+
+    <label class="label">Période de construction</label>
+    <select id="book-periode">
+      <option value="">— Inconnue —</option>
+      <option>Avant 1949</option>
+      <option>1949 – 1997</option>
+      <option>Après 1997</option>
+    </select>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div>
+        <label class="label">Surface (m²)</label>
+        <input type="number" id="book-surface" placeholder="Ex : 85" min="1"/>
+      </div>
+      <div>
+        <label class="label">Nb de pièces</label>
+        <input type="number" id="book-pieces" placeholder="Ex : 4" min="1"/>
+      </div>
+    </div>
+
+    <label class="label">Présence de gaz</label>
+    <select id="book-gaz">
+      <option value="">— Ne sait pas —</option>
+      <option>Oui</option>
+      <option>Non</option>
+    </select>
+
+    <label class="label">Dépendances</label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;font-weight:normal"><input type="checkbox" id="book-dep-cave"/> Cave</label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;font-weight:normal"><input type="checkbox" id="book-dep-garage"/> Garage</label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;font-weight:normal"><input type="checkbox" id="book-dep-grenier"/> Grenier</label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;font-weight:normal"><input type="checkbox" id="book-dep-piscine"/> Piscine</label>
+    </div>
+
     <label class="label">Nom du contact (propriétaire / vendeur)</label>
     <input type="text" id="book-nom" placeholder="Dupont Jean"/>
 
@@ -98,6 +141,9 @@
 
     <label class="label">Email</label>
     <input type="email" id="book-email" placeholder="contact@exemple.fr"/>
+
+    <label class="label">Commentaires / infos complémentaires</label>
+    <textarea id="book-notes" placeholder="Code d'accès, informations utiles..." style="min-height:70px;resize:vertical"></textarea>
 
     <button class="btn-primary" id="book-btn" onclick="confirmerReservation()">✅ Envoyer la demande</button>
     <p style="font-size:11px;color:#9CA3AF;text-align:center;margin-top:10px">Votre demande sera transmise au diagnostiqueur qui vous confirmera le RDV.</p>
@@ -288,11 +334,21 @@ function ouvrirReservation(ds, heure) {
   var parts  = ds.split('-');
   var dateFr = parseInt(parts[2]) + ' ' + MONTH_NAMES[parseInt(parts[1])-1] + ' ' + parts[0];
   document.getElementById('slot-recap').textContent = '📅 ' + dateFr + ' à ' + heure;
-  document.getElementById('book-adresse').value = '';
-  document.getElementById('book-type').value    = '';
+  document.getElementById('book-adresse').value     = '';
+  document.getElementById('book-type').value        = '';
+  document.getElementById('book-transaction').value = '';
+  document.getElementById('book-periode').value     = '';
+  document.getElementById('book-surface').value     = '';
+  document.getElementById('book-pieces').value      = '';
+  document.getElementById('book-gaz').value         = '';
+  document.getElementById('book-dep-cave').checked    = false;
+  document.getElementById('book-dep-garage').checked  = false;
+  document.getElementById('book-dep-grenier').checked = false;
+  document.getElementById('book-dep-piscine').checked = false;
   document.getElementById('book-nom').value     = '';
   document.getElementById('book-tel').value     = '';
   document.getElementById('book-email').value   = '';
+  document.getElementById('book-notes').value   = '';
   document.getElementById('book-btn').disabled  = false;
   document.getElementById('book-btn').textContent = '✅ Envoyer la demande';
   document.getElementById('booking-modal').style.display = 'flex';
@@ -319,9 +375,16 @@ function confirmerReservation() {
       heure:         _selectedHeure,
       adresse:       adresse,
       type_bien:     document.getElementById('book-type').value,
+      transaction:   document.getElementById('book-transaction').value,
+      periode:       document.getElementById('book-periode').value,
+      surface:       document.getElementById('book-surface').value,
+      nb_pieces:     document.getElementById('book-pieces').value,
+      gaz:           document.getElementById('book-gaz').value,
+      dependances:   ['cave','garage','grenier','piscine'].filter(function(d){return document.getElementById('book-dep-'+d).checked;}).join(', '),
       contact_nom:   document.getElementById('book-nom').value,
       contact_tel:   document.getElementById('book-tel').value,
-      contact_email: document.getElementById('book-email').value
+      contact_email: document.getElementById('book-email').value,
+      notes:         document.getElementById('book-notes').value
     })
   })
   .then(function(r) { return r.json(); })
