@@ -180,6 +180,9 @@ function forcerSyncCloud(btn) {
     if (val) { _fsPush(key, val); pushed++; }
   });
 
+  // Sync aussi les créneaux publics (inclut les tarifs pour les prescripteurs)
+  if (typeof updatePublicSlots === 'function') updatePublicSlots();
+
   setTimeout(function() {
     if (btn) { btn.textContent = '✅ Synchronisé (' + pushed + ' éléments)'; btn.disabled = false; }
     setTimeout(function() {
