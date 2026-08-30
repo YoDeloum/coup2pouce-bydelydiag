@@ -39,6 +39,8 @@ exports.handler = async function(event) {
   var contact_tel   = payload.contact_tel   || '';
   var contact_email = payload.contact_email || '';
   var notes         = payload.notes         || '';
+  var diagnostics   = payload.diagnostics   || '';
+  var total_ht      = payload.total_ht      || '';
 
   if (!code || !date || !heure || !adresse) {
     return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Champs requis manquants' }) };
@@ -92,6 +94,7 @@ exports.handler = async function(event) {
       + (contact_tel   ? '<p style="color:#374151"><strong>📞 Téléphone :</strong> <a href="tel:' + contact_tel + '">' + contact_tel + '</a></p>' : '')
       + (contact_email ? '<p style="color:#374151"><strong>✉️ Email :</strong> ' + contact_email + '</p>' : '')
       + (notes        ? '<hr style="border:none;border-top:1px solid #E5E7EB;margin:12px 0"/><p style="color:#374151"><strong>💬 Commentaires :</strong><br>' + notes.replace(/\n/g,'<br>') + '</p>' : '')
+      + (diagnostics  ? '<hr style="border:none;border-top:1px solid #E5E7EB;margin:12px 0"/><p style="font-weight:700;color:#1A1D2E;margin:0 0 6px">💰 Estimation tarifaire (remise -10%)</p><p style="color:#374151"><strong>Diagnostics :</strong> ' + diagnostics + '</p>' + (total_ht ? '<p style="color:#059669;font-weight:800;font-size:15px">Total net HT : ' + total_ht + ' €</p>' : '') : '')
       + '<p style="color:#6B7280;font-size:13px;margin-top:24px;border-top:1px solid #E5E7EB;padding-top:16px">'
       + 'Connectez-vous à Coup 2 Pouce pour confirmer ce rendez-vous et créer la mission.</p>'
       + '</div></div>';
