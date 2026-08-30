@@ -24,14 +24,21 @@ exports.handler = async function(event) {
     return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'JSON invalide' }) };
   }
 
-  var code         = payload.code;
-  var date         = payload.date;
-  var heure        = payload.heure;
-  var adresse      = payload.adresse;
-  var type_bien    = payload.type_bien    || '';
-  var contact_nom  = payload.contact_nom  || '';
-  var contact_tel  = payload.contact_tel  || '';
+  var code          = payload.code;
+  var date          = payload.date;
+  var heure         = payload.heure;
+  var adresse       = payload.adresse;
+  var type_bien     = payload.type_bien     || '';
+  var transaction   = payload.transaction   || '';
+  var periode       = payload.periode       || '';
+  var surface       = payload.surface       || '';
+  var nb_pieces     = payload.nb_pieces     || '';
+  var gaz           = payload.gaz           || '';
+  var dependances   = payload.dependances   || '';
+  var contact_nom   = payload.contact_nom   || '';
+  var contact_tel   = payload.contact_tel   || '';
   var contact_email = payload.contact_email || '';
+  var notes         = payload.notes         || '';
 
   if (!code || !date || !heure || !adresse) {
     return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Champs requis manquants' }) };
@@ -69,11 +76,22 @@ exports.handler = async function(event) {
       + '<p style="margin:0;font-size:20px;font-weight:800;color:#1A1D2E">' + dateFr + ' à ' + heure + '</p>'
       + '</div>'
       + '<p style="color:#374151"><strong>🏢 Prescripteur :</strong> ' + agenceName + '</p>'
-      + '<p style="color:#374151"><strong>📍 Adresse du bien :</strong> ' + adresse + '</p>'
-      + (type_bien   ? '<p style="color:#374151"><strong>🏠 Type de bien :</strong> ' + type_bien + '</p>' : '')
-      + (contact_nom ? '<p style="color:#374151"><strong>👤 Contact :</strong> ' + contact_nom + '</p>' : '')
-      + (contact_tel ? '<p style="color:#374151"><strong>📞 Téléphone :</strong> <a href="tel:' + contact_tel + '">' + contact_tel + '</a></p>' : '')
+      + '<hr style="border:none;border-top:1px solid #E5E7EB;margin:12px 0"/>'
+      + '<p style="font-weight:700;color:#1A1D2E;margin:0 0 8px">🏠 Informations sur le bien</p>'
+      + '<p style="color:#374151"><strong>📍 Adresse :</strong> ' + adresse + '</p>'
+      + (type_bien   ? '<p style="color:#374151"><strong>Type :</strong> ' + type_bien + '</p>' : '')
+      + (transaction ? '<p style="color:#374151"><strong>Transaction :</strong> ' + transaction + '</p>' : '')
+      + (periode     ? '<p style="color:#374151"><strong>Période de construction :</strong> ' + periode + '</p>' : '')
+      + (surface     ? '<p style="color:#374151"><strong>Surface :</strong> ' + surface + ' m²</p>' : '')
+      + (nb_pieces   ? '<p style="color:#374151"><strong>Nb de pièces :</strong> ' + nb_pieces + '</p>' : '')
+      + (gaz         ? '<p style="color:#374151"><strong>Gaz :</strong> ' + gaz + '</p>' : '')
+      + (dependances ? '<p style="color:#374151"><strong>Dépendances :</strong> ' + dependances + '</p>' : '')
+      + '<hr style="border:none;border-top:1px solid #E5E7EB;margin:12px 0"/>'
+      + '<p style="font-weight:700;color:#1A1D2E;margin:0 0 8px">👤 Contact</p>'
+      + (contact_nom   ? '<p style="color:#374151"><strong>Nom :</strong> ' + contact_nom + '</p>' : '')
+      + (contact_tel   ? '<p style="color:#374151"><strong>📞 Téléphone :</strong> <a href="tel:' + contact_tel + '">' + contact_tel + '</a></p>' : '')
       + (contact_email ? '<p style="color:#374151"><strong>✉️ Email :</strong> ' + contact_email + '</p>' : '')
+      + (notes        ? '<hr style="border:none;border-top:1px solid #E5E7EB;margin:12px 0"/><p style="color:#374151"><strong>💬 Commentaires :</strong><br>' + notes.replace(/\n/g,'<br>') + '</p>' : '')
       + '<p style="color:#6B7280;font-size:13px;margin-top:24px;border-top:1px solid #E5E7EB;padding-top:16px">'
       + 'Connectez-vous à Coup 2 Pouce pour confirmer ce rendez-vous et créer la mission.</p>'
       + '</div></div>';
