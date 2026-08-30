@@ -518,7 +518,11 @@ function confirmerReservation() {
         document.querySelectorAll('.presc-diag-cb:checked').forEach(function(cb){ diags.push(cb.dataset.diag); });
         return diags.join(', ');
       })(),
-      total_ht:      document.getElementById('presc-total').textContent.replace(',','.').replace(' €','').trim() || ''
+      total_ht:      (function(){
+        var el = document.getElementById('presc-total');
+        if (!el || document.getElementById('presc-diags-section').style.display === 'none') return '';
+        return el.textContent.replace(',','.').replace(/\s*€/,'').trim();
+      })()
     })
   })
   .then(function(r) { return r.json(); })
