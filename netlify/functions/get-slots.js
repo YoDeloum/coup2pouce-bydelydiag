@@ -54,15 +54,11 @@ exports.handler = async function(event) {
       });
     }
 
-    // 3. Récupérer les tarifs du diagnostiqueur
+    // 3. Lire les tarifs depuis public_slots (déjà fetchés)
     var tarifsObj = {};
-    try {
-      var userRes = await fetch(FS_BASE + '/userdata/' + uid + '?key=' + FS_KEY);
-      var userDoc = await userRes.json();
-      if (userDoc.fields && userDoc.fields.dd_tarifs && userDoc.fields.dd_tarifs.stringValue) {
-        tarifsObj = JSON.parse(userDoc.fields.dd_tarifs.stringValue);
-      }
-    } catch(e) {}
+    if (slotsDoc.fields && slotsDoc.fields.tarifs && slotsDoc.fields.tarifs.stringValue) {
+      try { tarifsObj = JSON.parse(slotsDoc.fields.tarifs.stringValue); } catch(e) {}
+    }
 
     return {
       statusCode: 200,
