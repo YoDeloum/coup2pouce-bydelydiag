@@ -85,12 +85,16 @@ function updatePublicSlots() {
   });
 
   var url = 'https://firestore.googleapis.com/v1/projects/' + _FS_PRESC_PROJECT + '/databases/(default)/documents/public_slots/' + uid;
+  // Inclure les tarifs dans public_slots pour les prescripteurs
+  var tarifsStr = localStorage.getItem('dd_tarifs') || '{}';
+
   fetch(url, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify({
       fields: {
         email_diag: { stringValue: localStorage.getItem('fb_email') || '' },
+        tarifs: { stringValue: tarifsStr },
         busy: {
           arrayValue: {
             values: busy.map(function(b) {
