@@ -32,7 +32,7 @@ function _fsPushCode(code, data) {
   });
   var url = 'https://firestore.googleapis.com/v1/projects/' + _FS_PRESC_PROJECT + '/databases/(default)/documents/codes/' + code;
   fetch(url, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify({ fields: fields })
   }).catch(function() {});
@@ -86,7 +86,7 @@ function updatePublicSlots() {
 
   var url = 'https://firestore.googleapis.com/v1/projects/' + _FS_PRESC_PROJECT + '/databases/(default)/documents/public_slots/' + uid;
   fetch(url, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify({
       fields: {
