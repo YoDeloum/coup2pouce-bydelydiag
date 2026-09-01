@@ -14,7 +14,7 @@ function renderHome() {
       + '<div class="mod-label" style="color:' + d.color + '">' + d.label + '</div>'
       + '<div class="mod-title">' + d.full + '</div>'
       + '<div class="tags">'
-      + '<span class="tag" style="background:' + d.color + '18;color:' + d.color + '">' + d.cours.length + ' cours</span>'
+      + '<span class="tag" style="background:' + d.color + '18;color:' + d.color + '">' + d.cours.length + ' modules</span>'
       + '<span class="tag" style="background:#fafaf8;color:#6B7280">' + d.fiches.length + ' fiches</span>'
       + '</div>'
       + '<span class="start-hint">→ Consulter</span>'
