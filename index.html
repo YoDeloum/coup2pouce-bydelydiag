@@ -14,6 +14,7 @@
   <link rel="icon" type="image/png" sizes="512x512" href="assets/icons/icon-512.png">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>Coup 2 Pouce — by DELY DIAG</title>
+  <meta name="description" content="Application terrain pour le réseau DELY DIAG — gestion des diagnostics immobiliers, devis, missions et factures.">
 
   <!-- ═══════════════════════════════════════
        CSS — chargés depuis /css/
@@ -28,7 +29,7 @@
   <link rel="stylesheet" href="css/signature.css">
 
   <!-- jsPDF — génération PDF côté client -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 
   <!-- ═══════════════════════════════════════
        FIREBASE SDK
@@ -79,7 +80,7 @@
 ════════════════════════════════════════ -->
 <div id="header">
   <div style="display:flex;align-items:center">
-    <button id="back-btn" onclick="showHome()">←</button>
+    <button id="back-btn" onclick="showHome()" aria-label="Retour à l'accueil">←</button>
     <div style="display:flex;align-items:center;gap:10px">
       <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAA3AK0DASIAAhEBAxEB/8QAHAABAAEFAQEAAAAAAAAAAAAAAAYBAgUHCAME/8QAMBAAAQMEAQMDAgYBBQAAAAAAAQIDBAAFBhESITFBBxNRIjIUFSNCYXGBCCRikcH/xAAbAQEAAgMBAQAAAAAAAAAAAAAAAQQDBQYCB//EACoRAAIBAwIFAwQDAAAAAAAAAAABAgMEESExBRITQVEGYYEicZHwQqGx/9oADAMBAAIRAxEAPwDsulKUApSqKISkqUQABsk+KbArVqnG0nSlpB+CawZvKJ77sOMotkj9Fe9e4R3H8b8Vi2ZpElCFEhXuAEHuDuuaufUtCDXR+pN4z2yt1+9mi2rOr3WCXh1orKA4nkDojfWr6jk5f+8eH/M17OXUW0ssPBTqlfU4N9W0+B/fnVWrfjCnUlCpHCXf5NVO7p003N4RnaVa04h1tLjagpChsEeRV1btPOqLKedUKUpQkUpSgFKUoBSlKAUpSgFKUoBSlKAViMoeQIIiGazFcfOgXSQFAdxvx4rL1r/1YeUxKt5J0lSHAP72mtJ6iuXbcOqTSzsvhtJ7ezL/AAyh17qMM/qWSxy23JhSFpYWsEjg4yead76HY7VEfVXK58rJ4/p7gTTMzN5raTPmpO2LS1ocnl+Pc0RoeOh1spBytnt+TzYr6LPLkWZ19ooZnuMc22VHpy4FSeZ1vQ+dEg61VbF6cO+m/pndW8alXS5ZTNcQ9MukdppcyU4XUlWg8eHEJKuij2Kj1Ua0npXhlvOjKvKD1axGWqWP5LRedHgtcZq1KdRUk+2rX+bsi2H5XluGZta/TPOFwpUxckC232YtaU3GLxIA32/EJVwGlH6uoJ5cSrZi7fcXpDqnWVcgo+44s8U78nZrEXnBB6kYNdrHmibkiQm6yl22XJaZS/FSFn2Vte0dFGu3LSlJ+7RrFTsezCz2SFAvN0m5IuI17arglgoDiB9vJAUo8x1BV05dD32T013YUqiyljXXHf3OE47HpW/V5XLHZe/nR7eTZGLSGAhyAmfHkut/XxaUVBAP89j1qzK8zxPFFx0ZLkVstCpIUWRMkJa9wJ1vW++tj/uob6SuqcyOQnwmKeQ+PqTqsV61sTIvq1g+RKxC8ZJaoES4Ny2rfAEkpU4lARtJ0O/Xr8GrVtFRpqK7GbgN7K6sY1GsatfCZsFzPsJRjicjVldm/Jy6GRNExBZ9w9kcgdcv4r5YPqh6dzok2XDzWwyGILaXZTjc1CksoUoISpRB6AqIH9mueMpxDKbhjuV3214PerPDu2V2yZBtbcJC5TTTCFB1/wDDglI2SDxPQnv0rK3mFkV49H83sbVgzafcpEeMuMq44xGgFQTIb5Nt/h+rh/cQewTurHKjb9R+Do6bkFkhXeBaZl0iR59xCjCYcdCVyOI2rgD92h8V5s5Nj7ybspq8wXE2YqTclJeBEQpTyIcP7SANkHtWnvUi4SPUX0+uUOHgOcWm/WOKLpZpcu3eyoS2inglpSVElatn6ddRvyBUotuIfkX+nW42G2wZa7lMsUl2QhaSqRImvMlThV5KytWv8AeKjB65nkk+Peo2B5Dck22yZjYrhNWCUR481CnFa76TvZ/xX3Jy3GVWGXfhfrd+VQnFtSZfvp9ppaFcVJUrsCFdCPmufbTa7pf7d6YWC3+mF9s10sFwt8m5Xidbm4raG2EadCV75L5Hx5818jeNZ9Mw634VDw+S6zMy64Xe4t3ALjRnIrUjm0045xOkuqII0DsJ/mpwjzzvB0fMyrGoeNN5LLv1tYszjaXG5zkhKWVJV9pCidHfivDD81xPMEyFYvkNtu/4bj74iPhZb5b48gO29HX9Gub2cWzy343Z7Ne8InXKFh2WJuH5fFT+IalQHkLUEsFQAeLS1EFOt6I6d62Z6ETctnZtlT10t94i2BSGFWw3KxM253ZU4VN6QAVhAKQConp16EmjRKm2zclKUryZBSlKAUpSgFRz1E/Mmcben2dDKpsT9RJWyHFBH7+O+x11/wARI6HrWG4o9elKnnGVut17/Bmt63RqxqYzh7PZ+3yczLu16v1yYaXLlzpbrgSykuE/UT00Ow+enat62/IGYoYttxfMmW2hDbz7aPoW52PT+/NYqThEayzrhfMdilU+Qni20VAJj8t+4psfJ+PHXXxUPackxbpHalMPML99AKXEFJ+4fNfOpu+4HU0y5TereWsLb5e/lLHlm29S8coXbp07aGIxXjGr7fZf3+DYd1y2CzMdtjDimpIUpr3nEfptr10JG9kb1utQzL9klivMmPInzI8xDhLyfcJCieu9HoQe4Oq+rKXpD+Z3WNFYdfc/FrSENoKievwKnNixAX63QJGX20iTCVxY25pTrXhDoHcA9hv/AN31Fnd3F1XnTqLZvDW32Z8zv6NxxSeKUnGUG8PVL327+PwZP0xl3a6Wld3u7McLfIDDqWQhxxA/cojuCe39b819eXWW8XWXEctl6ctqGkOJcKFL3slBCgAQlR0lSfq2BzJHUVIkIShCUISEpSNAAaAFVroYLlWDp7W3dCjGnKTk1u3u2QNzFczL4eGY8iZIf4ltxKWx9IKQAv6hxRoBXTa1q1vVWs4fliPbbczWU+lACUuLK0uISEIBP0qCVqUUqBKh0CuQHLZM+pXvJn5UQVnEMibtyEHKpSpXttJcUXnihfELCk/ftPLkgFSdK+nY0a9WMXyVLFybOTupMlDAYIW6osFH36KlE6I6fJ7k1NaUyTyogpw3JQ4SnPrvoFBSVBBJ0WyeQ0B+w/brfI8t7O/BrD8uTKjujMX220JUFtBbqx10N7Uokkkcup+knQ6VsGlMkcqILJxfLpJiqXlKmi1GUwsNKcAUr2ygO9+qtkK0fPmsjh+P3yz3J5645C9c4646G0odKyQsKJ5DaiB06a6n5PTrKaUyTyoUpSoJFKUoBSlKAUpSgFUUlKvuSD56ilKAJSlJJSkAk7Oh3qtKUApSlAKUpQClKUApSlAKUpQClKUApSlAf//Z" style="height:42px;object-fit:contain" alt="DELY DIAG"/>
       <div style="border-left:1px solid #E2E5F0;padding-left:10px">
@@ -272,7 +273,7 @@
       </svg>
     </div>
     <div class="info"><div class="name">Jeffrey</div><div class="status">Assistant DELY DIAG • Diagnostics immobiliers</div></div>
-    <button class="close-btn" onclick="toggleChat()">✕</button>
+    <button class="close-btn" onclick="toggleChat()" aria-label="Fermer">✕</button>
   </div>
   <div id="chat-messages"><div class="msg bot">👋 Salut, moi c'est Jeffrey !<br>Dis-moi tout 😊</div></div>
   <div id="chat-input-wrap">
@@ -316,7 +317,7 @@
   <div class="cl-header">
     <span style="font-size:22px">✅</span>
     <h2>Ma Checklist Terrain</h2>
-    <button class="cl-close" onclick="closeChecklist()">✕</button>
+    <button class="cl-close" onclick="closeChecklist()" aria-label="Fermer">✕</button>
   </div>
   <div class="cl-body">
     <div class="cl-module-select">
@@ -338,7 +339,7 @@
   <div class="mission-header">
     <span style="font-size:22px">📋</span>
     <h2>Mes Missions</h2>
-    <button class="mission-close" onclick="closeMission()">✕</button>
+    <button class="mission-close" onclick="closeMission()" aria-label="Fermer">✕</button>
   </div>
   <div class="mission-body" id="mission-body"></div>
 </div>
@@ -350,7 +351,7 @@
   <div style="background:linear-gradient(135deg,#1B4332,#2D6A4F);padding:16px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10">
     <span style="font-size:22px">📚</span>
     <h2 style="color:#fff;font-size:18px;font-weight:800;flex:1;margin:0">Modules & Diagnostics</h2>
-    <button style="background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;line-height:1" onclick="closeCours()">✕</button>
+    <button style="background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;line-height:1" onclick="closeCours()" aria-label="Fermer">✕</button>
   </div>
   <div style="padding:16px">
     <!-- Progression globale -->
@@ -370,7 +371,7 @@
   <div class="glossaire-header">
     <span style="font-size:22px">📖</span>
     <h2>Glossaire</h2>
-    <button class="glossaire-close" onclick="closeGlossaire()">✕</button>
+    <button class="glossaire-close" onclick="closeGlossaire()" aria-label="Fermer">✕</button>
   </div>
   <div style="padding:16px">
     <input type="text" placeholder="🔍 Rechercher un terme..."
@@ -384,7 +385,7 @@
   <div class="tarif-header">
     <span style="font-size:22px">💶</span>
     <h2>Tarifs & Devis</h2>
-    <button class="tarif-close" onclick="closeTarif()">✕</button>
+    <button class="tarif-close" onclick="closeTarif()" aria-label="Fermer">✕</button>
   </div>
   <div class="tarif-body" id="tarif-body"></div>
 </div>
@@ -393,7 +394,7 @@
   <div style="background:linear-gradient(135deg,#6366F1,#8B5CF6);padding:16px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10">
     <span style="font-size:22px">📊</span>
     <h2 style="color:#fff;font-size:18px;font-weight:800;flex:1">Mes Statistiques</h2>
-    <button style="background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px" onclick="document.getElementById('stats-screen').style.display='none'">✕</button>
+    <button style="background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px" onclick="document.getElementById('stats-screen').style.display='none'" aria-label="Fermer">✕</button>
   </div>
   <div style="padding:16px" id="stats-body"></div>
 </div>
@@ -402,14 +403,14 @@
   <div style="background:linear-gradient(135deg,#059669,#065F46);padding:16px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10">
     <span style="font-size:22px">👥</span>
     <h2 style="color:#fff;font-size:18px;font-weight:800;flex:1">Mes Clients</h2>
-    <button style="background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px" onclick="closeClients()">✕</button>
+    <button style="background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px" onclick="closeClients()" aria-label="Fermer">✕</button>
   </div>
   <div style="padding:16px" id="clients-body"></div>
 </div>
 
 <div id="search-results">
   <div style="background:linear-gradient(135deg,#2D6A4F,#1B4332);padding:14px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10">
-    <button onclick="closeSearch()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;flex-shrink:0">←</button>
+    <button onclick="closeSearch()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;flex-shrink:0" aria-label="Fermer la recherche">←</button>
     <input id="search-bar-results" type="text" placeholder="Rechercher..."
       style="flex:1;padding:9px 14px;border-radius:8px;border:none;font-size:14px;font-family:inherit"
       oninput="searchGlobal(this.value)"/>
@@ -424,7 +425,7 @@
   <div class="profil-header">
     <span style="font-size:22px">🏢</span>
     <h2>Mon Profil Société</h2>
-    <button class="profil-close" onclick="closeProfil()">✕</button>
+    <button class="profil-close" onclick="closeProfil()" aria-label="Fermer">✕</button>
   </div>
   <div class="profil-body" id="profil-body"></div>
 </div>
@@ -436,7 +437,7 @@
   <div class="devis-header">
     <span style="font-size:22px">📄</span>
     <h2>Mes Devis</h2>
-    <button class="devis-close" onclick="closeDevis()">✕</button>
+    <button class="devis-close" onclick="closeDevis()" aria-label="Fermer">✕</button>
   </div>
   <div class="devis-body" id="devis-body"></div>
 </div>
@@ -448,7 +449,7 @@
   <div class="facture-header">
     <span style="font-size:22px">📋</span>
     <h2>Mes Factures</h2>
-    <button class="facture-close" onclick="closeFacture()">✕</button>
+    <button class="facture-close" onclick="closeFacture()" aria-label="Fermer">✕</button>
   </div>
   <div class="facture-body" id="facture-body"></div>
 </div>
@@ -460,7 +461,7 @@
   <div class="sig-header">
     <span style="font-size:22px">✍️</span>
     <h2>Acceptation du devis</h2>
-    <button class="sig-close" onclick="closeSignature()">✕</button>
+    <button class="sig-close" onclick="closeSignature()" aria-label="Fermer">✕</button>
   </div>
   <div class="sig-body" id="signature-body"></div>
 </div>
