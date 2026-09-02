@@ -132,6 +132,8 @@ function firebaseRegister() {
       localStorage.setItem('fb_uid',     data.localId);
       localStorage.setItem('fb_email',   email);
       localStorage.setItem('fb_refresh', data.refreshToken);
+      // Alerte email à l'admin pour tout nouvel inscrit
+      _alertNouvelInscrit(email, data.localId);
       btn.textContent = '⏳ Chargement de vos données...';
       if (typeof syncFromFirestore === 'function') {
         syncFromFirestore(function() {
@@ -179,4 +181,25 @@ function checkLogin() {
       syncFromFirestore(function() {});
     }
   }
+}
+
+// ─── Alerte admin : nouvel inscrit ───
+function _alertNouvelInscrit(email, uid) {
+  var device  = /Mobile|Android/i.test(navigator.userAgent) ? '📱 Mobile' : '💻 Desktop';
+  var dateStr = new Date().toLocaleString('fr-FR');
+  fetch('/.netlify/functions/send-email', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({
+      to:       'y.deloum@delydiag.fr',
+      subject:  '🆕 Nouvel inscrit — Coup 2 Pouce',
+      fromName: 'Coup 2 Pouce Alertes',
+      html:     '<h2 style="color:#1a73e8">Nouvel utilisateur inscrit</h2>' +
+                '<p><strong>Email :</strong> ' + email + '</p>' +
+                '<p><strong>Date :</strong> ' + dateStr + '</p>' +
+                '<p><strong>Appareil :</strong> ' + device + '</p>' +
+                '<p><strong>UID Firebase :</strong> <code>' + uid + '</code></p>' +
+                '<hr><p style="color:#888;font-size:12px">Rendez-vous sur la console Firebase pour gérer cet accès.</p>'
+    })
+  }).catch(function() { /* silencieux — ne pas bloquer l'inscription */ });
 }
