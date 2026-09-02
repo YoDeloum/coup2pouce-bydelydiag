@@ -11,6 +11,7 @@ var _FS_COL     = 'https://firestore.googleapis.com/v1/projects/' + _FS_PROJECT 
 // Clés à synchroniser (données métier uniquement)
 var _FS_KEYS = [
   'dd_company_profile',
+  'dd_logo_compressed',   // Logo compressé stocké séparément (base64 JPEG ≤ 100 Ko)
   'dd_tarifs',
   'dd_devis_list',
   'dd_missions',
@@ -68,25 +69,62 @@ function _fsRefreshToken(callback) {
   .catch(function() { callback(null); });
 }
 
+// ─── Compression image pour le cloud (max 400×400, JPEG 0.55) ───
+function _compressImageForCloud(base64, callback) {
+  if (!base64 || base64.length < 100) { callback(base64); return; }
+  try {
+    var img = new Image();
+    img.onload = function() {
+      var maxW = 400, maxH = 400;
+      var ratio = Math.min(maxW / img.width, maxH / img.height, 1);
+      var w = Math.round(img.width * ratio);
+      var h = Math.round(img.height * ratio);
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      callback(canvas.toDataURL('image/jpeg', 0.55));
+    };
+    img.onerror = function() { callback(base64); };
+    img.src = base64;
+  } catch(e) { callback(base64); }
+}
+
 // ─── Écriture d'une clé vers Firestore ───
 function _fsPush(key, value) {
   var uid   = localStorage.getItem('fb_uid');
   var token = localStorage.getItem('fb_token');
   if (!uid || !token) return;
 
-  // Pour dd_company_profile : exclure logo/logo_w/logo_h (base64 trop volumineux pour Firestore)
+  // Pour dd_company_profile : exclure logo/logo_w/logo_h du profil (stocké séparément dans dd_logo_compressed)
+  // et déclencher une compression+sync du logo dans la foulée
   var valueToSync = value;
   if (key === 'dd_company_profile') {
     try {
       var _obj = JSON.parse(value);
+      // Compresser et sauvegarder le logo séparément (async)
+      if (_obj.logo) {
+        _compressImageForCloud(_obj.logo, function(compressed) {
+          _lsSetItem.call(localStorage, 'dd_logo_compressed', compressed);
+          _fsPushRaw('dd_logo_compressed', compressed);
+        });
+      }
       var _stripped = Object.assign({}, _obj);
       delete _stripped.logo; delete _stripped.logo_w; delete _stripped.logo_h;
       valueToSync = JSON.stringify(_stripped);
     } catch(e) {}
   }
 
+  _fsPushRaw(key, valueToSync);
+}
+
+// ─── Envoi brut vers Firestore (sans transformation) ───
+function _fsPushRaw(key, value) {
+  var uid   = localStorage.getItem('fb_uid');
+  var token = localStorage.getItem('fb_token');
+  if (!uid || !token) return;
+
   var fields = {};
-  fields[key] = { stringValue: String(valueToSync) };
+  fields[key] = { stringValue: String(value) };
 
   var url = _FS_COL + uid + '?updateMask.fieldPaths=' + key;
   var opts = {
@@ -97,7 +135,6 @@ function _fsPush(key, value) {
 
   fetch(url, opts).then(function(res) {
     if (res.status === 401 || res.status === 403) {
-      // Token expiré — rafraîchir et réessayer
       _fsRefreshToken(function(newToken) {
         if (!newToken) return;
         opts.headers['Authorization'] = 'Bearer ' + newToken;
@@ -115,10 +152,11 @@ function _processSync(data, uid, callback) {
       var field = data.fields[key];
       if (field && field.stringValue !== undefined) {
         if (key === 'dd_company_profile') {
-          // Préserver logo/logo_w/logo_h locaux — Firestore ne les stocke pas (trop volumineux)
+          // Restaurer le logo depuis dd_logo_compressed (stocké dans Firestore) ou localStorage local
           try {
             var _cloud = JSON.parse(field.stringValue);
             var _local = JSON.parse(localStorage.getItem(key) || '{}');
+            // Priorité : logo local s'il existe, sinon on le restaurera depuis dd_logo_compressed après
             if (_local.logo)   _cloud.logo   = _local.logo;
             if (_local.logo_w) _cloud.logo_w = _local.logo_w;
             if (_local.logo_h) _cloud.logo_h = _local.logo_h;
@@ -140,6 +178,18 @@ function _processSync(data, uid, callback) {
       if (val) _fsPush(key, val);
     }
   });
+  // Restaurer le logo depuis dd_logo_compressed si le profil local n'a pas de logo
+  (function() {
+    try {
+      var _profile = JSON.parse(localStorage.getItem('dd_company_profile') || '{}');
+      var _logoCompressed = localStorage.getItem('dd_logo_compressed');
+      if (!_profile.logo && _logoCompressed && _logoCompressed.length > 100) {
+        _profile.logo = _logoCompressed;
+        _lsSetItem.call(localStorage, 'dd_company_profile', JSON.stringify(_profile));
+      }
+    } catch(e) {}
+  })();
+
   if (callback) callback();
 }
 
