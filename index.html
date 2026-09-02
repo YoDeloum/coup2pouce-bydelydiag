@@ -600,6 +600,13 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- ═══════════════════════════════════════
      BANDEAU MISE À JOUR PWA
 ════════════════════════════════════════ -->
+<div id="push-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99998;background:#1D4ED8;color:#fff;padding:12px 16px;align-items:center;justify-content:space-between;gap:12px;font-size:14px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.2)">
+  <span>🔔 Activer les notifications pour les devis signés</span>
+  <div style="display:flex;gap:8px">
+    <button onclick="activerPushNotifs()" style="background:#fff;color:#1D4ED8;border:none;border-radius:8px;padding:7px 14px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">Activer</button>
+    <button onclick="document.getElementById('push-banner').style.display='none'" style="background:transparent;color:#fff;border:1px solid #fff;border-radius:8px;padding:7px 10px;font-size:13px;cursor:pointer;font-family:inherit">✕</button>
+  </div>
+</div>
 <div id="pwa-update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:#2D6A4F;color:#fff;padding:12px 16px;display:none;align-items:center;justify-content:space-between;gap:12px;font-size:14px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.2)">
   <span>🔄 Une mise à jour est disponible</span>
   <button onclick="pwaApplyUpdate()" style="background:#fff;color:#2D6A4F;border:none;border-radius:8px;padding:7px 16px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">Actualiser</button>
@@ -612,37 +619,8 @@ document.addEventListener('DOMContentLoaded', function() {
   var _waitingSW = null;
 
   navigator.serviceWorker.register('./sw.js').then(function(reg) {
-    // ─── Abonnement push (admin uniquement) ───
-    if ('PushManager' in window) {
-      var VAPID_PUBLIC = 'BNKIpO2EZt0WHyXQXr1TpIEAXMXQ15hcme4iAncCcbflNrc4yTuSOWYcq_9dr8ZPbxjAzi70K4X3pNR0QcwMM_E';
-      Notification.requestPermission().then(function(perm) {
-        if (perm !== 'granted') return;
-        reg.pushManager.getSubscription().then(function(existing) {
-          if (existing) { _savePushSub(existing); return; }
-          reg.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: (function(b64) {
-              var pad = '='.repeat((4 - b64.length % 4) % 4);
-              var raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
-              var arr = new Uint8Array(raw.length);
-              for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
-              return arr;
-            })(VAPID_PUBLIC)
-          }).then(function(sub) { _savePushSub(sub); }).catch(function() {});
-        });
-      });
-    }
-
-    function _savePushSub(sub) {
-      var token = localStorage.getItem('fb_token');
-      if (!token) return;
-      var FS_KEY = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
-      fetch('https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents/push_subscriptions/admin?key=' + FS_KEY, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ fields: { value: { stringValue: JSON.stringify(sub) } } })
-      }).catch(function() {});
-    }
+    // ─── Abonnement push : stocke la référence SW pour usage ultérieur ───
+    window._swReg = reg;
 
     // Mise à jour déjà en attente au moment du chargement
     if (reg.waiting) { showUpdateBanner(reg.waiting); }
