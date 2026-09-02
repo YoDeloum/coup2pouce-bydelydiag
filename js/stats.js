@@ -49,17 +49,17 @@ function renderStats() {
 
   // ── Calculs devis filtrés ──
   var caDevisTotal = devisFilt.reduce(function(s, d) {
-    return s + parseFloat(d.prix_final && d.prix_final > 0 ? d.prix_final : (d.total_ht || 0));
+    return s + parseFloat(d.total_ht && d.total_ht > 0 ? d.total_ht : (d.prix_final || 0));
   }, 0);
   var devisParStatut = {};
   devisFilt.forEach(function(d) { var s = d.statut || 'Devis'; devisParStatut[s] = (devisParStatut[s] || 0) + 1; });
 
   // ── Calculs factures filtrées ──
   var caFacture = facturesFilt.reduce(function(s, f) {
-    return s + parseFloat(f.prix_final && f.prix_final > 0 ? f.prix_final : (f.total_ht || 0));
+    return s + parseFloat(f.total_ht && f.total_ht > 0 ? f.total_ht : (f.prix_final || 0));
   }, 0);
   var caPaye = facturesFilt.filter(function(f) { return f.statut === 'Payé'; })
-    .reduce(function(s, f) { return s + parseFloat(f.prix_final && f.prix_final > 0 ? f.prix_final : (f.total_ht || 0)); }, 0);
+    .reduce(function(s, f) { return s + parseFloat(f.total_ht && f.total_ht > 0 ? f.total_ht : (f.prix_final || 0)); }, 0);
   var factParStatut = {};
   facturesFilt.forEach(function(f) { var s = f.statut || 'Facturé'; factParStatut[s] = (factParStatut[s] || 0) + 1; });
 
