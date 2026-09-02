@@ -1132,6 +1132,7 @@ const KEYS = ["DPE","Amiante","Plomb","Termites","Elec","Gaz","ERP","Certif","Ma
 // Tarifs par défaut
 const TARIFS_DEFAULT = {
   DPE: 120,
+  'DPE Projeté': 120,
   Amiante: 150,
   Plomb: 100,
   'Électricité': 150,
