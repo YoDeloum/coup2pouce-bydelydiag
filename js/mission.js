@@ -93,7 +93,7 @@ function renderMissionForm(body) {
     window._devisToMission = null; // Consommé
   }
 
-  var diags = ['DPE','Amiante','Plomb','Électricité','Gaz','Termites','ERP','Carrez','Boutin','Avant travaux','Avant démolition','Frais déplacement'];
+  var diags = ['DPE','DPE Projeté','Amiante','Plomb','Électricité','Gaz','Termites','ERP','Carrez','Boutin','Avant travaux','Avant démolition','Frais déplacement'];
 
   body.innerHTML = `
     <button onclick="missionView='list';renderMissionScreen()" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:#2D6A4F;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:16px;font-family:inherit">← Retour</button>
