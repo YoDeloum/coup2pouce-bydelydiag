@@ -85,10 +85,10 @@ function renderMissionForm(body) {
       periode_construction: src.periode_construction || '',
       nb_pieces:            src.nb_pieces    || '',
       type_transaction:     src.type_transaction || '',
-      // Conserver le prix final saisi manuellement sur le devis (priorité sur le calcul auto)
-      total:                src.prix_final && parseFloat(src.prix_final) > 0
-                              ? parseFloat(src.prix_final).toFixed(2)
-                              : (src.total_ht ? parseFloat(src.total_ht).toFixed(2) : ''),
+      // Utiliser total_ht (calculé depuis les tarifs) — prix_final est un override PDF uniquement
+      total:                src.total_ht && parseFloat(src.total_ht) > 0
+                              ? parseFloat(src.total_ht).toFixed(2)
+                              : (src.prix_final ? parseFloat(src.prix_final).toFixed(2) : ''),
     };
     window._devisToMission = null; // Consommé
   }
