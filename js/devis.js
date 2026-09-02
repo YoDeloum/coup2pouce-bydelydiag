@@ -29,14 +29,21 @@ function closeDevis() {
   document.getElementById('devis-screen').classList.remove('open');
 }
 
-var _devisView = 'list'; // 'list' | 'form'
-var _devisEdit = null;   // index du devis en cours d'édition
+var _devisView     = 'list'; // 'list' | 'form'
+var _devisEdit     = null;   // index du devis en cours d'édition
+var _isSpecialMode = false;  // true quand on crée un nouveau devis spécial
 
 function renderDevisScreen(view) {
   _devisView = view || _devisView;
   var body = document.getElementById('devis-body');
-  if (_devisView === 'form') renderDevisForm(body);
-  else                       renderDevisList(body);
+  if (_devisView === 'form') {
+    var devis = _devisEdit !== null ? (getAllDevis()[_devisEdit] || {}) : {};
+    if (devis.type === 'special' || _isSpecialMode) renderDevisSpecialForm(body);
+    else renderDevisForm(body);
+  } else {
+    _isSpecialMode = false;
+    renderDevisList(body);
+  }
 }
 
 function renderDevisList(body) {
@@ -46,12 +53,15 @@ function renderDevisList(body) {
   updateDevisBadge();
 
   body.innerHTML = `
-    <div style="display:flex;gap:8px;margin-bottom:16px">
-      <button onclick="_devisEdit=null;renderDevisScreen('form')" style="flex:1;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#059669,#10B981);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <button onclick="_devisEdit=null;_isSpecialMode=false;renderDevisScreen('form')" style="flex:1;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#059669,#10B981);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">
         ➕ Nouveau devis
       </button>
       <button onclick="ouvrirParamRelances()" style="padding:14px 16px;border-radius:12px;border:1.5px solid #E2E5F0;background:#fff;color:#6B7280;font-size:18px;cursor:pointer" title="Relances automatiques">⚙️</button>
     </div>
+    <button onclick="_devisEdit=null;_isSpecialMode=true;renderDevisScreen('form')" style="width:100%;padding:12px;border-radius:12px;border:2px dashed #F59E0B;background:#FFFBEB;color:#92400E;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:16px">
+      ⭐ Devis spécial — multi-biens (plusieurs appartements, même propriétaire...)
+    </button>
     ${nbSignesNouveaux > 0 ? `<div style="background:#F0FDF4;border:1.5px solid #6EE7B7;border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px"><span style="font-size:20px">✅</span><div><div style="font-weight:700;color:#065F46;font-size:13px">${nbSignesNouveaux} devis signé${nbSignesNouveaux>1?'s':''} !</div><div style="font-size:11px;color:#6B7280">Ouvre le devis pour voir la signature</div></div></div>` : ''}
     <div style="font-size:12px;color:#6B7280;margin-bottom:12px;font-weight:600">${list.length} devis enregistré${list.length>1?'s':''}</div>
     ${sorted.length === 0 ? '<div style="text-align:center;padding:40px;color:#6B7280">Aucun devis créé</div>' : ''}
@@ -875,4 +885,283 @@ function updateDevisBadge() {
     badge.textContent = count > 0 ? String(count) : '';
     badge.style.display = count > 0 ? 'flex' : 'none';
   }
+}
+
+
+// ═══════════════════════════════════════════════
+// DEVIS SPÉCIAUX — Multi-biens / même propriétaire
+// ═══════════════════════════════════════════════
+
+var _dsLots = [];
+
+function _dsNewLot() {
+  return { label: '', meme_adresse: true, adresse: '', type_bien: 'Appartement', diagnostics: ['Frais déplacement'], tarifs_manuels: {}, sous_total: 0 };
+}
+
+function _initDsLots(lots) {
+  _dsLots = (lots && lots.length) ? lots.map(function(l) { return Object.assign({}, l, { tarifs_manuels: Object.assign({}, l.tarifs_manuels||{}), diagnostics: (l.diagnostics||[]).slice() }); }) : [_dsNewLot()];
+}
+
+function addSpecialLot() {
+  _syncLotsFromDOM();
+  _dsLots.push(_dsNewLot());
+  _renderLotsSection();
+  updateSpecialTotal();
+}
+
+function removeSpecialLot(idx) {
+  if (_dsLots.length <= 1) { alert('Il faut au moins un bien.'); return; }
+  _syncLotsFromDOM();
+  _dsLots.splice(idx, 1);
+  _renderLotsSection();
+  updateSpecialTotal();
+}
+
+function _syncLotsFromDOM() {
+  _dsLots.forEach(function(lot, idx) {
+    var labelEl   = document.getElementById('ds-lot-'+idx+'-label');
+    var adresseEl = document.getElementById('ds-lot-'+idx+'-adresse');
+    var typeEl    = document.getElementById('ds-lot-'+idx+'-type');
+    var memeEl    = document.getElementById('ds-lot-'+idx+'-meme');
+    if (labelEl)   lot.label        = labelEl.value;
+    if (adresseEl) lot.adresse      = adresseEl.value;
+    if (typeEl)    lot.type_bien    = typeEl.value;
+    if (memeEl)    lot.meme_adresse = memeEl.checked;
+    var diagEls = document.querySelectorAll('#ds-lot-'+idx+'-diags .diag-item.selected');
+    lot.diagnostics = []; lot.tarifs_manuels = {}; var sub = 0;
+    diagEls.forEach(function(el) {
+      var inp = el.querySelector('.dv-tarif-input');
+      var d = inp ? inp.dataset.diag : '';
+      var v = parseFloat(inp ? inp.value : 0) || 0;
+      if (d) { lot.diagnostics.push(d); lot.tarifs_manuels[d] = v; sub += v; }
+    });
+    lot.sous_total = sub;
+  });
+}
+
+function _renderLotsSection() {
+  var tarifs = Object.assign({}, TARIFS_DEFAULT, JSON.parse(localStorage.getItem('dd_tarifs') || '{}'));
+  var container = document.getElementById('ds-lots-container');
+  if (!container) return;
+  container.innerHTML = _dsLots.map(function(lot, idx) { return _renderLotCard(lot, idx, tarifs); }).join('');
+  var countEl = document.getElementById('ds-bien-count');
+  if (countEl) countEl.textContent = _dsLots.length + ' bien' + (_dsLots.length > 1 ? 's' : '');
+}
+
+function _renderLotCard(lot, idx, tarifs) {
+  var typeOpts = ['Maison','Appartement','Local commercial','Immeuble','Partie commune','Cave / Box','Dépendance']
+    .map(function(t) { return '<option '+(lot.type_bien===t?'selected':'')+'>'+t+'</option>'; }).join('');
+  var diagsHtml = DEVIS_DIAGNOSTICS_LIST.map(function(d) {
+    var isSel = (lot.diagnostics||[]).includes(d);
+    var tv = (lot.tarifs_manuels && lot.tarifs_manuels[d] !== undefined) ? lot.tarifs_manuels[d] : (tarifs[d]||0);
+    return '<div class="diag-item '+(isSel?'selected':'')+'" onclick="_toggleLotDiag('+idx+',\''+d+'\',this)" style="'+(isSel?'border-color:#059669;background:#05966912':'')+'">'
+      +'<input type="checkbox" '+(isSel?'checked':'')+' readonly style="accent-color:#059669;pointer-events:none"/>'
+      +'<span style="font-size:13px;flex:1">'+d+'</span>'
+      +'<input type="number" class="dv-tarif-input" data-lot="'+idx+'" data-diag="'+d+'" value="'+tv+'" min="0" step="5" onclick="event.stopPropagation()" onchange="updateSpecialTotal()" style="width:52px;font-size:11px;color:#059669;font-weight:700;text-align:right;border:none;border-bottom:1px dashed #A7F3D0;background:transparent;outline:none;padding:0 2px"/>'
+      +'<span style="font-size:11px;color:#9ca3af;margin-left:1px">€</span></div>';
+  }).join('');
+  return '<div class="devis-section" style="border-left:4px solid #059669;margin-bottom:12px" id="ds-lot-card-'+idx+'">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
+    +'<div style="font-weight:800;color:#059669;font-size:14px">🏠 Bien N°'+(idx+1)+'</div>'
+    +'<button onclick="removeSpecialLot('+idx+')" style="background:#FEE2E2;border:none;color:#EF4444;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🗑️ Supprimer</button>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">'
+    +'<div class="devis-field" style="grid-column:1/-1"><label class="devis-label">Libellé du bien</label>'
+    +'<input class="devis-input" id="ds-lot-'+idx+'-label" type="text" value="'+(lot.label||'')+'" placeholder="Ex : Appartement T2 — 3ème étage"/></div>'
+    +'<div class="devis-field" style="grid-column:1/-1"><label class="devis-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">'
+    +'<input type="checkbox" id="ds-lot-'+idx+'-meme" '+(lot.meme_adresse?'checked':'')+' onchange="_toggleLotAdresse('+idx+')" style="accent-color:#059669;width:16px;height:16px"/>'
+    +'Même adresse que ci-dessus</label>'
+    +'<input class="devis-input" id="ds-lot-'+idx+'-adresse" type="text" value="'+(lot.adresse||'')+'" placeholder="Adresse spécifique..." style="margin-top:6px;'+(lot.meme_adresse?'display:none':'')+'" /></div>'
+    +'<div class="devis-field"><label class="devis-label">Type de bien</label>'
+    +'<select class="devis-select" id="ds-lot-'+idx+'-type">'+typeOpts+'</select></div>'
+    +'</div>'
+    +'<div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px;letter-spacing:1px;text-transform:uppercase;font-family:monospace">🔬 Diagnostics</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="ds-lot-'+idx+'-diags">'+diagsHtml+'</div>'
+    +'<div style="margin-top:10px;text-align:right;font-size:14px;font-weight:800;color:#059669">Sous-total : <span id="ds-lot-'+idx+'-subtotal">'+(lot.sous_total||0).toFixed(2)+'</span> €</div>'
+    +'</div>';
+}
+
+function _toggleLotAdresse(idx) {
+  var cb = document.getElementById('ds-lot-'+idx+'-meme');
+  var inp = document.getElementById('ds-lot-'+idx+'-adresse');
+  if (!cb || !inp) return;
+  inp.style.display = cb.checked ? 'none' : '';
+  if (_dsLots[idx]) _dsLots[idx].meme_adresse = cb.checked;
+}
+
+function _toggleLotDiag(idx, diag, el) {
+  el.classList.toggle('selected');
+  var isSel = el.classList.contains('selected');
+  el.querySelector('input[type="checkbox"]').checked = isSel;
+  el.style.borderColor = isSel ? '#059669' : '';
+  el.style.background  = isSel ? '#05966912' : '';
+  if (_dsLots[idx]) {
+    if (!_dsLots[idx].diagnostics) _dsLots[idx].diagnostics = [];
+    if (isSel) { if (!_dsLots[idx].diagnostics.includes(diag)) _dsLots[idx].diagnostics.push(diag); }
+    else _dsLots[idx].diagnostics = _dsLots[idx].diagnostics.filter(function(d) { return d !== diag; });
+  }
+  updateSpecialTotal();
+}
+
+function updateSpecialTotal() {
+  var grandTotal = 0;
+  _dsLots.forEach(function(lot, idx) {
+    var sub = 0;
+    document.querySelectorAll('#ds-lot-'+idx+'-diags .diag-item.selected').forEach(function(el) {
+      var inp = el.querySelector('.dv-tarif-input');
+      sub += parseFloat(inp ? inp.value : 0) || 0;
+    });
+    lot.sous_total = sub;
+    var subEl = document.getElementById('ds-lot-'+idx+'-subtotal');
+    if (subEl) subEl.textContent = sub.toFixed(2);
+    grandTotal += sub;
+  });
+  var stEl = document.getElementById('ds-grand-subtotal');
+  if (stEl) stEl.textContent = grandTotal.toFixed(2) + ' €';
+  var remisePct = parseFloat(document.getElementById('ds-remise-pct')?.value) || 0;
+  var remiseEur = parseFloat(document.getElementById('ds-remise-eur')?.value) || 0;
+  var total = Math.max(0, grandTotal - remiseEur);
+  var tEl  = document.getElementById('ds-grand-total');
+  var rEl  = document.getElementById('ds-remise-display');
+  var rlEl = document.getElementById('ds-remise-line');
+  if (tEl)  tEl.textContent  = total.toFixed(2) + ' €';
+  if (rEl)  rEl.textContent  = remiseEur.toFixed(2);
+  if (rlEl) rlEl.style.display = remiseEur > 0 ? '' : 'none';
+}
+
+function updateSpecialRemisePct() {
+  var grandTotal = _dsLots.reduce(function(s, l) { return s + (l.sous_total||0); }, 0);
+  var pct = parseFloat(document.getElementById('ds-remise-pct')?.value) || 0;
+  var eurInp = document.getElementById('ds-remise-eur');
+  if (eurInp) eurInp.value = (grandTotal * pct / 100).toFixed(2);
+  updateSpecialTotal();
+}
+
+function updateSpecialRemiseEur() {
+  var grandTotal = _dsLots.reduce(function(s, l) { return s + (l.sous_total||0); }, 0);
+  var eur = parseFloat(document.getElementById('ds-remise-eur')?.value) || 0;
+  var pctInp = document.getElementById('ds-remise-pct');
+  if (pctInp) pctInp.value = grandTotal > 0 ? (eur / grandTotal * 100).toFixed(1) : '0';
+  updateSpecialTotal();
+}
+
+function renderDevisSpecialForm(body) {
+  var devis  = _devisEdit !== null ? (getAllDevis()[_devisEdit] || {}) : {};
+  var p      = getCompanyProfile();
+  var statuts = ['Devis','Accepté','Refusé','Intervention réalisée','Facturé','Payé','Annulé'];
+  var today  = new Date().toISOString().split('T')[0];
+  _initDsLots(devis.lots);
+  var nbLots = _dsLots.length;
+  var gtInit = _dsLots.reduce(function(s,l){return s+(l.sous_total||0);},0);
+
+  body.innerHTML =
+    '<button onclick="renderDevisScreen(\'list\')" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:#059669;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:16px;font-family:inherit">← Retour</button>'
+    +'<div style="background:linear-gradient(135deg,#92400E,#D97706);border-radius:12px;padding:14px 16px;margin-bottom:16px;color:#fff">'
+    +'<div style="font-size:15px;font-weight:800">⭐ Devis spécial multi-biens</div>'
+    +'<div style="font-size:11px;opacity:0.85;margin-top:3px">Plusieurs biens pour le même propriétaire — un seul devis</div>'
+    +'</div>'
+    +'<div class="devis-section"><div class="devis-section-title">📄 Informations devis</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+    +'<div class="devis-field"><label class="devis-label">Numéro</label><input class="devis-input" id="ds-numero" type="text" value="'+(devis.numero||genDevisNumero())+'" readonly style="background:#F5F6FA;color:#6B7280"/></div>'
+    +'<div class="devis-field"><label class="devis-label">Date</label><input class="devis-input" id="ds-date" type="date" value="'+(devis.date||today)+'"/></div>'
+    +'<div class="devis-field"><label class="devis-label">Statut</label><select class="devis-select" id="ds-statut">'+statuts.map(function(s){return '<option '+((devis.statut||'Devis')===s?'selected':'')+'>'+s+'</option>';}).join('')+'</select></div>'
+    +'<div class="devis-field"><label class="devis-label">Date intervention</label><input class="devis-input" id="ds-date_mission" type="date" value="'+(devis.date_mission||today)+'"/></div>'
+    +'<div class="devis-field" style="grid-column:1/-1"><label class="devis-label">Statut fiscal</label><select class="devis-select" id="ds-statut_fiscal"><option '+((devis.statut_fiscal||p.statut_fiscal||'HT')==='HT'?'selected':'')+' value="HT">HT</option><option '+((devis.statut_fiscal||p.statut_fiscal||'HT')==='TTC'?'selected':'')+' value="TTC">TTC</option></select></div>'
+    +'</div></div>'
+    +'<div class="devis-section"><div class="devis-section-title">👤 Client</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+    +'<div class="devis-field" style="grid-column:1/-1"><label class="devis-label">Société / SCI (optionnel)</label><input class="devis-input" id="ds-client_societe" type="text" value="'+(devis.client_societe||'')+'" placeholder="SCI, Agence, Propriétaire..."/></div>'
+    +'<div class="devis-field"><label class="devis-label">Nom</label><input class="devis-input" id="ds-client_nom" type="text" value="'+(devis.client_nom||'')+'"/></div>'
+    +'<div class="devis-field"><label class="devis-label">Prénom</label><input class="devis-input" id="ds-client_prenom" type="text" value="'+(devis.client_prenom||'')+'"/></div>'
+    +'<div class="devis-field"><label class="devis-label">Téléphone</label><input class="devis-input" id="ds-client_tel" type="tel" value="'+(devis.client_tel||'')+'"/></div>'
+    +'<div class="devis-field"><label class="devis-label">Email</label><input class="devis-input" id="ds-client_email" type="email" value="'+(devis.client_email||'')+'"/></div>'
+    +'<div class="devis-field" style="grid-column:1/-1"><label class="devis-label">📍 Adresse de référence</label>'
+    +'<input class="devis-input" id="ds-adresse_commune" type="text" value="'+(devis.adresse_commune||'')+'" placeholder="Ex : Résidence Les Pins, 12 rue X, 75001 Paris"/>'
+    +'<div style="font-size:11px;color:#6B7280;margin-top:3px">Utilisée pour les biens cochés «Même adresse»</div></div>'
+    +'</div></div>'
+    +'<div class="devis-section"><div class="devis-section-title">🧭 Coordonnées de facturation</div>'
+    +'<p style="font-size:12px;color:#6B7280;margin-bottom:10px">Laisse vide pour utiliser les infos client.</p>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+    +'<div class="devis-field" style="grid-column:1/-1"><label class="devis-label">Société</label><input class="devis-input" id="ds-fact_societe" type="text" value="'+(devis.fact_societe||'')+'"/></div>'
+    +'<div class="devis-field"><label class="devis-label">Nom</label><input class="devis-input" id="ds-fact_nom" type="text" value="'+(devis.fact_nom||'')+'"/></div>'
+    +'<div class="devis-field"><label class="devis-label">Prénom</label><input class="devis-input" id="ds-fact_prenom" type="text" value="'+(devis.fact_prenom||'')+'"/></div>'
+    +'<div class="devis-field" style="grid-column:1/-1"><label class="devis-label">Adresse de facturation</label><input class="devis-input" id="ds-fact_adresse" type="text" value="'+(devis.fact_adresse||'')+'"/></div>'
+    +'</div></div>'
+    +'<div style="font-size:15px;font-weight:800;color:#1B4332;margin-bottom:12px">🏘️ Biens à diagnostiquer</div>'
+    +'<div id="ds-lots-container"></div>'
+    +'<button onclick="addSpecialLot()" style="width:100%;padding:14px;border-radius:12px;border:2px dashed #059669;background:#F0FDF4;color:#059669;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:20px">➕ Ajouter un bien</button>'
+    +'<div class="devis-section" style="background:#F0FDF4;border:1.5px solid #6EE7B7">'
+    +'<div class="devis-section-title" style="color:#065F46">💰 Récapitulatif</div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+    +'<span style="font-size:13px;font-weight:700;color:#065F46">Sous-total (<span id="ds-bien-count">'+nbLots+' bien'+(nbLots>1?'s':'')+'</span>)</span>'
+    +'<span id="ds-grand-subtotal" style="font-size:15px;font-weight:800;color:#059669">'+gtInit.toFixed(2)+' €</span></div>'
+    +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'
+    +'<span style="font-size:12px;color:#6B7280;white-space:nowrap">🏷️ Remise</span>'
+    +'<input id="ds-remise-pct" type="number" min="0" max="100" step="1" value="'+(devis.remise_pct||0)+'" onchange="updateSpecialRemisePct()" style="width:54px;padding:5px 7px;border-radius:6px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;text-align:center;outline:none"/>'
+    +'<span style="font-size:12px;color:#6B7280">%</span><span style="font-size:12px;color:#9ca3af">ou</span>'
+    +'<input id="ds-remise-eur" type="number" min="0" step="0.01" value="'+parseFloat(devis.remise_eur||0).toFixed(2)+'" onchange="updateSpecialRemiseEur()" style="width:70px;padding:5px 7px;border-radius:6px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;text-align:center;outline:none"/>'
+    +'<span style="font-size:12px;color:#6B7280">€</span></div>'
+    +'<div id="ds-remise-line" style="'+((devis.remise_eur||0)>0?'':'display:none')+';font-size:12px;color:#EF4444;text-align:right;margin-bottom:4px">- <span id="ds-remise-display">'+parseFloat(devis.remise_eur||0).toFixed(2)+'</span> € de remise</div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid #6EE7B7">'
+    +'<span style="font-size:15px;font-weight:700;color:#065F46">Total HT</span>'
+    +'<span id="ds-grand-total" style="font-size:22px;font-weight:800;color:#059669">'+parseFloat(devis.total_ht||0).toFixed(2)+' €</span>'
+    +'</div></div>'
+    +'<button class="devis-btn-primary" onclick="saveDevisSpecialForm()">💾 Enregistrer le devis</button>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
+    +'<button onclick="if(_devisEdit!==null&&getAllDevis()[_devisEdit])genererPDFDevisSpecial(getAllDevis()[_devisEdit])" style="padding:12px;border-radius:10px;border:2px solid #059669;background:#fff;color:#059669;font-size:13px;font-weight:700;font-family:inherit;cursor:'+(_devisEdit===null?'not-allowed':'pointer')+';opacity:'+(_devisEdit===null?.4:1)+'" '+(_devisEdit===null?'disabled':'')+'>📄 Générer PDF</button>'
+    +'<button onclick="if(_devisEdit!==null&&getAllDevis()[_devisEdit])envoyerMailDevis(getAllDevis()[_devisEdit])" style="padding:12px;border-radius:10px;border:2px solid #0891B2;background:#fff;color:#0891B2;font-size:13px;font-weight:700;font-family:inherit;cursor:'+(_devisEdit===null?'not-allowed':'pointer')+';opacity:'+(_devisEdit===null?.4:1)+'" '+(_devisEdit===null?'disabled':'')+'>✉️ Envoyer mail</button>'
+    +'</div>'
+    +(_devisEdit !== null ? '<button onclick="supprimerDevis()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #EF4444;background:#fff;color:#EF4444;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🗑️ Supprimer ce devis</button>' : '');
+
+  _renderLotsSection();
+  updateSpecialTotal();
+}
+
+function getSpecialFormData() {
+  _syncLotsFromDOM();
+  var p = getCompanyProfile();
+  var grandTotal = _dsLots.reduce(function(s,l){return s+(l.sous_total||0);},0);
+  var remise_pct = parseFloat(document.getElementById('ds-remise-pct')?.value)||0;
+  var remise_eur = parseFloat(document.getElementById('ds-remise-eur')?.value)||0;
+  var totalHt    = Math.max(0, grandTotal - remise_eur);
+  return {
+    type:           'special',
+    numero:         document.getElementById('ds-numero')?.value        ||'',
+    date:           document.getElementById('ds-date')?.value          ||'',
+    date_mission:   document.getElementById('ds-date_mission')?.value  ||'',
+    statut:         document.getElementById('ds-statut')?.value        ||'Devis',
+    statut_fiscal:  document.getElementById('ds-statut_fiscal')?.value ||p.statut_fiscal||'HT',
+    taux_tva:       p.taux_tva||20,
+    client_societe: document.getElementById('ds-client_societe')?.value||'',
+    client_nom:     document.getElementById('ds-client_nom')?.value    ||'',
+    client_prenom:  document.getElementById('ds-client_prenom')?.value ||'',
+    client_tel:     document.getElementById('ds-client_tel')?.value    ||'',
+    client_email:   document.getElementById('ds-client_email')?.value  ||'',
+    adresse_commune:document.getElementById('ds-adresse_commune')?.value||'',
+    bien_adresse:   document.getElementById('ds-adresse_commune')?.value||'',
+    fact_societe:   document.getElementById('ds-fact_societe')?.value  ||'',
+    fact_nom:       document.getElementById('ds-fact_nom')?.value      ||'',
+    fact_prenom:    document.getElementById('ds-fact_prenom')?.value   ||'',
+    fact_adresse:   document.getElementById('ds-fact_adresse')?.value  ||'',
+    lots:           _dsLots.map(function(l){return Object.assign({},l);}),
+    remise_pct:     remise_pct,
+    remise_eur:     remise_eur,
+    total_ht_brut:  grandTotal,
+    total_ht:       totalHt,
+    total_ttc:      totalHt*(1+(p.taux_tva||20)/100),
+    savedAt:        new Date().toISOString(),
+    signature:      (_devisEdit!==null?(getAllDevis()[_devisEdit]?.signature||null):null),
+    mission_creee:  (_devisEdit!==null?(getAllDevis()[_devisEdit]?.mission_creee||false):false),
+  };
+}
+
+function saveDevisSpecialForm() {
+  var data = getSpecialFormData();
+  var list = getAllDevis();
+  if (_devisEdit !== null) list[_devisEdit] = data;
+  else { list.push(data); _devisEdit = list.length - 1; }
+  saveAllDevis(list);
+  var btn = document.querySelector('.devis-btn-primary');
+  if (btn) { btn.textContent = '✅ Enregistré !'; btn.style.background = '#22C55E'; }
+  setTimeout(function() { renderDevisSpecialForm(document.getElementById('devis-body')); }, 1200);
 }
