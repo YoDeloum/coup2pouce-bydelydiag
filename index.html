@@ -89,7 +89,10 @@
       </div>
     </div>
   </div>
-  <div id="header-right" style="font-size:11px;color:#6B7280">0/10 modules</div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div id="header-right" style="font-size:11px;color:#6B7280">0/10 modules</div>
+    <button class="voice-nav-mic" onclick="startVoiceNav()" title="Commande vocale" aria-label="Commande vocale">🎤</button>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════
@@ -102,6 +105,7 @@
     <div id="home-greeting-name" style="font-size:14px;font-weight:700;color:#2D6A4F">Bienvenue 👋</div>
     <div style="display:flex;align-items:center;gap:8px">
       <div id="home-avatar-btn" onclick="document.getElementById('avatar-modal').classList.remove('hidden')" style="width:52px;height:52px;background:linear-gradient(135deg,#2D6A4F,#1B4332);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:24px;flex-shrink:0">👤</div>
+      <button class="voice-nav-mic" onclick="startVoiceNav()" title="Commande vocale" aria-label="Commande vocale" style="background:#fff;border:1.5px solid #E2E5F0;border-radius:10px;padding:8px 10px;box-shadow:0 1px 4px rgba(0,0,0,.06);font-size:16px">🎤</button>
       <button id="home-menu-btn" onclick="toggleHomeMenu()" style="background:#fff;border:1.5px solid #E2E5F0;border-radius:10px;padding:8px 10px;cursor:pointer;display:flex;align-items:center;box-shadow:0 1px 4px rgba(0,0,0,.06)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
@@ -278,6 +282,7 @@
   <div id="chat-messages"><div class="msg bot">👋 Salut, moi c'est Jeffrey !<br>Dis-moi tout 😊</div></div>
   <div id="chat-input-wrap">
     <input id="chat-input" type="text" placeholder="Pose ta question à Jeffrey..." onkeydown="if(event.key==='Enter')sendMsg()"/>
+    <button id="voice-jeffrey-btn" onclick="startJeffreyDictation()" title="Dicter à Jeffrey" aria-label="Dicter à Jeffrey">🎤</button>
     <button id="chat-send" onclick="sendMsg()">➤</button>
   </div>
 </div>
@@ -499,6 +504,7 @@
 <script src="js/checklist.js"></script>
 <script src="js/mission.js"></script>
 <script src="js/chatbot.js"></script>
+<script src="js/voice.js"></script>
 <script src="js/carrez.js"></script>
 <script src="js/certif.js"></script>
 <script src="js/astuces.js"></script>
