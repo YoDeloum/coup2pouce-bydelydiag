@@ -49,6 +49,7 @@ function openModule(key) {
   document.getElementById('header-right').innerHTML =
     '<span style="font-size:18px">' + d.icon + '</span> <strong style="font-size:13px;margin-left:5px">' + d.label + '</strong>';
   showTab('cours');
+  history.pushState({ module: key }, '', '#' + key);
 }
 
 function showHome() {
@@ -56,8 +57,14 @@ function showHome() {
   document.getElementById('home').style.display   = 'block';
   document.getElementById('module').style.display = 'none';
   document.getElementById('back-btn').style.display = 'none';
+  if (location.hash) history.replaceState({}, '', location.pathname + location.search);
   renderHome();
 }
+
+// Bouton Android "retour" — revenir à l'accueil depuis un module
+window.addEventListener('popstate', function() {
+  if (curKey) showHome();
+});
 
 function showTab(tab) {
   curTab = tab;
