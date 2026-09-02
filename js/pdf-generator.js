@@ -656,3 +656,187 @@ function genererPDFSigne(devis) {
 
   doc.save('DevisSigne_' + (devis.numero || 'XXXX') + '_' + (devis.client_nom || '') + '.pdf');
 }
+
+
+// ─── PDF DEVIS SPÉCIAL (multi-biens) ──────────
+function genererPDFDevisSpecial(devis) {
+  var jsPDF = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
+  if (!jsPDF) { alert('jsPDF non chargé.'); return; }
+  var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  var p   = getCompanyProfile();
+  var y   = 15;
+  var lots = devis.lots || [];
+
+  // ── En-tête (même style que devis standard) ──
+  var tplEpure = (p.pdf_template || 'standard') === 'epure';
+  if (tplEpure) {
+    pdfRect(doc, 0, 0, 210, 40, [255,255,255]);
+    doc.setDrawColor(220,220,220); doc.line(15,42,195,42);
+    var tx = 15;
+    if (p.logo && p.logo.startsWith('data:image')) tx = pdfAddLogo(doc, p.logo, 15, 8, p.logo_w, p.logo_h);
+    pdfText(doc, p.nom_societe||'DELY DIAG', tx, 18, {bold:true,size:14,color:[27,67,50]});
+    pdfText(doc, (p.forme_juridique||'')+(p.nom_responsable?' '+p.nom_responsable:'')+(p.siret?' — SIRET : '+p.siret:''), tx, 24, {size:8,color:[107,114,128]});
+    pdfText(doc, (p.adresse?p.adresse+', ':'')+( p.code_postal?p.code_postal+' '+(p.ville||''):''), tx, 30, {size:8,color:[107,114,128]});
+    pdfText(doc, (p.telephone||'')+(p.email?'  |  '+p.email:''), tx, 36, {size:8,color:[107,114,128]});
+    pdfText(doc, 'DEVIS SPÉCIAL', 195, 18, {bold:true,size:16,color:[27,67,50],align:'right'});
+    pdfText(doc, 'N° '+(devis.numero||''), 195, 26, {bold:true,size:10,color:[45,106,79],align:'right'});
+    pdfText(doc, 'Date : '+new Date(devis.date||Date.now()).toLocaleDateString('fr-FR'), 195, 32, {size:8,color:[107,114,128],align:'right'});
+    pdfText(doc, 'Valable 30 jours', 195, 38, {size:8,color:[156,163,175],align:'right'});
+  } else {
+    pdfRect(doc, 0, 0, 210, 40, [45,106,79]);
+    var tx = 15;
+    if (p.logo && p.logo.startsWith('data:image')) tx = pdfAddLogo(doc, p.logo, 15, 8, p.logo_w, p.logo_h);
+    pdfText(doc, p.nom_societe||'DELY DIAG', tx, 18, {bold:true,size:16,color:[255,255,255]});
+    pdfText(doc, (p.forme_juridique||'')+(p.nom_responsable?' '+p.nom_responsable:'')+(p.siret?' — SIRET : '+p.siret:''), tx, 25, {size:9,color:[200,230,210]});
+    pdfText(doc, (p.adresse?p.adresse+', ':'')+( p.code_postal?p.code_postal+' '+(p.ville||''):''), tx, 31, {size:9,color:[200,230,210]});
+    pdfText(doc, (p.telephone||'')+(p.email?'  |  '+p.email:''), tx, 37, {size:9,color:[200,230,210]});
+    pdfText(doc, 'DEVIS SPÉCIAL', 195, 18, {bold:true,size:18,color:[255,255,255],align:'right'});
+    pdfText(doc, 'N° '+(devis.numero||''), 195, 26, {bold:true,size:11,color:[180,230,200],align:'right'});
+    pdfText(doc, 'Date : '+new Date(devis.date||Date.now()).toLocaleDateString('fr-FR'), 195, 32, {size:9,color:[200,230,210],align:'right'});
+    pdfText(doc, 'Valable 30 jours', 195, 38, {size:8,color:[180,210,190],align:'right'});
+  }
+  y = 50;
+
+  // ── Bloc client ──
+  pdfRect(doc, 120, y, 75, 36, [245,247,250]);
+  pdfText(doc, 'CLIENT', 122, y+6, {bold:true,size:9,color:[107,114,128]});
+  if (devis.client_societe) pdfText(doc, devis.client_societe, 122, y+13, {bold:true,size:10,color:[30,30,30]});
+  var clientName = ((devis.client_prenom||'')+' '+(devis.client_nom||'')).trim();
+  pdfText(doc, clientName, 122, devis.client_societe?y+20:y+13, {size:9,color:[60,60,60]});
+  if (devis.client_tel) pdfText(doc, 'Tél : '+devis.client_tel, 122, y+27, {size:8,color:[80,80,80]});
+  if (devis.client_email) pdfText(doc, devis.client_email, 122, y+33, {size:8,color:[80,80,80]});
+
+  // ── Objet ──
+  pdfText(doc, 'Objet de la mission :', 15, y+6, {bold:true,size:9,color:[45,106,79]});
+  pdfText(doc, 'Diagnostics immobiliers — plusieurs biens', 15, y+13, {size:10,color:[30,30,30]});
+  if (devis.adresse_commune) pdfText(doc, 'Résidence / adresse réf. : '+devis.adresse_commune, 15, y+20, {size:9,color:[80,80,80]});
+  pdfText(doc, lots.length+' bien'+(lots.length>1?'s':'')+' à diagnostiquer', 15, y+27, {size:9,color:[80,80,80]});
+
+  y += 44;
+  y = pdfAddLine(doc, y);
+
+  // ── Un bloc par lot ──
+  lots.forEach(function(lot, i) {
+    // Vérifier si on a besoin d'une nouvelle page
+    var estimHeight = 28 + (lot.diagnostics||[]).length * 7;
+    if (y + estimHeight > 270) { doc.addPage(); y = 15; }
+
+    // Titre du lot
+    pdfRect(doc, 15, y, 180, 8, [27,67,50]);
+    pdfText(doc, 'BIEN N°'+(i+1)+(lot.label?' — '+lot.label:''), 18, y+5.5, {bold:true,size:9,color:[255,255,255]});
+    y += 10;
+
+    // Infos du lot
+    var adresse = lot.meme_adresse ? (devis.adresse_commune||'') : (lot.adresse||'');
+    if (adresse) { pdfText(doc, '📍 '+adresse, 18, y+4, {size:9,color:[60,60,60]}); y += 7; }
+    if (lot.type_bien) { pdfText(doc, 'Type : '+lot.type_bien, 18, y+4, {size:9,color:[80,80,80]}); y += 7; }
+
+    // Tableau diagnostics du lot
+    var diags = lot.diagnostics || [];
+    var tm    = lot.tarifs_manuels || {};
+    if (diags.length > 0) {
+      pdfRect(doc, 15, y, 180, 7, [240,253,244]);
+      pdfText(doc, 'Prestation', 18, y+4.5, {bold:true,size:8,color:[45,106,79]});
+      pdfText(doc, 'Tarif HT', 193, y+4.5, {bold:true,size:8,color:[45,106,79],align:'right'});
+      y += 7;
+      diags.forEach(function(d, di) {
+        if (di % 2 === 0) pdfRect(doc, 15, y-1, 180, 7, [249,250,251]);
+        pdfText(doc, '  '+d, 18, y+4, {size:8,color:[30,30,30]});
+        var tv = tm[d] !== undefined ? parseFloat(tm[d]) : 0;
+        pdfText(doc, tv > 0 ? tv.toFixed(2)+' €' : 'inclus', 193, y+4, {size:8,color:[45,106,79],align:'right'});
+        y += 7;
+      });
+    }
+
+    // Sous-total lot
+    pdfRect(doc, 130, y+1, 65, 8, [232,245,237]);
+    pdfText(doc, 'Sous-total Bien N°'+(i+1), 132, y+6, {size:8,color:[45,106,79]});
+    pdfText(doc, parseFloat(lot.sous_total||0).toFixed(2)+' €', 193, y+6, {bold:true,size:9,color:[27,67,50],align:'right'});
+    y += 13;
+  });
+
+  // ── Récapitulatif total ──
+  if (y + 50 > 270) { doc.addPage(); y = 15; }
+  y = pdfAddLine(doc, y);
+  y += 2;
+
+  pdfRect(doc, 15, y, 180, 8, [45,106,79]);
+  pdfText(doc, 'RÉCAPITULATIF', 18, y+5.5, {bold:true,size:9,color:[255,255,255]});
+  y += 10;
+
+  lots.forEach(function(lot, i) {
+    if (i%2===0) pdfRect(doc, 15, y-1, 180, 8, [249,250,251]);
+    var label = lot.label || ('Bien N°'+(i+1));
+    pdfText(doc, '  '+label, 18, y+5, {size:9,color:[30,30,30]});
+    pdfText(doc, parseFloat(lot.sous_total||0).toFixed(2)+' €', 193, y+5, {size:9,color:[45,106,79],align:'right'});
+    y += 8;
+  });
+
+  y += 2;
+  // Remise
+  if (devis.remise_eur && parseFloat(devis.remise_eur) > 0) {
+    pdfText(doc, 'Remise'+(devis.remise_pct>0?' ('+parseFloat(devis.remise_pct).toFixed(1)+'%)':''), 18, y+5, {size:9,color:[220,50,50]});
+    pdfText(doc, '- '+parseFloat(devis.remise_eur).toFixed(2)+' €', 193, y+5, {size:9,color:[220,50,50],align:'right'});
+    y += 8;
+  }
+
+  y += 2; y = pdfAddLine(doc, y); y += 3;
+
+  // Total
+  var isHT  = (devis.statut_fiscal||'HT') === 'HT';
+  var taux  = parseFloat(devis.taux_tva||20)/100;
+  var ht    = parseFloat(devis.total_ht||0);
+  var tvaMt = Math.round(ht*taux*100)/100;
+  var ttc   = Math.round((ht+tvaMt)*100)/100;
+
+  pdfRect(doc, 120, y, 75, isHT?30:38, [45,106,79]);
+  if (isHT) {
+    pdfText(doc, 'Total HT', 122, y+9, {size:10,color:[200,230,210]});
+    pdfText(doc, ht.toFixed(2)+' €', 193, y+9, {bold:true,size:10,color:[255,255,255],align:'right'});
+    pdfText(doc, 'TVA non applicable — art. 293B CGI', 122, y+17, {size:9,color:[180,220,190]});
+    pdfRect(doc, 120, y+20, 75, 10, [27,67,50]);
+    pdfText(doc, 'TOTAL', 122, y+27, {bold:true,size:11,color:[255,255,255]});
+    pdfText(doc, ht.toFixed(2)+' € HT', 193, y+27, {bold:true,size:12,color:[255,255,255],align:'right'});
+  } else {
+    pdfText(doc, 'Total HT', 122, y+9, {size:9,color:[180,220,190]});
+    pdfText(doc, ht.toFixed(2)+' €', 193, y+9, {size:9,color:[200,230,210],align:'right'});
+    pdfText(doc, 'TVA '+( devis.taux_tva||20)+'%', 122, y+16, {size:9,color:[180,220,190]});
+    pdfText(doc, tvaMt.toFixed(2)+' €', 193, y+16, {size:9,color:[200,230,210],align:'right'});
+    pdfRect(doc, 120, y+20, 75, 10, [27,67,50]);
+    pdfText(doc, 'TOTAL TTC', 122, y+27, {bold:true,size:11,color:[255,255,255]});
+    pdfText(doc, ttc.toFixed(2)+' €', 193, y+27, {bold:true,size:12,color:[255,255,255],align:'right'});
+  }
+  y += isHT ? 38 : 46;
+
+  // ── Mentions légales ──
+  if (p.mentions_legales && p.mentions_legales.trim()) {
+    y += 8;
+    pdfText(doc, 'Mentions légales', 15, y, {bold:true,size:8,color:[107,114,128]}); y += 5;
+    doc.splitTextToSize(p.mentions_legales.trim(), 180).forEach(function(line) {
+      pdfText(doc, line, 15, y, {size:7,color:[120,120,120]}); y += 3.5;
+    });
+  }
+
+  // ── Conditions paiement ──
+  y += 4;
+  pdfText(doc, 'Conditions de paiement', 15, y, {bold:true,size:9,color:[45,106,79]}); y += 6;
+  pdfText(doc, p.conditions_paiement||'Paiement à réception de facture', 15, y, {size:9,color:[80,80,80]}); y += 5;
+  if (p.rib_iban) pdfText(doc, 'IBAN : '+p.rib_iban+(p.rib_bic?' | BIC : '+p.rib_bic:''), 15, y, {size:8,color:[100,100,100]});
+
+  // ── Certification ──
+  if (p.num_certif || p.organisme_certif) {
+    y += 8;
+    pdfText(doc, 'Certification', 15, y, {bold:true,size:9,color:[45,106,79]}); y += 6;
+    if (p.organisme_certif) { pdfText(doc, 'Certifié par : '+p.organisme_certif, 15, y, {size:9,color:[80,80,80]}); y += 5; }
+    if (p.num_certif) { pdfText(doc, 'N° certification : '+p.num_certif, 15, y, {size:9,color:[80,80,80]}); y += 5; }
+    if (p.num_assurance) pdfText(doc, 'Assurance RC Pro : '+p.num_assurance, 15, y, {size:9,color:[80,80,80]});
+  }
+
+  // ── Pied de page ──
+  var footerY = 285;
+  pdfRect(doc, 0, footerY-3, 210, 15, [245,247,250]);
+  pdfText(doc, (p.nom_societe||'')+(p.adresse?' — '+p.adresse:'')+(p.siret?' — SIRET : '+p.siret:''), 15, footerY+2, {size:7,color:[150,150,150]});
+  pdfText(doc, (p.telephone||'')+(p.email?' | '+p.email:''), 195, footerY+7, {size:7,color:[150,150,150],align:'right'});
+
+  doc.save('DevisSpecial_'+(devis.numero||'XXXX')+'_'+(devis.client_nom||'')+'.pdf');
+}
