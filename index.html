@@ -612,6 +612,38 @@ document.addEventListener('DOMContentLoaded', function() {
   var _waitingSW = null;
 
   navigator.serviceWorker.register('./sw.js').then(function(reg) {
+    // ─── Abonnement push (admin uniquement) ───
+    if ('PushManager' in window) {
+      var VAPID_PUBLIC = 'BNKIpO2EZt0WHyXQXr1TpIEAXMXQ15hcme4iAncCcbflNrc4yTuSOWYcq_9dr8ZPbxjAzi70K4X3pNR0QcwMM_E';
+      Notification.requestPermission().then(function(perm) {
+        if (perm !== 'granted') return;
+        reg.pushManager.getSubscription().then(function(existing) {
+          if (existing) { _savePushSub(existing); return; }
+          reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: (function(b64) {
+              var pad = '='.repeat((4 - b64.length % 4) % 4);
+              var raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+              var arr = new Uint8Array(raw.length);
+              for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+              return arr;
+            })(VAPID_PUBLIC)
+          }).then(function(sub) { _savePushSub(sub); }).catch(function() {});
+        });
+      });
+    }
+
+    function _savePushSub(sub) {
+      var token = localStorage.getItem('fb_token');
+      if (!token) return;
+      var FS_KEY = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+      fetch('https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents/push_subscriptions/admin?key=' + FS_KEY, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ fields: { value: { stringValue: JSON.stringify(sub) } } })
+      }).catch(function() {});
+    }
+
     // Mise à jour déjà en attente au moment du chargement
     if (reg.waiting) { showUpdateBanner(reg.waiting); }
 
