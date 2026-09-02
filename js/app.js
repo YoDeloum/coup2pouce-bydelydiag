@@ -188,6 +188,9 @@ function initApp() {
   // Vérification documents manquants — après 5s (laisse le temps au sync)
   setTimeout(checkDocumentsManquants, 5000);
 
+  // Bannière notifications push — après 3s (laisse le temps à l'UI de s'afficher)
+  setTimeout(_checkPushBanner, 3000);
+
   // Raccourci Enter sur le champ mot de passe
   var pwdInput = document.getElementById('login-password');
   if (pwdInput) {
