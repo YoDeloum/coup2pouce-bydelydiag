@@ -294,6 +294,17 @@ function soumettreSig() {
   .then(function(res) {
     if (res.fields) {
       showView('view-success');
+      // ─── Notification push admin ───
+      var _signataire = ((_devisData.clientPrenom || '') + ' ' + (_devisData.clientNom || '')).trim();
+      fetch('/.netlify/functions/send-push', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          title: '✍️ Devis N°' + (_devisData.devisNumero || '') + ' signé !',
+          body:  'Signé par ' + (_signataire || 'le client') + ' — ' + new Date().toLocaleString('fr-FR'),
+          tag:   'coup2pouce-devis'
+        })
+      }).catch(function() {});
     } else {
       btn.textContent = '✅ J\'accepte et je signe le devis';
       btn.disabled = false;
