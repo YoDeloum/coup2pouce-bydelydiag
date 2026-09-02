@@ -177,6 +177,9 @@ function initApp() {
     if (typeof initAutoRelances === 'function') initAutoRelances();
   }, 8000);
 
+  // Vérification documents manquants — après 5s (laisse le temps au sync)
+  setTimeout(checkDocumentsManquants, 5000);
+
   // Raccourci Enter sur le champ mot de passe
   var pwdInput = document.getElementById('login-password');
   if (pwdInput) {
@@ -184,6 +187,42 @@ function initApp() {
       if (e.key === 'Enter') firebaseLogin();
     });
   }
+}
+
+// ─── VÉRIFICATION DOCUMENTS / LOGO MANQUANTS ───
+function checkDocumentsManquants() {
+  // Ne vérifier que si l'utilisateur est connecté
+  if (!localStorage.getItem('fb_uid')) return;
+  // Ne vérifier qu'une fois par session (pas à chaque rechargement)
+  if (sessionStorage.getItem('docs_check_done')) return;
+  sessionStorage.setItem('docs_check_done', '1');
+
+  var manquants = [];
+
+  // Vérifier le logo société
+  var profil = (function() { try { return JSON.parse(localStorage.getItem('dd_company_profile') || '{}'); } catch(e) { return {}; } })();
+  if (!profil.logo) manquants.push('Logo de la société');
+
+  // Vérifier les documents réglementaires
+  var docs = (function() { try { return JSON.parse(localStorage.getItem('dd_docs_reglementaires') || '{}'); } catch(e) { return {}; } })();
+  var docLabels = { consentement: 'Feuille de consentement', cgv: 'CGV', cgi: "CGI" };
+  Object.keys(docLabels).forEach(function(id) {
+    if (!docs[id]) manquants.push(docLabels[id]);
+  });
+
+  if (manquants.length === 0) return;
+
+  // Afficher la bannière d'alerte
+  var banner = document.createElement('div');
+  banner.id = 'docs-alert-banner';
+  banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#FEF3C7;border-top:2px solid #F59E0B;padding:12px 16px;z-index:9999;display:flex;align-items:center;gap:12px;box-shadow:0 -4px 20px rgba(0,0,0,0.12)';
+  banner.innerHTML = '<div style="flex:1">'
+    + '<div style="font-size:14px;font-weight:700;color:#92400E;margin-bottom:2px">⚠️ Documents manquants dans votre profil</div>'
+    + '<div style="font-size:12px;color:#78350F">Ces éléments ont été perdus et doivent être re-uploadés : <strong>' + manquants.join(', ') + '</strong></div>'
+    + '</div>'
+    + '<button onclick="openProfil();document.getElementById(\'docs-alert-banner\').remove()" style="padding:8px 14px;border-radius:8px;border:none;background:#F59E0B;color:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">📂 Aller au profil</button>'
+    + '<button onclick="document.getElementById(\'docs-alert-banner\').remove()" style="padding:8px 10px;border-radius:8px;border:none;background:transparent;color:#92400E;font-size:18px;cursor:pointer;font-family:inherit">✕</button>';
+  document.body.appendChild(banner);
 }
 
 document.addEventListener('DOMContentLoaded', initApp);
