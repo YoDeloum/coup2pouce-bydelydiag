@@ -135,6 +135,13 @@
 .login-footer{color:rgba(255,255,255,0.6);font-size:11px;margin-top:20px;text-align:center}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
 
+/* BOUTON MICRO VOCAL */
+.voice-nav-mic{background:none;border:none;cursor:pointer;font-size:16px;padding:4px 6px;border-radius:8px;line-height:1;color:#6B7280;transition:color .2s}
+.voice-nav-mic:hover{color:#2D6A4F}
+#voice-jeffrey-btn{background:none;border:none;cursor:pointer;font-size:15px;padding:4px 6px;color:#6B7280;border-radius:8px;transition:color .2s;line-height:1}
+#voice-jeffrey-btn:hover{color:#2D6A4F}
+@keyframes mic-pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
 /* PRÉNOM MODAL */
 #prenom-modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:8000;display:flex;align-items:center;justify-content:center;padding:20px}
 #prenom-modal.hidden{display:none}
