@@ -58,6 +58,7 @@ function showHome() {
   document.getElementById('module').style.display = 'none';
   document.getElementById('back-btn').style.display = 'none';
   if (location.hash) history.replaceState({}, '', location.pathname + location.search);
+  _checkPushBanner();
   renderHome();
 }
 
@@ -230,6 +231,57 @@ function checkDocumentsManquants() {
     + '<button onclick="openProfil();document.getElementById(\'docs-alert-banner\').remove()" style="padding:8px 14px;border-radius:8px;border:none;background:#F59E0B;color:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">📂 Aller au profil</button>'
     + '<button onclick="document.getElementById(\'docs-alert-banner\').remove()" style="padding:8px 10px;border-radius:8px;border:none;background:transparent;color:#92400E;font-size:18px;cursor:pointer;font-family:inherit">✕</button>';
   document.body.appendChild(banner);
+}
+
+// ─── Notifications push ───
+function _checkPushBanner() {
+  if (!('PushManager' in window) || !('Notification' in window)) return;
+  var banner = document.getElementById('push-banner');
+  if (!banner) return;
+  if (Notification.permission === 'default') {
+    banner.style.display = 'flex';
+  } else {
+    banner.style.display = 'none';
+    // Si permission déjà accordée, s'assurer que l'abonnement est bien sauvegardé
+    if (Notification.permission === 'granted') _subscribePush();
+  }
+}
+
+function activerPushNotifs() {
+  Notification.requestPermission().then(function(perm) {
+    var banner = document.getElementById('push-banner');
+    if (banner) banner.style.display = 'none';
+    if (perm === 'granted') _subscribePush();
+  });
+}
+
+function _subscribePush() {
+  if (!window._swReg || !('PushManager' in window)) return;
+  var VAPID_PUBLIC = 'BNKIpO2EZt0WHyXQXr1TpIEAXMXQ15hcme4iAncCcbflNrc4yTuSOWYcq_9dr8ZPbxjAzi70K4X3pNR0QcwMM_E';
+  window._swReg.pushManager.getSubscription().then(function(existing) {
+    if (existing) { _savePushSub(existing); return; }
+    window._swReg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: (function(b64) {
+        var pad = '='.repeat((4 - b64.length % 4) % 4);
+        var raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+        var arr = new Uint8Array(raw.length);
+        for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+        return arr;
+      })(VAPID_PUBLIC)
+    }).then(function(sub) { _savePushSub(sub); }).catch(function() {});
+  });
+}
+
+function _savePushSub(sub) {
+  var token = localStorage.getItem('fb_token');
+  if (!token) return;
+  var FS_KEY = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+  fetch('https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents/push_subscriptions/admin?key=' + FS_KEY, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ fields: { value: { stringValue: JSON.stringify(sub) } } })
+  }).catch(function() {});
 }
 
 document.addEventListener('DOMContentLoaded', initApp);
