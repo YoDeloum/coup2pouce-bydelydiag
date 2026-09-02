@@ -105,7 +105,7 @@ var _VOICE_MODULES = [
   { mots: ['erp', 'risques', 'pollution', 'risque'], key: 'ERP',      label: 'ERP' },
   { mots: ['certif', 'certification', 'certificat'], key: 'Certif',   label: 'Certification' },
   { mots: ['matériel', 'materiel', 'équipement', 'equipement', 'outil'], key: 'Materiel', label: 'Matériel' },
-  { mots: ['carrez', 'boutin', 'triangulation', 'surface', 'loi carrez'], key: 'Carrez',   label: 'Carrez' },
+  { mots: ['carrez', 'boutin', 'surface', 'loi carrez'], key: 'Carrez',   label: 'Carrez' },
 ];
 
 // Correspondances actions
@@ -132,6 +132,14 @@ var _VOICE_ACTIONS = [
 
 function _handleVoiceNav(text) {
   var t = text.toLowerCase().trim();
+
+  // 0. Triangulation — cas spécial : ouvre Carrez puis bascule sur l'onglet tri
+  if (t.indexOf('triangulation') !== -1) {
+    if (typeof openModule === 'function') openModule('Carrez');
+    setTimeout(function() { if (typeof setCarrezTab === 'function') setCarrezTab('tri'); }, 300);
+    _voiceToast('📐 Triangulation ouverte');
+    return;
+  }
 
   // 1. Chercher une correspondance de module
   for (var i = 0; i < _VOICE_MODULES.length; i++) {
