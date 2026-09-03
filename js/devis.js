@@ -2,7 +2,7 @@
 // DEVIS.JS — Système de devis complet
 // ─────────────────────────────────────────────
 
-var DEVIS_DIAGNOSTICS_LIST = ['DPE','DPE Projeté','Amiante','Plomb','Électricité','Gaz','Termites','ERP','Carrez','Boutin','Avant travaux','Avant démolition','Frais déplacement'];
+var DEVIS_DIAGNOSTICS_LIST = ['DPE','DPE Projeté','Amiante','Prélèvement Amiante','Plomb','Prélèvement Plomb','Électricité','Gaz','Termites','ERP','Carrez','Boutin','Avant travaux','Avant démolition','Frais déplacement'];
 
 var DEVIS_DEPS_LIST = ['Garage','Cave','Grenier','Box','Parking','Local annexe','Sous-sol','Dépendance extérieure'];
 
