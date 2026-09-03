@@ -1143,5 +1143,7 @@ const TARIFS_DEFAULT = {
   Boutin: 80,
   'Avant travaux': 0,
   'Avant démolition': 0,
+  'Prélèvement Amiante': 60,
+  'Prélèvement Plomb': 60,
   'Frais déplacement': 50
 };
