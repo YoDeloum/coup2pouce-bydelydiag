@@ -219,6 +219,7 @@ function renderMissionForm(body) {
     </div>
     ${currentMissionIdx !== null ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px"><button onclick="envoyerMailRDVConfirme(missions[currentMissionIdx])" style="padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#059669,#2D6A4F);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✅ RDV mail client</button><button onclick="envoyerMailRapport(missions[currentMissionIdx])" style="padding:12px;border-radius:10px;border:2px solid #6366F1;background:#fff;color:#6366F1;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">📧 Envoyer rapport</button></div>' : ''}
     <button onclick="openAvisGoogle()" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">⭐ Demander un avis Google</button>
+    ${currentMissionIdx !== null ? '<button onclick="convertirMissionEnFacture()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#1B4332,#2D6A4F);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">🧾 Convertir en facture</button>' : ''}
     ${currentMissionIdx !== null ? '<button onclick="deleteMission()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #EF4444;background:#fff;color:#EF4444;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">🗑️ Supprimer cette mission</button>' : ''}`;
   // Calculer automatiquement le total depuis les tarifs au chargement
   setTimeout(function() {
@@ -791,4 +792,38 @@ function _showDayMissions(dateStr) {
     + '</div>';
 
   document.body.appendChild(modal);
+}
+
+// ─── Conversion Mission → Facture ───
+function convertirMissionEnFacture() {
+  var m = currentMissionIdx !== null ? missions[currentMissionIdx] : null;
+  if (!m) return;
+
+  // Sauvegarder d'abord la mission (état actuel du formulaire)
+  saveMissionForm();
+  m = missions[currentMissionIdx];
+
+  // Mapper les champs mission → format compatible facture
+  var factureData = {
+    client_societe: m.societe        || '',
+    client_nom:     m.nom            || '',
+    client_prenom:  m.prenom         || '',
+    client_tel:     m.tel            || '',
+    client_email:   m.email          || '',
+    bien_adresse:   m.adresse        || '',
+    bien_type:      m.typeBien       || 'Appartement',
+    date_mission:   m.date           || '',
+    diagnostics:    m.diags          || [],
+    total_ht:       parseFloat(m.total) || 0,
+    // prix_final verrouille le montant exact (calculé ou ajusté)
+    prix_final:     parseFloat(m.total) > 0 ? parseFloat(m.total) : '',
+    numero:         m.devis_ref      || '',
+    _source:        'mission'
+  };
+
+  // Injecter dans la variable globale de facture.js et ouvrir le module
+  _factureFromDevis = factureData;
+  _factureEdit      = null;
+  closeMission();
+  openFacture();
 }
