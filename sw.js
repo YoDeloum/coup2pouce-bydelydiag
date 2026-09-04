@@ -1,5 +1,5 @@
 // Service Worker — Coup 2 Pouce DELY DIAG
-const CACHE = 'coup2pouce-v16';
+const CACHE = 'coup2pouce-v17';
 
 self.addEventListener('install', function(e) {
   // Ne pas skipWaiting automatiquement : on attend que l'utilisateur confirme la mise à jour
