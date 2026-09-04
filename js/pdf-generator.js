@@ -391,9 +391,9 @@ function genererPDFFacture(facture, _returnBlob, opts) {
   pdfText(doc, 'Mentions légales', 15, y, {bold:true, size:8, color:[107,114,128]});
   y += 5;
   var _legalF = [
-    'Pénalités de retard : applicables le lendemain de la date d'échéance, au taux légal en vigueur (art. L441-6 C. com.).',
-    'Indemnité forfaitaire pour frais de recouvrement en cas de retard de paiement : 40 € (art. D441-5 C. com.).',
-    'Pas d'escompte accordé en cas de paiement anticipé.'
+    "Pénalités de retard : applicables le lendemain de la date d'échéance, au taux légal en vigueur (art. L441-6 C. com.).",
+    "Indemnité forfaitaire pour frais de recouvrement en cas de retard de paiement : 40 € (art. D441-5 C. com.).",
+    "Pas d'escompte accordé en cas de paiement anticipé."
   ];
   if (p.mentions_legales && p.mentions_legales.trim()) {
     _legalF.push(p.mentions_legales.trim());
