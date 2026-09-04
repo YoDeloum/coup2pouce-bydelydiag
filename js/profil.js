@@ -138,11 +138,34 @@ function renderProfilScreen() {
       </div>
       <div class="profil-field">
         <label class="profil-label">🎨 Modèle de PDF (devis &amp; facture)</label>
-        <select class="profil-select" id="p-pdf_template" style="width:100%;padding:10px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:14px;font-family:inherit;outline:none;background:#fff">
-          <option value="standard" ${(p.pdf_template||'standard')==='standard'?'selected':''}>Standard — en-tête vert avec logo et bandeau couleur</option>
-          <option value="epure"    ${(p.pdf_template||'standard')==='epure'   ?'selected':''}>Épuré — fond blanc, typographie minimaliste</option>
-        </select>
-        <p style="font-size:11px;color:#9ca3af;margin:4px 0 0">Choix appliqué à tous les PDF générés depuis l'application.</p>
+        <input type="hidden" id="p-pdf_template" value="${p.pdf_template||'standard'}"/>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:6px" id="tpl-cards">
+          ${[
+            {k:'standard',   label:'Standard',   bg:'#2D6A4F', fg:'#fff',     sub:'#C8E6D2', desc:'Bandeau vert'},
+            {k:'epure',      label:'Épuré',       bg:'#fff',    fg:'#1B4332',  sub:'#6B7280', desc:'Fond blanc minimaliste', border:'#E2E5F0'},
+            {k:'marine',     label:'Marine',      bg:'#1E3A8A', fg:'#fff',     sub:'#BBD2FF', desc:'Bandeau bleu marine'},
+            {k:'ardoise',    label:'Ardoise',     bg:'#1E293B', fg:'#fff',     sub:'#BEC6D4', desc:'Bandeau ardoise'},
+            {k:'terracotta', label:'Terracotta',  bg:'#993A1E', fg:'#fff',     sub:'#FFC8B4', desc:'Bandeau terracotta'},
+            {k:'premium',    label:'Premium',     bg:'#0F0F0F', fg:'#D4AF37',  sub:'#B4A064', desc:'Noir & or'},
+            {k:'bordeaux',   label:'Bordeaux',    bg:'#78141E', fg:'#fff',     sub:'#FFBEBE', desc:'Bandeau bordeaux'}
+          ].map(function(t) {
+            var sel = (p.pdf_template||'standard') === t.k;
+            return '<div onclick="selectPdfTemplate(this,\''+t.k+'\')" style="cursor:pointer;border-radius:10px;overflow:hidden;border:2.5px solid '+(sel?'#1B4332':'#E2E5F0')+';box-shadow:'+(sel?'0 0 0 3px rgba(27,67,50,.18)':'none')+';transition:border .15s">'
+              + '<!-- mini-aperçu -->'
+              + '<div style="background:'+(t.bg)+';padding:8px 10px;border-bottom:1px solid rgba(0,0,0,.08)">'
+              + '<div style="font-size:9px;font-weight:800;color:'+(t.fg)+';letter-spacing:.5px">'+(t.label.toUpperCase())+'</div>'
+              + '<div style="font-size:7px;color:'+(t.sub)+';margin-top:1px">DELY DIAG • SIRET 000 000</div>'
+              + '<div style="display:flex;justify-content:flex-end;margin-top:-10px">'
+              + '<div style="text-align:right"><div style="font-size:8px;font-weight:800;color:'+(t.fg)+'">DEVIS</div>'
+              + '<div style="font-size:6px;color:'+(t.sub)+'">N° 2025-001</div></div></div></div>'
+              + '<div style="background:#FAFAFA;padding:5px 10px">'
+              + '<div style="font-size:10px;font-weight:700;color:#1B4332">'+(t.label)+'</div>'
+              + '<div style="font-size:9px;color:#6B7280">'+(t.desc)+'</div></div>'
+              + (sel ? '<div style="background:#1B4332;text-align:center;padding:3px;font-size:9px;color:#fff;font-weight:700">✓ Sélectionné</div>' : '')
+              + '</div>';
+          }).join('')}
+        </div>
+        <p style="font-size:11px;color:#9ca3af;margin:8px 0 0">Appliqué à tous les PDF générés. Cliquez pour changer de modèle.</p>
       </div>
       <div class="profil-field">
         <label class="profil-label">Mentions légales</label>
@@ -246,6 +269,28 @@ function renderProfilScreen() {
 
     <button onclick="forcerSyncCloud(this)" style="width:100%;padding:12px;border-radius:10px;border:1.5px solid #0891B2;background:#fff;color:#0891B2;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:10px">☁️ Forcer la synchronisation vers le cloud</button>
     <div id="profil-success" style="display:none;text-align:center;padding:12px;background:#D1FAE5;border-radius:10px;color:#065F46;font-weight:700;margin-bottom:16px">✅ Profil sauvegardé !</div>`;
+}
+
+function selectPdfTemplate(card, key) {
+  // Met à jour la valeur cachée
+  document.getElementById('p-pdf_template').value = key;
+  // Remet tous les styles à zéro
+  var cards = document.querySelectorAll('#tpl-cards > div');
+  cards.forEach(function(c) {
+    c.style.border = '2.5px solid #E2E5F0';
+    c.style.boxShadow = 'none';
+    // Retire la barre "Sélectionné" si elle existe
+    var bar = c.querySelector('[data-sel-bar]');
+    if (bar) bar.remove();
+  });
+  // Active la carte choisie
+  card.style.border = '2.5px solid #1B4332';
+  card.style.boxShadow = '0 0 0 3px rgba(27,67,50,.18)';
+  var bar = document.createElement('div');
+  bar.setAttribute('data-sel-bar', '1');
+  bar.style.cssText = 'background:#1B4332;text-align:center;padding:3px;font-size:9px;color:#fff;font-weight:700';
+  bar.textContent = '✓ Sélectionné';
+  card.appendChild(bar);
 }
 
 function saveProfilForm() {
