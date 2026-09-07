@@ -230,14 +230,25 @@ function _startTerrainRecording() {
       var res = e.results[i];
       if (res.isFinal) {
         var txt = res[0].transcript.trim();
-        // Anti-doublons : ignorer si déjà reçu dans les 3 derniers résultats
+        // Anti-doublons
         if (txt && _terrainLastFinals.indexOf(txt) === -1) {
           _terrainLastFinals.push(txt);
           if (_terrainLastFinals.length > 5) _terrainLastFinals.shift();
           var ph = document.getElementById('terrain-placeholder');
           if (ph) ph.remove();
+          // Afficher d'abord le texte brut + indicateur de correction
           _terrainFullText += (_terrainFullText ? ' ' : '') + txt;
           _updateFinalDisplay();
+          _showCorrecting(true);
+          // Envoyer à Claude pour correction
+          _correctSpeech(txt, function(corrected) {
+            _showCorrecting(false);
+            if (corrected && corrected !== txt) {
+              // Remplacer le texte brut par la version corrigée
+              _terrainFullText = _terrainFullText.slice(0, _terrainFullText.lastIndexOf(txt)) + corrected;
+              _updateFinalDisplay();
+            }
+          });
         }
       } else {
         interim += res[0].transcript;
@@ -505,6 +516,30 @@ function _insertCompassNote() {
   if (ph) ph.remove();
   _terrainFullText += (_terrainFullText ? ' ' : '') + note + '. ';
   _updateFinalDisplay();
+}
+
+// ─── Correction IA des notes vocales ──────────
+function _correctSpeech(rawText, callback) {
+  // Texte trop court → pas la peine d'appeler l'IA
+  if (!rawText || rawText.length < 8) { callback(rawText); return; }
+  fetch('/.netlify/functions/correct-speech', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: rawText })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) { callback(d.corrected || rawText); })
+  .catch(function()  { callback(rawText); }); // En cas d'erreur → texte brut conservé
+}
+
+function _showCorrecting(on) {
+  var iEl = document.getElementById('terrain-interim-text');
+  if (!iEl) return;
+  if (on) {
+    iEl.innerHTML = '<span style="color:#FBBF24;font-size:12px">✨ Correction IA en cours…</span>';
+  } else {
+    iEl.textContent = '';
+  }
 }
 
 function getTerrainNotes(idx) {
