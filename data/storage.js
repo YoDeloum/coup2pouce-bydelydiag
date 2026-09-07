@@ -117,11 +117,65 @@ function _fsPush(key, value) {
   _fsPushRaw(key, valueToSync);
 }
 
+// ─── Indicateur de statut sync ───
+var _fsSyncErrors = [];
+function _fsSyncStatus(ok, key) {
+  if (!ok) {
+    _fsSyncErrors.push(key);
+    _fsSyncShowWarning();
+  }
+}
+function _fsSyncShowWarning() {
+  var el = document.getElementById('sync-warning');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'sync-warning';
+    el.style.cssText = 'position:fixed;bottom:72px;left:50%;transform:translateX(-50%);z-index:99999;background:#EF4444;color:#fff;padding:8px 16px;border-radius:20px;font-size:12px;font-weight:700;font-family:inherit;box-shadow:0 4px 16px rgba(0,0,0,.2);cursor:pointer';
+    el.textContent = '⚠️ Sync cloud échouée — touche pour réessayer';
+    el.onclick = function() { forcerSyncCloud(null); el.remove(); };
+    document.body.appendChild(el);
+  }
+}
+
+// ─── Clés volumineuses : stockées dans des sous-collections dédiées ───
+var _FS_BIG_KEYS = ['dd_devis_list', 'dd_missions', 'dd_factures_list'];
+var _FS_BIG_COL  = 'https://firestore.googleapis.com/v1/projects/' + _FS_PROJECT + '/databases/(default)/documents/userdata_big/';
+
+function _fsPushBig(uid, token, key, value) {
+  // Stocke dans userdata_big/{uid}/keys/{key} pour éviter la limite 1MB du document principal
+  var url = _FS_BIG_COL + uid + '/keys/' + key;
+  var fields = { data: { stringValue: String(value) }, key: { stringValue: key }, ts: { integerValue: String(Date.now()) } };
+  var opts = {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ fields: fields })
+  };
+  fetch(url, opts).then(function(res) {
+    if (res.status === 401 || res.status === 403) {
+      _fsRefreshToken(function(t) {
+        if (!t) { _fsSyncStatus(false, key); return; }
+        opts.headers['Authorization'] = 'Bearer ' + t;
+        fetch(url, opts).then(function(r2) {
+          _fsSyncStatus(r2.ok, key);
+        }).catch(function() { _fsSyncStatus(false, key); });
+      });
+    } else {
+      _fsSyncStatus(res.ok, key);
+    }
+  }).catch(function() { _fsSyncStatus(false, key); });
+}
+
 // ─── Envoi brut vers Firestore (sans transformation) ───
 function _fsPushRaw(key, value) {
   var uid   = localStorage.getItem('fb_uid');
   var token = localStorage.getItem('fb_token');
   if (!uid || !token) return;
+
+  // Clés volumineuses → sous-collection dédiée
+  if (_FS_BIG_KEYS.indexOf(key) !== -1) {
+    _fsPushBig(uid, token, key, value);
+    return;
+  }
 
   var fields = {};
   fields[key] = { stringValue: String(value) };
@@ -136,12 +190,16 @@ function _fsPushRaw(key, value) {
   fetch(url, opts).then(function(res) {
     if (res.status === 401 || res.status === 403) {
       _fsRefreshToken(function(newToken) {
-        if (!newToken) return;
+        if (!newToken) { _fsSyncStatus(false, key); return; }
         opts.headers['Authorization'] = 'Bearer ' + newToken;
-        fetch(url, opts).catch(function() {});
+        fetch(url, opts).then(function(r2) {
+          _fsSyncStatus(r2.ok, key);
+        }).catch(function() { _fsSyncStatus(false, key); });
       });
+    } else {
+      if (!res.ok) { _fsSyncStatus(false, key); }
     }
-  }).catch(function() {});
+  }).catch(function() { _fsSyncStatus(false, key); });
 }
 
 // ─── Traitement des données reçues de Firestore ───
@@ -193,6 +251,26 @@ function _processSync(data, uid, callback) {
   if (callback) callback();
 }
 
+// ─── Lecture des clés volumineuses depuis userdata_big ───
+function _doSyncBig(uid, token, callback) {
+  // Lit les 3 sous-documents (dd_devis_list, dd_missions, dd_factures_list)
+  var pending = _FS_BIG_KEYS.length;
+  if (pending === 0) { if (callback) callback(); return; }
+  _FS_BIG_KEYS.forEach(function(key) {
+    fetch(_FS_BIG_COL + uid + '/keys/' + key, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(doc) {
+      if (doc && doc.fields && doc.fields.data && doc.fields.data.stringValue) {
+        _lsSetItem.call(localStorage, key, doc.fields.data.stringValue);
+      }
+      if (--pending === 0 && callback) callback();
+    })
+    .catch(function() { if (--pending === 0 && callback) callback(); });
+  });
+}
+
 // ─── Lecture complète depuis Firestore ───
 function _doSync(uid, token, callback) {
   fetch(_FS_COL + uid, {
@@ -206,12 +284,18 @@ function _doSync(uid, token, callback) {
         if (!newToken) { if (callback) callback(); return; }
         fetch(_FS_COL + uid, { headers: { 'Authorization': 'Bearer ' + newToken } })
         .then(function(r) { return r.json(); })
-        .then(function(d) { _processSync(d, uid, callback); })
+        .then(function(d) {
+          _processSync(d, uid, function() {
+            _doSyncBig(uid, newToken, callback);
+          });
+        })
         .catch(function() { if (callback) callback(); });
       });
       return;
     }
-    _processSync(data, uid, callback);
+    _processSync(data, uid, function() {
+      _doSyncBig(uid, token, callback);
+    });
   })
   .catch(function() { if (callback) callback(); });
 }
