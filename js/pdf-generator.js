@@ -170,6 +170,15 @@ function genererPDFDevis(devis, _returnBlob, opts) {
     'Valable 30 jours');
   y = 50;
 
+  // Variables thème — utilisées dans tout le PDF
+  var _tplCfg    = PDF_TEMPLATES[p.pdf_template || 'standard'] || PDF_TEMPLATES.standard;
+  var _tplBg     = _tplCfg.bg || [240,240,240];
+  var _tplFg     = _tplCfg.fg;
+  var _tplSub    = _tplCfg.sub;
+  var _tplAccent = _tplCfg.bg || _tplCfg.fg;
+  var _tplDark   = _tplCfg.bg ? _tplCfg.bg.map(function(c){return Math.max(0,c-18);}) : [210,210,210];
+  var _tplTextOnBg = _tplCfg.bg ? _tplCfg.fg : _tplCfg.fg;
+
   // ── Informations CLIENT ──
   pdfRect(doc, 120, y, 75, 40, [245, 247, 250]);
   pdfText(doc, 'CLIENT', 122, y + 6, {bold:true, size:9, color:[107, 114, 128]});
@@ -186,7 +195,7 @@ function genererPDFDevis(devis, _returnBlob, opts) {
   }
 
   // ── Objet ──
-  pdfText(doc, 'Objet de la mission :', 15, y + 6, {bold:true, size:9, color:[45,106,79]});
+  pdfText(doc, 'Objet de la mission :', 15, y + 6, {bold:true, size:9, color:_tplAccent});
   pdfText(doc, 'Réalisation de diagnostics immobiliers', 15, y + 13, {size:10, color:[30,30,30]});
   pdfText(doc, 'Bien : ' + (devis.bien_adresse || ''), 15, y + 20, {size:9, color:[80,80,80]});
   pdfText(doc, 'Type : ' + (devis.bien_type || '') + (devis.type_transaction ? ' — ' + devis.type_transaction : ''), 15, y + 27, {size:9, color:[80,80,80]});
@@ -196,8 +205,8 @@ function genererPDFDevis(devis, _returnBlob, opts) {
   y = pdfAddLine(doc, y);
 
   // ── Tableau diagnostics ──
-  pdfRect(doc, 15, y, 180, 8, [45, 106, 79]);
-  pdfText(doc, 'PRESTATIONS', 18, y + 5.5, {bold:true, size:9, color:[255,255,255]});
+  pdfRect(doc, 15, y, 180, 8, _tplBg);
+  pdfText(doc, 'PRESTATIONS', 18, y + 5.5, {bold:true, size:9, color:_tplTextOnBg});
   pdfText(doc, 'INCLUS', 195, y + 5.5, {bold:true, size:9, color:[255,255,255], align:'right'});
   y += 10;
 
@@ -229,24 +238,24 @@ function genererPDFDevis(devis, _returnBlob, opts) {
   var tva_mt  = Math.round(ht * taux * 100) / 100;
   var ttc     = Math.round((ht + tva_mt) * 100) / 100;
 
-  pdfRect(doc, 120, y, 75, isHT ? 30 : 38, [45, 106, 79]);
+  pdfRect(doc, 120, y, 75, isHT ? 30 : 38, _tplBg);
   if (isHT) {
-    pdfText(doc, 'Total HT', 122, y + 9, {size:10, color:[200,230,210]});
+    pdfText(doc, 'Total HT', 122, y + 9, {size:10, color:_tplSub});
     pdfText(doc, ht.toFixed(2) + ' €', 193, y + 9, {bold:true, size:10, color:[255,255,255], align:'right'});
-    pdfText(doc, 'TVA non applicable — art. 293B CGI', 122, y+17, {size:9, color:[180,220,190]});
+    pdfText(doc, 'TVA non applicable — art. 293B CGI', 122, y+17, {size:9, color:_tplSub});
   } else {
-    pdfText(doc, 'Total HT', 122, y + 9, {size:9, color:[180,220,190]});
+    pdfText(doc, 'Total HT', 122, y + 9, {size:9, color:_tplSub});
     pdfText(doc, ht.toFixed(2) + ' €', 193, y + 9, {size:9, color:[200,230,210], align:'right'});
-    pdfText(doc, 'TVA ' + (devis.taux_tva||20) + '%', 122, y+16, {size:9, color:[180,220,190]});
+    pdfText(doc, 'TVA ' + (devis.taux_tva||20) + '%', 122, y+16, {size:9, color:_tplSub});
     pdfText(doc, tva_mt.toFixed(2) + ' €', 193, y+16, {size:9, color:[200,230,210], align:'right'});
-    pdfRect(doc, 120, y+20, 75, 10, [27, 67, 50]);
-    pdfText(doc, 'TOTAL TTC', 122, y + 27, {bold:true, size:11, color:[255,255,255]});
+    pdfRect(doc, 120, y+20, 75, 10, _tplDark);
+    pdfText(doc, 'TOTAL TTC', 122, y + 27, {bold:true, size:11, color:_tplTextOnBg});
     pdfText(doc, ttc.toFixed(2) + ' €', 193, y + 27, {bold:true, size:12, color:[255,255,255], align:'right'});
   }
 
   if (isHT) {
-    pdfRect(doc, 120, y+20, 75, 10, [27,67,50]);
-    pdfText(doc, 'TOTAL', 122, y+27, {bold:true, size:11, color:[255,255,255]});
+    pdfRect(doc, 120, y+20, 75, 10, _tplDark);
+    pdfText(doc, 'TOTAL', 122, y+27, {bold:true, size:11, color:_tplTextOnBg});
     pdfText(doc, ht.toFixed(2) + ' € HT', 193, y+27, {bold:true, size:12, color:[255,255,255], align:'right'});
   }
 
@@ -266,7 +275,7 @@ function genererPDFDevis(devis, _returnBlob, opts) {
 
   // ── Conditions de paiement ──
   y += 4;
-  pdfText(doc, 'Conditions de paiement', 15, y, {bold:true, size:9, color:[45,106,79]});
+  pdfText(doc, 'Conditions de paiement', 15, y, {bold:true, size:9, color:_tplAccent});
   y += 6;
   pdfText(doc, p.conditions_paiement || 'Paiement à réception de facture', 15, y, {size:9, color:[80,80,80]});
   y += 5;
@@ -275,7 +284,7 @@ function genererPDFDevis(devis, _returnBlob, opts) {
   // ── Certification ──
   if (p.num_certif || p.organisme_certif) {
     y += 8;
-    pdfText(doc, 'Certification', 15, y, {bold:true, size:9, color:[45,106,79]});
+    pdfText(doc, 'Certification', 15, y, {bold:true, size:9, color:_tplAccent});
     y += 6;
     if (p.organisme_certif) pdfText(doc, 'Certifié par : ' + p.organisme_certif, 15, y, {size:9, color:[80,80,80]});
     y += 5;
@@ -314,6 +323,15 @@ function genererPDFFacture(facture, _returnBlob, opts) {
     facture.numero ? 'Devis réf. : ' + facture.numero : '');
   y = 50;
 
+  // Variables thème — utilisées dans tout le PDF
+  var _tplCfg    = PDF_TEMPLATES[p.pdf_template || 'standard'] || PDF_TEMPLATES.standard;
+  var _tplBg     = _tplCfg.bg || [240,240,240];
+  var _tplFg     = _tplCfg.fg;
+  var _tplSub    = _tplCfg.sub;
+  var _tplAccent = _tplCfg.bg || _tplCfg.fg;
+  var _tplDark   = _tplCfg.bg ? _tplCfg.bg.map(function(c){return Math.max(0,c-18);}) : [210,210,210];
+  var _tplTextOnBg = _tplCfg.bg ? _tplCfg.fg : _tplCfg.fg;
+
   // Client — coordonnées de facturation (société ou nom/prénom et adresse spécifiques si renseignés)
   var _factSociete = facture.fact_societe || facture.client_societe || '';
   var _factNomContact = ((facture.fact_prenom || facture.client_prenom || '') + ' ' + (facture.fact_nom || facture.client_nom || '')).trim();
@@ -332,7 +350,7 @@ function genererPDFFacture(facture, _returnBlob, opts) {
     if (facture.client_email) pdfText(doc, 'Email : ' + facture.client_email, 122, y + 34, {size:9, color:[80,80,80]});
   }
 
-  pdfText(doc, 'Objet :', 15, y + 6, {bold:true, size:9, color:[27,67,50]});
+  pdfText(doc, 'Objet :', 15, y + 6, {bold:true, size:9, color:_tplAccent});
   pdfText(doc, 'Réalisation de diagnostics immobiliers', 15, y + 13, {size:10, color:[30,30,30]});
   pdfText(doc, 'Bien : ' + (facture.bien_adresse || ''), 15, y + 20, {size:9, color:[80,80,80]});
   pdfText(doc, 'Type : ' + (facture.bien_type || ''), 15, y + 27, {size:9, color:[80,80,80]});
@@ -342,8 +360,8 @@ function genererPDFFacture(facture, _returnBlob, opts) {
   y = pdfAddLine(doc, y);
 
   // Tableau diagnostics
-  pdfRect(doc, 15, y, 180, 8, [27, 67, 50]);
-  pdfText(doc, 'PRESTATIONS RÉALISÉES', 18, y + 5.5, {bold:true, size:9, color:[255,255,255]});
+  pdfRect(doc, 15, y, 180, 8, _tplBg);
+  pdfText(doc, 'PRESTATIONS RÉALISÉES', 18, y + 5.5, {bold:true, size:9, color:_tplTextOnBg});
   pdfText(doc, 'RÉALISÉ', 193, y + 5.5, {bold:true, size:9, color:[255,255,255], align:'right'});
   y += 10;
 
@@ -366,21 +384,21 @@ function genererPDFFacture(facture, _returnBlob, opts) {
   var tva_mt = Math.round(ht * taux * 100) / 100;
   var ttc    = Math.round((ht + tva_mt) * 100) / 100;
 
-  pdfRect(doc, 120, y, 75, isHT ? 28 : 36, [27, 67, 50]);
+  pdfRect(doc, 120, y, 75, isHT ? 28 : 36, _tplBg);
   if (!isHT) {
     pdfText(doc, 'Total HT',           122, y + 9,  {size:9, color:[170,210,185]});
     pdfText(doc, ht.toFixed(2) + ' €', 193, y + 9,  {size:9, color:[200,230,210], align:'right'});
     pdfText(doc, 'TVA ' + (p.taux_tva||20) + '%',  122, y + 16, {size:9, color:[170,210,185]});
     pdfText(doc, tva_mt.toFixed(2) + ' €', 193, y + 16, {size:9, color:[200,230,210], align:'right'});
     pdfRect(doc, 120, y+20, 75, 10, [10, 40, 25]);
-    pdfText(doc, 'TOTAL TTC',            122, y+27, {bold:true, size:11, color:[255,255,255]});
+    pdfText(doc, 'TOTAL TTC',            122, y+27, {bold:true, size:11, color:_tplTextOnBg});
     pdfText(doc, ttc.toFixed(2) + ' €',  193, y+27, {bold:true, size:12, color:[255,255,255], align:'right'});
   } else {
     pdfRect(doc, 120, y+18, 75, 10, [10, 40, 25]);
-    pdfText(doc, 'TOTAL',              122, y + 9,  {size:10, color:[200,230,210]});
+    pdfText(doc, 'TOTAL',              122, y + 9,  {size:10, color:_tplSub});
     pdfText(doc, ht.toFixed(2) + ' €', 193, y + 9,  {bold:true, size:10, color:[255,255,255], align:'right'});
     pdfText(doc, 'TVA non applicable — art. 293B CGI', 122, y+16, {size:8, color:[170,210,185]});
-    pdfText(doc, 'À PAYER',            122, y+25, {bold:true, size:11, color:[255,255,255]});
+    pdfText(doc, 'À PAYER',            122, y+25, {bold:true, size:11, color:_tplTextOnBg});
     pdfText(doc, ht.toFixed(2) + ' €', 193, y+25, {bold:true, size:12, color:[255,255,255], align:'right'});
   }
 
@@ -406,7 +424,7 @@ function genererPDFFacture(facture, _returnBlob, opts) {
 
   // Paiement
   y += 4;
-  pdfText(doc, 'Modalités de règlement', 15, y, {bold:true, size:9, color:[27,67,50]});
+  pdfText(doc, 'Modalités de règlement', 15, y, {bold:true, size:9, color:_tplAccent});
   y += 6;
   pdfText(doc, p.conditions_paiement || 'Paiement à réception de facture', 15, y, {size:9, color:[80,80,80]});
   y += 5;
@@ -473,6 +491,15 @@ function genererPDFSigne(devis) {
     signedDateStr ? 'Signé le : ' + signedDateStr : 'Signé électroniquement');
   y = 50;
 
+  // Variables thème — utilisées dans tout le PDF
+  var _tplCfg    = PDF_TEMPLATES[p.pdf_template || 'standard'] || PDF_TEMPLATES.standard;
+  var _tplBg     = _tplCfg.bg || [240,240,240];
+  var _tplFg     = _tplCfg.fg;
+  var _tplSub    = _tplCfg.sub;
+  var _tplAccent = _tplCfg.bg || _tplCfg.fg;
+  var _tplDark   = _tplCfg.bg ? _tplCfg.bg.map(function(c){return Math.max(0,c-18);}) : [210,210,210];
+  var _tplTextOnBg = _tplCfg.bg ? _tplCfg.fg : _tplCfg.fg;
+
   // ── Informations CLIENT (identique à genererPDFDevis) ──
   pdfRect(doc, 120, y, 75, 40, [245, 247, 250]);
   pdfText(doc, 'CLIENT', 122, y + 6, {bold:true, size:9, color:[107, 114, 128]});
@@ -489,7 +516,7 @@ function genererPDFSigne(devis) {
   }
 
   // ── Objet (identique à genererPDFDevis) ──
-  pdfText(doc, 'Objet de la mission :', 15, y + 6, {bold:true, size:9, color:[45,106,79]});
+  pdfText(doc, 'Objet de la mission :', 15, y + 6, {bold:true, size:9, color:_tplAccent});
   pdfText(doc, 'Réalisation de diagnostics immobiliers', 15, y + 13, {size:10, color:[30,30,30]});
   pdfText(doc, 'Bien : ' + (devis.bien_adresse || ''), 15, y + 20, {size:9, color:[80,80,80]});
   pdfText(doc, 'Type : ' + (devis.bien_type || '') + (devis.type_transaction ? ' — ' + devis.type_transaction : ''), 15, y + 27, {size:9, color:[80,80,80]});
@@ -499,8 +526,8 @@ function genererPDFSigne(devis) {
   y = pdfAddLine(doc, y);
 
   // ── Tableau diagnostics (identique à genererPDFDevis) ──
-  pdfRect(doc, 15, y, 180, 8, [45, 106, 79]);
-  pdfText(doc, 'PRESTATIONS', 18, y + 5.5, {bold:true, size:9, color:[255,255,255]});
+  pdfRect(doc, 15, y, 180, 8, _tplBg);
+  pdfText(doc, 'PRESTATIONS', 18, y + 5.5, {bold:true, size:9, color:_tplTextOnBg});
   pdfText(doc, 'INCLUS', 195, y + 5.5, {bold:true, size:9, color:[255,255,255], align:'right'});
   y += 10;
 
@@ -530,23 +557,23 @@ function genererPDFSigne(devis) {
   var tva_mt = Math.round(ht * taux * 100) / 100;
   var ttc    = Math.round((ht + tva_mt) * 100) / 100;
 
-  pdfRect(doc, 120, y, 75, isHT ? 30 : 38, [45, 106, 79]);
+  pdfRect(doc, 120, y, 75, isHT ? 30 : 38, _tplBg);
   if (isHT) {
-    pdfText(doc, 'Total HT', 122, y + 9, {size:10, color:[200,230,210]});
+    pdfText(doc, 'Total HT', 122, y + 9, {size:10, color:_tplSub});
     pdfText(doc, ht.toFixed(2) + ' €', 193, y + 9, {bold:true, size:10, color:[255,255,255], align:'right'});
-    pdfText(doc, 'TVA non applicable — art. 293B CGI', 122, y+17, {size:9, color:[180,220,190]});
+    pdfText(doc, 'TVA non applicable — art. 293B CGI', 122, y+17, {size:9, color:_tplSub});
   } else {
-    pdfText(doc, 'Total HT', 122, y + 9, {size:9, color:[180,220,190]});
+    pdfText(doc, 'Total HT', 122, y + 9, {size:9, color:_tplSub});
     pdfText(doc, ht.toFixed(2) + ' €', 193, y + 9, {size:9, color:[200,230,210], align:'right'});
-    pdfText(doc, 'TVA ' + (devis.taux_tva||20) + '%', 122, y+16, {size:9, color:[180,220,190]});
+    pdfText(doc, 'TVA ' + (devis.taux_tva||20) + '%', 122, y+16, {size:9, color:_tplSub});
     pdfText(doc, tva_mt.toFixed(2) + ' €', 193, y+16, {size:9, color:[200,230,210], align:'right'});
-    pdfRect(doc, 120, y+20, 75, 10, [27, 67, 50]);
-    pdfText(doc, 'TOTAL TTC', 122, y + 27, {bold:true, size:11, color:[255,255,255]});
+    pdfRect(doc, 120, y+20, 75, 10, _tplDark);
+    pdfText(doc, 'TOTAL TTC', 122, y + 27, {bold:true, size:11, color:_tplTextOnBg});
     pdfText(doc, ttc.toFixed(2) + ' €', 193, y + 27, {bold:true, size:12, color:[255,255,255], align:'right'});
   }
   if (isHT) {
-    pdfRect(doc, 120, y+20, 75, 10, [27,67,50]);
-    pdfText(doc, 'TOTAL', 122, y+27, {bold:true, size:11, color:[255,255,255]});
+    pdfRect(doc, 120, y+20, 75, 10, _tplDark);
+    pdfText(doc, 'TOTAL', 122, y+27, {bold:true, size:11, color:_tplTextOnBg});
     pdfText(doc, ht.toFixed(2) + ' € HT', 193, y+27, {bold:true, size:12, color:[255,255,255], align:'right'});
   }
   y += isHT ? 38 : 46;
@@ -565,7 +592,7 @@ function genererPDFSigne(devis) {
 
   // ── Conditions de paiement ──
   y += 4;
-  pdfText(doc, 'Conditions de paiement', 15, y, {bold:true, size:9, color:[45,106,79]});
+  pdfText(doc, 'Conditions de paiement', 15, y, {bold:true, size:9, color:_tplAccent});
   y += 6;
   pdfText(doc, p.conditions_paiement || 'Paiement à réception de facture', 15, y, {size:9, color:[80,80,80]});
   y += 5;
@@ -574,7 +601,7 @@ function genererPDFSigne(devis) {
   // ── Certification ──
   if (p.num_certif || p.organisme_certif) {
     y += 8;
-    pdfText(doc, 'Certification', 15, y, {bold:true, size:9, color:[45,106,79]});
+    pdfText(doc, 'Certification', 15, y, {bold:true, size:9, color:_tplAccent});
     y += 6;
     if (p.organisme_certif) pdfText(doc, 'Certifié par : ' + p.organisme_certif, 15, y, {size:9, color:[80,80,80]});
     y += 5;
@@ -639,6 +666,15 @@ function genererPDFDevisSpecial(devis) {
     'Valable 30 jours');
   y = 50;
 
+  // Variables thème — utilisées dans tout le PDF
+  var _tplCfg    = PDF_TEMPLATES[p.pdf_template || 'standard'] || PDF_TEMPLATES.standard;
+  var _tplBg     = _tplCfg.bg || [240,240,240];
+  var _tplFg     = _tplCfg.fg;
+  var _tplSub    = _tplCfg.sub;
+  var _tplAccent = _tplCfg.bg || _tplCfg.fg;
+  var _tplDark   = _tplCfg.bg ? _tplCfg.bg.map(function(c){return Math.max(0,c-18);}) : [210,210,210];
+  var _tplTextOnBg = _tplCfg.bg ? _tplCfg.fg : _tplCfg.fg;
+
   // ── Bloc client ──
   pdfRect(doc, 120, y, 75, 36, [245,247,250]);
   pdfText(doc, 'CLIENT', 122, y+6, {bold:true,size:9,color:[107,114,128]});
@@ -649,7 +685,7 @@ function genererPDFDevisSpecial(devis) {
   if (devis.client_email) pdfText(doc, devis.client_email, 122, y+33, {size:8,color:[80,80,80]});
 
   // ── Objet ──
-  pdfText(doc, 'Objet de la mission :', 15, y+6, {bold:true,size:9,color:[45,106,79]});
+  pdfText(doc, 'Objet de la mission :', 15, y+6, {bold:true,size:9,color:_tplAccent});
   pdfText(doc, 'Diagnostics immobiliers — plusieurs biens', 15, y+13, {size:10,color:[30,30,30]});
   if (devis.adresse_commune) pdfText(doc, 'Résidence / adresse réf. : '+devis.adresse_commune, 15, y+20, {size:9,color:[80,80,80]});
   pdfText(doc, lots.length+' bien'+(lots.length>1?'s':'')+' à diagnostiquer', 15, y+27, {size:9,color:[80,80,80]});
@@ -664,8 +700,8 @@ function genererPDFDevisSpecial(devis) {
     if (y + estimHeight > 270) { doc.addPage(); y = 15; }
 
     // Titre du lot
-    pdfRect(doc, 15, y, 180, 8, [27,67,50]);
-    pdfText(doc, 'BIEN N°'+(i+1)+(lot.label?' — '+lot.label:''), 18, y+5.5, {bold:true,size:9,color:[255,255,255]});
+    pdfRect(doc, 15, y, 180, 8, _tplBg);
+    pdfText(doc, 'BIEN N°'+(i+1)+(lot.label?' — '+lot.label:''), 18, y+5.5, {bold:true,size:9,color:_tplTextOnBg});
     y += 10;
 
     // Infos du lot
@@ -678,7 +714,7 @@ function genererPDFDevisSpecial(devis) {
     var tm    = lot.tarifs_manuels || {};
     if (diags.length > 0) {
       pdfRect(doc, 15, y, 180, 7, [240,253,244]);
-      pdfText(doc, 'Prestation', 18, y+4.5, {bold:true,size:8,color:[45,106,79]});
+      pdfText(doc, 'Prestation', 18, y+4.5, {bold:true,size:8,color:_tplAccent});
       pdfText(doc, 'Tarif HT', 193, y+4.5, {bold:true,size:8,color:[45,106,79],align:'right'});
       y += 7;
       diags.forEach(function(d, di) {
@@ -692,7 +728,7 @@ function genererPDFDevisSpecial(devis) {
 
     // Sous-total lot
     pdfRect(doc, 130, y+1, 65, 8, [232,245,237]);
-    pdfText(doc, 'Sous-total Bien N°'+(i+1), 132, y+6, {size:8,color:[45,106,79]});
+    pdfText(doc, 'Sous-total Bien N°'+(i+1), 132, y+6, {size:8,color:_tplAccent});
     pdfText(doc, parseFloat(lot.sous_total||0).toFixed(2)+' €', 193, y+6, {bold:true,size:9,color:[27,67,50],align:'right'});
     y += 13;
   });
@@ -702,8 +738,8 @@ function genererPDFDevisSpecial(devis) {
   y = pdfAddLine(doc, y);
   y += 2;
 
-  pdfRect(doc, 15, y, 180, 8, [45,106,79]);
-  pdfText(doc, 'RÉCAPITULATIF', 18, y+5.5, {bold:true,size:9,color:[255,255,255]});
+  pdfRect(doc, 15, y, 180, 8, _tplBg);
+  pdfText(doc, 'RÉCAPITULATIF', 18, y+5.5, {bold:true,size:9,color:_tplTextOnBg});
   y += 10;
 
   lots.forEach(function(lot, i) {
@@ -731,21 +767,21 @@ function genererPDFDevisSpecial(devis) {
   var tvaMt = Math.round(ht*taux*100)/100;
   var ttc   = Math.round((ht+tvaMt)*100)/100;
 
-  pdfRect(doc, 120, y, 75, isHT?30:38, [45,106,79]);
+  pdfRect(doc, 120, y, 75, isHT?30:38, _tplBg);
   if (isHT) {
-    pdfText(doc, 'Total HT', 122, y+9, {size:10,color:[200,230,210]});
+    pdfText(doc, 'Total HT', 122, y+9, {size:10,color:_tplSub});
     pdfText(doc, ht.toFixed(2)+' €', 193, y+9, {bold:true,size:10,color:[255,255,255],align:'right'});
-    pdfText(doc, 'TVA non applicable — art. 293B CGI', 122, y+17, {size:9,color:[180,220,190]});
-    pdfRect(doc, 120, y+20, 75, 10, [27,67,50]);
-    pdfText(doc, 'TOTAL', 122, y+27, {bold:true,size:11,color:[255,255,255]});
+    pdfText(doc, 'TVA non applicable — art. 293B CGI', 122, y+17, {size:9,color:_tplSub});
+    pdfRect(doc, 120, y+20, 75, 10, _tplDark);
+    pdfText(doc, 'TOTAL', 122, y+27, {bold:true,size:11,color:_tplTextOnBg});
     pdfText(doc, ht.toFixed(2)+' € HT', 193, y+27, {bold:true,size:12,color:[255,255,255],align:'right'});
   } else {
-    pdfText(doc, 'Total HT', 122, y+9, {size:9,color:[180,220,190]});
+    pdfText(doc, 'Total HT', 122, y+9, {size:9,color:_tplSub});
     pdfText(doc, ht.toFixed(2)+' €', 193, y+9, {size:9,color:[200,230,210],align:'right'});
-    pdfText(doc, 'TVA '+( devis.taux_tva||20)+'%', 122, y+16, {size:9,color:[180,220,190]});
+    pdfText(doc, 'TVA '+( devis.taux_tva||20)+'%', 122, y+16, {size:9,color:_tplSub});
     pdfText(doc, tvaMt.toFixed(2)+' €', 193, y+16, {size:9,color:[200,230,210],align:'right'});
-    pdfRect(doc, 120, y+20, 75, 10, [27,67,50]);
-    pdfText(doc, 'TOTAL TTC', 122, y+27, {bold:true,size:11,color:[255,255,255]});
+    pdfRect(doc, 120, y+20, 75, 10, _tplDark);
+    pdfText(doc, 'TOTAL TTC', 122, y+27, {bold:true,size:11,color:_tplTextOnBg});
     pdfText(doc, ttc.toFixed(2)+' €', 193, y+27, {bold:true,size:12,color:[255,255,255],align:'right'});
   }
   y += isHT ? 38 : 46;
@@ -761,14 +797,14 @@ function genererPDFDevisSpecial(devis) {
 
   // ── Conditions paiement ──
   y += 4;
-  pdfText(doc, 'Conditions de paiement', 15, y, {bold:true,size:9,color:[45,106,79]}); y += 6;
+  pdfText(doc, 'Conditions de paiement', 15, y, {bold:true,size:9,color:_tplAccent}); y += 6;
   pdfText(doc, p.conditions_paiement||'Paiement à réception de facture', 15, y, {size:9,color:[80,80,80]}); y += 5;
   if (p.rib_iban) pdfText(doc, 'IBAN : '+p.rib_iban+(p.rib_bic?' | BIC : '+p.rib_bic:''), 15, y, {size:8,color:[100,100,100]});
 
   // ── Certification ──
   if (p.num_certif || p.organisme_certif) {
     y += 8;
-    pdfText(doc, 'Certification', 15, y, {bold:true,size:9,color:[45,106,79]}); y += 6;
+    pdfText(doc, 'Certification', 15, y, {bold:true,size:9,color:_tplAccent}); y += 6;
     if (p.organisme_certif) { pdfText(doc, 'Certifié par : '+p.organisme_certif, 15, y, {size:9,color:[80,80,80]}); y += 5; }
     if (p.num_certif) { pdfText(doc, 'N° certification : '+p.num_certif, 15, y, {size:9,color:[80,80,80]}); y += 5; }
     if (p.num_assurance) pdfText(doc, 'Assurance RC Pro : '+p.num_assurance, 15, y, {size:9,color:[80,80,80]});
