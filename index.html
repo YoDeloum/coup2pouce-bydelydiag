@@ -619,36 +619,51 @@ document.addEventListener('DOMContentLoaded', function() {
   if (!('serviceWorker' in navigator)) return;
   var _waitingSW = null;
 
+  function showUpdateBanner(sw) {
+    _waitingSW = sw;
+    var banner = document.getElementById('pwa-update-banner');
+    if (banner) { banner.style.display = 'flex'; }
+  }
+
   navigator.serviceWorker.register('./sw.js').then(function(reg) {
-    // ─── Abonnement push : stocke la référence SW pour usage ultérieur ───
     window._swReg = reg;
 
-    // Mise à jour déjà en attente au moment du chargement
-    if (reg.waiting) { showUpdateBanner(reg.waiting); }
+    // SW déjà en attente au chargement (l'utilisateur avait l'ancienne version ouverte)
+    if (reg.waiting) {
+      showUpdateBanner(reg.waiting);
+    }
 
-    // Nouvelle mise à jour détectée pendant l'utilisation
+    // Nouvelle mise à jour téléchargée pendant la session
     reg.addEventListener('updatefound', function() {
       var newSW = reg.installing;
+      if (!newSW) return;
       newSW.addEventListener('statechange', function() {
+        // installed = téléchargé, en attente d'activation
         if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
           showUpdateBanner(newSW);
         }
       });
     });
+
+    // Vérifier les mises à jour toutes les 60 secondes
+    setInterval(function() { reg.update(); }, 60000);
+  }).catch(function(err) {
+    console.warn('[SW] Erreur enregistrement :', err);
   });
 
-  function showUpdateBanner(sw) {
-    _waitingSW = sw;
-    var banner = document.getElementById('pwa-update-banner');
-    if (banner) banner.style.display = 'flex';
-  }
+  // Rechargement automatique quand le nouveau SW prend le contrôle
+  navigator.serviceWorker.addEventListener('controllerchange', function() {
+    window.location.reload();
+  });
 
   window.pwaApplyUpdate = function() {
     if (_waitingSW) {
+      // Demande au SW en attente de s'activer maintenant
       _waitingSW.postMessage({ type: 'SKIP_WAITING' });
-      navigator.serviceWorker.addEventListener('controllerchange', function() {
-        window.location.reload();
-      });
+      // Le rechargement est géré par l'écouteur 'controllerchange' ci-dessus
+    } else {
+      // Fallback : pas de SW en attente trouvé, rechargement forcé sans cache
+      window.location.reload(true);
     }
   };
 })();
