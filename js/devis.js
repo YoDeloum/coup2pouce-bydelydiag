@@ -2,7 +2,7 @@
 // DEVIS.JS — Système de devis complet
 // ─────────────────────────────────────────────
 
-var DEVIS_DIAGNOSTICS_LIST = ['DPE','DPE Projeté','Amiante','Prélèvement Amiante','Plomb','Prélèvement Plomb','Électricité','Gaz','Termites','ERP','Carrez','Boutin','Avant travaux','Avant démolition','Frais déplacement'];
+var DEVIS_DIAGNOSTICS_LIST = ['DPE','DPE Projeté','DPE Immeuble','Amiante','Prélèvement Amiante','Plomb','Prélèvement Plomb','Électricité','Gaz','Termites','ERP','Carrez','Boutin','Avant travaux','Avant démolition','Frais déplacement'];
 
 var DEVIS_DEPS_LIST = ['Garage','Cave','Grenier','Box','Parking','Local annexe','Sous-sol','Dépendance extérieure'];
 
@@ -284,6 +284,11 @@ function renderDevisForm(body) {
         }).join('')}
       </div>
       <div style="margin-top:6px;font-size:11px;color:#9ca3af;text-align:right">✏️ Prix modifiable par diagnostic pour ce devis uniquement</div>
+      <div id="dpe-immeuble-detail-wrap" style="display:${sel.includes('DPE Immeuble')?'block':'none'};margin-top:10px;padding:12px;background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:10px">
+        <label style="font-size:12px;font-weight:700;color:#C2410C;display:block;margin-bottom:6px">🏢 Détail des logements — DPE Immeuble</label>
+        <textarea id="dv-dpe-immeuble-detail" rows="3" placeholder="Ex : 10 logements — 4 T1 (35m²), 4 T2 (55m²), 2 T3 (72m²)" style="width:100%;padding:8px 10px;border-radius:8px;border:1.5px solid #FED7AA;font-size:12px;font-family:inherit;resize:vertical;outline:none;box-sizing:border-box;background:#fff">${devis.dpe_immeuble_detail||''}</textarea>
+        <div style="font-size:10px;color:#9CA3AF;margin-top:4px">Cette liste apparaîtra sur le devis et la facture PDF</div>
+      </div>
       <div style="margin-top:10px;padding:14px;background:#F0FDF4;border-radius:10px;border:1px solid #BBF7D0">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <span style="font-size:13px;font-weight:700;color:#065F46">Sous-total HT</span>
@@ -349,6 +354,11 @@ function toggleDevisDiag(el, diag) {
   el.querySelector('input').checked = isSel;
   el.style.borderColor = isSel ? '#059669' : '';
   el.style.background  = isSel ? '#05966912' : '';
+  // Champ détail logements — visible uniquement si DPE Immeuble est coché
+  if (diag === 'DPE Immeuble') {
+    var wrap = document.getElementById('dpe-immeuble-detail-wrap');
+    if (wrap) wrap.style.display = isSel ? 'block' : 'none';
+  }
   updateDevisTotal();
 }
 
@@ -464,6 +474,7 @@ function getDevisFormData() {
     total_ht:             totalHt,
     total_ttc:            totalHt * (1 + (p.taux_tva || 20) / 100),
     prix_final:           parseFloat(document.getElementById('dv-prix_final')?.value) || 0,
+    dpe_immeuble_detail:  (document.getElementById('dv-dpe-immeuble-detail')?.value || '').trim(),
     savedAt:              new Date().toISOString(),
     signature:            (_devisEdit !== null ? (getAllDevis()[_devisEdit]?.signature || null) : null),
     mission_creee:        (_devisEdit !== null ? (getAllDevis()[_devisEdit]?.mission_creee || false) : false),
