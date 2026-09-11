@@ -81,6 +81,9 @@ function renderFactureForm(body) {
   var today  = new Date().toISOString().split('T')[0];
   var statuts = ['Facturé','Payé','Annulé'];
   var diags   = src.diagnostics || [];
+  var isSpecial = src.type === 'special';
+  var lots      = src.lots || [];
+  var totalLotsHT = lots.reduce(function(s, l) { return s + parseFloat(l.sous_total||0); }, 0);
 
   body.innerHTML = `
     <button onclick="renderFactureScreen('list');_factureFromDevis=null;" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:#1B4332;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:16px;font-family:inherit">← Retour</button>
@@ -176,22 +179,45 @@ function renderFactureForm(body) {
     </div>
 
     <div class="devis-section">
-      <div class="devis-section-title" style="color:#1B4332">🔬 Prestations réalisées</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="fc-diags-grid">
-        ${DEVIS_DIAGNOSTICS_LIST.map(d => {
-          var isSel = diags.includes(d);
-          var tarifs = Object.assign({}, TARIFS_DEFAULT, JSON.parse(localStorage.getItem('dd_tarifs') || '{}'));
-          return `<div class="diag-item ${isSel?'selected':''}" onclick="toggleFactureDiag(this,'${d}')" style="${isSel?'border-color:#1B4332;background:#1B433212':''}">
-            <input type="checkbox" ${isSel?'checked':''} readonly style="accent-color:#1B4332"/>
-            <span style="font-size:13px">${d}</span>
-            <span style="font-size:11px;color:#1B4332;font-weight:700;margin-left:auto">${tarifs[d]||0}€</span>
-          </div>`;
-        }).join('')}
-      </div>
-      <div style="margin-top:14px;padding:14px;background:#F0FDF4;border-radius:10px;border:1px solid #BBF7D0;display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:14px;font-weight:700;color:#065F46">Total HT</span>
-        <span id="fc-total-display" style="font-size:18px;font-weight:800;color:#1B4332">${parseFloat(src.total_ht||0).toFixed(2)} €</span>
-      </div>
+      <div class="devis-section-title" style="color:#1B4332">${isSpecial ? '🏘️ Biens facturés (devis spécial)' : '🔬 Prestations réalisées'}</div>
+
+      ${isSpecial ? `
+        <!-- Devis spécial : récapitulatif par lot -->
+        <div id="fc-lots-recap">
+          ${lots.map(function(lot, i) {
+            var adresse = lot.meme_adresse ? (src.adresse_commune||'') : (lot.adresse||'');
+            return '<div style="border:1.5px solid #E2E5F0;border-radius:10px;padding:12px;margin-bottom:10px">'
+              +'<div style="font-weight:800;color:#059669;font-size:13px;margin-bottom:6px">🏠 Bien N°'+(i+1)+(lot.label?' — '+lot.label:'')+'</div>'
+              +(adresse?'<div style="font-size:11px;color:#6B7280;margin-bottom:2px">📍 '+adresse+'</div>':'')
+              +'<div style="font-size:11px;color:#6B7280;margin-bottom:6px">Type : <strong>'+( lot.type_bien||'')+'</strong></div>'
+              +'<div style="font-size:11px;color:#374151;margin-bottom:8px;line-height:1.6">'+( lot.diagnostics||[]).map(function(d){return '· '+d;}).join('  ')+'</div>'
+              +'<div style="text-align:right;font-weight:800;color:#059669;font-size:14px">Sous-total : '+parseFloat(lot.sous_total||0).toFixed(2)+' €</div>'
+              +'</div>';
+          }).join('')}
+        </div>
+        <div style="margin-top:4px;padding:14px;background:#F0FDF4;border-radius:10px;border:1px solid #BBF7D0;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:14px;font-weight:700;color:#065F46">Total HT (${lots.length} bien${lots.length>1?'s':''})</span>
+          <span style="font-size:18px;font-weight:800;color:#1B4332">${totalLotsHT.toFixed(2)} €</span>
+        </div>
+      ` : `
+        <!-- Devis standard : grille de diagnostics -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="fc-diags-grid">
+          ${DEVIS_DIAGNOSTICS_LIST.map(function(d) {
+            var isSel = diags.includes(d);
+            var tarifs = Object.assign({}, TARIFS_DEFAULT, JSON.parse(localStorage.getItem('dd_tarifs') || '{}'));
+            return '<div class="diag-item '+(isSel?'selected':'')+'" onclick="toggleFactureDiag(this,\''+d+'\')" style="'+(isSel?'border-color:#1B4332;background:#1B433212':'')+'">'
+              +'<input type="checkbox" '+(isSel?'checked':'')+' readonly style="accent-color:#1B4332"/>'
+              +'<span style="font-size:13px">'+d+'</span>'
+              +'<span style="font-size:11px;color:#1B4332;font-weight:700;margin-left:auto">'+(tarifs[d]||0)+'€</span>'
+              +'</div>';
+          }).join('')}
+        </div>
+        <div style="margin-top:14px;padding:14px;background:#F0FDF4;border-radius:10px;border:1px solid #BBF7D0;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:14px;font-weight:700;color:#065F46">Total HT</span>
+          <span id="fc-total-display" style="font-size:18px;font-weight:800;color:#1B4332">${parseFloat(src.total_ht||0).toFixed(2)} €</span>
+        </div>
+      `}
+
       <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #BBF7D0">
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:12px;color:#6B7280;white-space:nowrap;font-weight:600">Prix forfaitaire</span>
@@ -241,13 +267,23 @@ function updateFactureTotal() {
 }
 
 function getFactureFormData() {
-  var tarifs = Object.assign({}, TARIFS_DEFAULT, JSON.parse(localStorage.getItem('dd_tarifs') || '{}'));
-  var sel    = Array.from(document.querySelectorAll('#fc-diags-grid .diag-item.selected')).map(function(el) {
-    return el.querySelector('span').textContent;
-  });
-  var totalHt = sel.reduce(function(s, d) { return s + (parseFloat(tarifs[d]) || 0); }, 0);
-  var p       = getCompanyProfile();
-  var src     = _factureFromDevis || {};
+  var tarifs    = Object.assign({}, TARIFS_DEFAULT, JSON.parse(localStorage.getItem('dd_tarifs') || '{}'));
+  var p         = getCompanyProfile();
+  var src       = _factureFromDevis || (_factureEdit !== null ? getAllFactures()[_factureEdit] : {});
+  var isSpecial = src.type === 'special';
+  var lots      = src.lots || [];
+  var sel, totalHt;
+  if (isSpecial) {
+    // Facture spéciale : total calculé depuis les lots, diagnostics = liste globale pour référence
+    sel     = lots.reduce(function(acc, l) { return acc.concat(l.diagnostics||[]); }, []);
+    sel     = sel.filter(function(d, i) { return sel.indexOf(d) === i; }); // dédupliqué
+    totalHt = lots.reduce(function(s, l) { return s + parseFloat(l.sous_total||0); }, 0);
+  } else {
+    sel     = Array.from(document.querySelectorAll('#fc-diags-grid .diag-item.selected')).map(function(el) {
+      return el.querySelector('span').textContent;
+    });
+    totalHt = sel.reduce(function(s, d) { return s + (parseFloat(tarifs[d]) || 0); }, 0);
+  }
   return {
     numero_facture: document.getElementById('fc-numero_facture')?.value || '',
     numero:         src.numero || '',
@@ -269,6 +305,9 @@ function getFactureFormData() {
     fact_adresse:   document.getElementById('fc-fact_adresse')?.value   || '',
     statut_fiscal:        document.getElementById('fc-statut_fiscal')?.value || p.statut_fiscal || 'HT',
     // Champs propagés depuis le devis source
+    type:                 src.type || '',
+    lots:                 isSpecial ? lots : [],
+    adresse_commune:      src.adresse_commune || '',
     periode_construction: src.periode_construction || '',
     nb_pieces:            src.nb_pieces            || '',
     dependances:          src.dependances           || [],
