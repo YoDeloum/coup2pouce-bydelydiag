@@ -59,9 +59,10 @@ const PRECACHE = [
 
 // ─── Installation : mise en cache de tous les fichiers ───
 self.addEventListener('install', function(e) {
+  // PAS de skipWaiting() ici — on attend que l'utilisateur clique "Actualiser"
+  // pour éviter que le SW s'active en plein milieu d'une session
   e.waitUntil(
     caches.open(CACHE).then(function(cache) {
-      // addAll en bloc — si un fichier échoue, on continue quand même
       return Promise.allSettled(
         PRECACHE.map(function(url) {
           return cache.add(url).catch(function() {
@@ -69,13 +70,11 @@ self.addEventListener('install', function(e) {
           });
         })
       );
-    }).then(function() {
-      return self.skipWaiting();
     })
   );
 });
 
-// ─── Activation : supprimer les anciens caches ───
+// ─── Activation : supprimer les anciens caches et prendre le contrôle ───
 self.addEventListener('activate', function(e) {
   e.waitUntil(
     caches.keys().then(function(keys) {
@@ -84,7 +83,7 @@ self.addEventListener('activate', function(e) {
             .map(function(k) { return caches.delete(k); })
       );
     }).then(function() {
-      return self.clients.claim();
+      return self.clients.claim(); // Prend le contrôle de tous les onglets ouverts
     })
   );
 });
