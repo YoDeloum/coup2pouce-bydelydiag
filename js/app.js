@@ -62,10 +62,116 @@ function showHome() {
   renderHome();
 }
 
-// Bouton Android "retour" — revenir à l'accueil depuis un module
-window.addEventListener('popstate', function() {
-  if (curKey) showHome();
-});
+// ─── BOUTON RETOUR ANDROID — ferme le calque du dessus sans quitter l'app ───
+(function() {
+  // Garde-fou : injecter une entrée d'historique pour intercepter le premier "retour"
+  history.pushState({ app: 'guard' }, '');
+
+  function _isVisible(id) {
+    var el = document.getElementById(id);
+    if (!el) return false;
+    return el.classList.contains('open');
+  }
+  function _isDisplayed(id) {
+    var el = document.getElementById(id);
+    if (!el) return false;
+    var d = el.style.display;
+    return d !== '' && d !== 'none';
+  }
+
+  function _tryClose() {
+    // 1. Terrain modal (créé dynamiquement)
+    var terrain = document.getElementById('terrain-modal');
+    if (terrain) {
+      if (typeof closeTerrain === 'function') closeTerrain(); else terrain.remove();
+      return true;
+    }
+
+    // 2. Petits modaux (.hidden supprimé = ouvert)
+    var avatar = document.getElementById('avatar-modal');
+    if (avatar && !avatar.classList.contains('hidden')) {
+      avatar.classList.add('hidden'); return true;
+    }
+    var prenom = document.getElementById('prenom-modal');
+    if (prenom && !prenom.classList.contains('hidden')) {
+      prenom.classList.add('hidden'); return true;
+    }
+
+    // 3. Écrans à classe .open — du plus prioritaire au moins prioritaire
+    if (_isVisible('signature-screen')) {
+      if (typeof closeSignature === 'function') closeSignature(); return true;
+    }
+    if (_isVisible('search-results')) {
+      document.getElementById('search-results').classList.remove('open'); return true;
+    }
+    if (_isVisible('chat-panel')) {
+      var cp = document.getElementById('chat-panel');
+      cp.classList.remove('open');
+      if (typeof chatOpen !== 'undefined') chatOpen = false;
+      return true;
+    }
+    if (_isVisible('checklist-screen')) {
+      if (typeof closeChecklist === 'function') closeChecklist(); return true;
+    }
+    if (_isVisible('tarif-screen')) {
+      if (typeof closeTarif === 'function') closeTarif(); return true;
+    }
+    if (_isVisible('glossaire-screen')) {
+      if (typeof closeGlossaire === 'function') closeGlossaire(); return true;
+    }
+    if (_isVisible('profil-screen')) {
+      if (typeof closeProfil === 'function') closeProfil(); return true;
+    }
+    if (_isVisible('facture-screen')) {
+      if (typeof closeFacture === 'function') closeFacture(); return true;
+    }
+    // Devis — si on est dans le formulaire, revenir à la liste d'abord
+    if (_isVisible('devis-screen')) {
+      if (typeof _devisView !== 'undefined' && _devisView === 'form') {
+        if (typeof renderDevisScreen === 'function') renderDevisScreen('list');
+      } else {
+        if (typeof closeDevis === 'function') closeDevis();
+      }
+      return true;
+    }
+    // Mission — idem
+    if (_isVisible('mission-screen')) {
+      if (typeof missionView !== 'undefined' && missionView !== 'list') {
+        missionView = 'list';
+        if (typeof renderMissionScreen === 'function') renderMissionScreen();
+      } else {
+        if (typeof closeMission === 'function') closeMission();
+      }
+      return true;
+    }
+
+    // 4. Écrans display:block
+    if (_isDisplayed('clients-screen')) {
+      if (typeof closeClients === 'function') closeClients();
+      else document.getElementById('clients-screen').style.display = 'none';
+      return true;
+    }
+    if (_isDisplayed('stats-screen')) {
+      document.getElementById('stats-screen').style.display = 'none'; return true;
+    }
+    if (_isDisplayed('cours-screen')) {
+      document.getElementById('cours-screen').style.display = 'none'; return true;
+    }
+
+    // 5. Module d'apprentissage ouvert
+    if (typeof curKey !== 'undefined' && curKey) {
+      showHome(); return true;
+    }
+
+    return false; // Rien à fermer → on laisse le guard absorber
+  }
+
+  window.addEventListener('popstate', function() {
+    _tryClose();
+    // Repousser le garde-fou pour que le prochain "retour" revienne ici
+    history.pushState({ app: 'guard' }, '');
+  });
+})();
 
 function showTab(tab) {
   curTab = tab;
