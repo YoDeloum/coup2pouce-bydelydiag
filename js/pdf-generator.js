@@ -217,6 +217,16 @@ function genererPDFDevis(devis, _returnBlob, opts) {
     pdfText(doc, '- ' + d, 18, y + 5, {size:9, color:[30,30,30]});
     pdfText(doc, 'incl.', 193, y + 5, {size:9, color:[45,106,79], align:'right'});
     y += 8;
+    // DPE Immeuble : afficher le détail des logements juste en dessous
+    if (d === 'DPE Immeuble' && devis.dpe_immeuble_detail) {
+      var detail = 'Détail : ' + devis.dpe_immeuble_detail;
+      var lines  = doc.splitTextToSize(detail, 165);
+      lines.forEach(function(line) {
+        pdfText(doc, line, 22, y + 3, {size:7.5, color:[150,100,30]});
+        y += 4;
+      });
+      y += 1;
+    }
   });
 
   // Ligne remise si applicable
@@ -359,18 +369,69 @@ function genererPDFFacture(facture, _returnBlob, opts) {
   y += 48;
   y = pdfAddLine(doc, y);
 
-  // Tableau diagnostics
-  pdfRect(doc, 15, y, 180, 8, _tplBg);
-  pdfText(doc, 'PRESTATIONS RÉALISÉES', 18, y + 5.5, {bold:true, size:9, color:_tplTextOnBg});
-  pdfText(doc, 'RÉALISÉ', 193, y + 5.5, {bold:true, size:9, color:[255,255,255], align:'right'});
-  y += 10;
+  // ── Prestations ──
+  var isSpecialFacture = facture.type === 'special' && (facture.lots || []).length > 0;
 
-  (facture.diagnostics || []).forEach(function(d, i) {
-    if (i % 2 === 0) pdfRect(doc, 15, y - 1, 180, 8, [249, 250, 251]);
-    pdfText(doc, '- ' + d, 18, y + 5, {size:9, color:[30,30,30]});
-    pdfText(doc, 'OK', 193, y + 5, {size:9, color:[27,67,50], align:'right'});
-    y += 8;
-  });
+  if (isSpecialFacture) {
+    // ─── Devis spécial : détail par lot ───
+    var fLots = facture.lots || [];
+    fLots.forEach(function(lot, i) {
+      var estimH = 22 + (lot.diagnostics||[]).length * 7;
+      if (y + estimH > 270) { doc.addPage(); y = 15; }
+
+      pdfRect(doc, 15, y, 180, 8, _tplBg);
+      pdfText(doc, 'BIEN N°'+(i+1)+(lot.label?' — '+lot.label:''), 18, y+5.5, {bold:true,size:9,color:_tplTextOnBg});
+      y += 10;
+
+      var adresse = lot.meme_adresse ? (facture.adresse_commune||'') : (lot.adresse||'');
+      if (adresse) { pdfText(doc, '📍 '+adresse, 18, y+4, {size:8.5,color:[60,60,60]}); y += 6; }
+      if (lot.type_bien) { pdfText(doc, 'Type : '+lot.type_bien, 18, y+4, {size:8.5,color:[80,80,80]}); y += 6; }
+
+      pdfRect(doc, 15, y, 180, 7, [240,253,244]);
+      pdfText(doc, 'Prestation', 18, y+4.5, {bold:true,size:8,color:_tplAccent});
+      pdfText(doc, 'Tarif HT', 193, y+4.5, {bold:true,size:8,color:[45,106,79],align:'right'});
+      y += 7;
+      (lot.diagnostics||[]).forEach(function(d, di) {
+        if (di % 2 === 0) pdfRect(doc, 15, y-1, 180, 7, [249,250,251]);
+        pdfText(doc, '  '+d, 18, y+4, {size:8,color:[30,30,30]});
+        var tv = lot.tarifs_manuels && lot.tarifs_manuels[d] !== undefined ? parseFloat(lot.tarifs_manuels[d]) : 0;
+        pdfText(doc, tv > 0 ? tv.toFixed(2)+' €' : 'inclus', 193, y+4, {size:8,color:[45,106,79],align:'right'});
+        y += 7;
+      });
+
+      pdfRect(doc, 130, y+1, 65, 8, [232,245,237]);
+      pdfText(doc, 'Sous-total Bien N°'+(i+1), 132, y+6, {size:8,color:_tplAccent});
+      pdfText(doc, parseFloat(lot.sous_total||0).toFixed(2)+' €', 193, y+6, {bold:true,size:9,color:[27,67,50],align:'right'});
+      y += 13;
+    });
+
+    // Récapitulatif lots
+    if (y + 40 > 270) { doc.addPage(); y = 15; }
+    y = pdfAddLine(doc, y); y += 2;
+    pdfRect(doc, 15, y, 180, 8, _tplBg);
+    pdfText(doc, 'RÉCAPITULATIF', 18, y+5.5, {bold:true,size:9,color:_tplTextOnBg});
+    y += 10;
+    fLots.forEach(function(lot, i) {
+      if (i%2===0) pdfRect(doc, 15, y-1, 180, 8, [249,250,251]);
+      pdfText(doc, '  '+(lot.label||'Bien N°'+(i+1)), 18, y+5, {size:9,color:[30,30,30]});
+      pdfText(doc, parseFloat(lot.sous_total||0).toFixed(2)+' €', 193, y+5, {size:9,color:[45,106,79],align:'right'});
+      y += 8;
+    });
+
+  } else {
+    // ─── Devis standard : liste plate ───
+    pdfRect(doc, 15, y, 180, 8, _tplBg);
+    pdfText(doc, 'PRESTATIONS RÉALISÉES', 18, y + 5.5, {bold:true, size:9, color:_tplTextOnBg});
+    pdfText(doc, 'RÉALISÉ', 193, y + 5.5, {bold:true, size:9, color:[255,255,255], align:'right'});
+    y += 10;
+
+    (facture.diagnostics || []).forEach(function(d, i) {
+      if (i % 2 === 0) pdfRect(doc, 15, y - 1, 180, 8, [249, 250, 251]);
+      pdfText(doc, '- ' + d, 18, y + 5, {size:9, color:[30,30,30]});
+      pdfText(doc, 'OK', 193, y + 5, {size:9, color:[27,67,50], align:'right'});
+      y += 8;
+    });
+  }
 
   y += 4;
   y = pdfAddLine(doc, y);
