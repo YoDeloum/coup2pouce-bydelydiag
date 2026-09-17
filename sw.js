@@ -1,5 +1,5 @@
 // Service Worker — Coup 2 Pouce DELY DIAG
-const CACHE = 'coup2pouce-v25';
+const CACHE = 'coup2pouce-v26';
 
 // ─── Fichiers à mettre en cache pour le mode hors-ligne ───
 const PRECACHE = [
@@ -41,6 +41,9 @@ const PRECACHE = [
   './js/document-sender.js',
   './js/diagnostics-rules.js',
   './js/address-autocomplete.js',
+  './js/agent.js',
+  './js/agent-devis.js',
+  './js/agent-factures.js',
 
   // Data
   './data/modules.js',
