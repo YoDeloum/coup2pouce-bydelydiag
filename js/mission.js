@@ -225,6 +225,12 @@ function renderMissionForm(body) {
   // Calculer automatiquement le total depuis les tarifs au chargement
   setTimeout(function() {
     calculerTotalMission(false);
+    // Si m-total est déjà pré-rempli (depuis un devis), on l'affiche dans m-total-calc
+    var calcEl  = document.getElementById('m-total-calc');
+    var totalEl = document.getElementById('m-total');
+    if (calcEl && totalEl && totalEl.value && parseFloat(totalEl.value) > 0) {
+      calcEl.textContent = parseFloat(totalEl.value).toFixed(2) + ' €';
+    }
     // Autocomplétion clients
     if (typeof clientsAutocomplete === 'function') {
       var nomEl    = document.getElementById('m-nom');
