@@ -240,6 +240,16 @@ function renderProfilScreen() {
       <p style="font-size:10px;color:#9ca3af;text-align:center">L'import restaure toutes les données après confirmation. Les données actuelles seront remplacées.</p>
     </div>
 
+    <!-- ── Export Profil Agent Commercial ── -->
+    <div class="profil-section" style="border:2px solid #6366F1;background:#EEF2FF">
+      <div class="profil-section-title" style="color:#3730A3">🤝 Agent commercial</div>
+      <p style="font-size:12px;color:#4338CA;margin-bottom:14px">Génère un fichier de profil à partager avec ton agent commercial. Il lui permettra de créer des devis à ton nom et aux couleurs de ta société — sans accès à ton compte.</p>
+      <button onclick="exporterProfilAgent()" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">
+        📤 Exporter mon profil pour l'agent
+      </button>
+      <p style="font-size:10px;color:#6366F1;text-align:center;margin-top:6px">Fichier .c2p — contient profil, tarifs, logo, RIB et mentions légales</p>
+    </div>
+
     <!-- Document infos mission -->
     <div class="profil-section">
       <div class="profil-section-title">📋 Document infos mission</div>
@@ -552,4 +562,91 @@ function changerEmailConnexion() {
     msgEl.style.color = '#991B1B';
     msgEl.style.display = 'block';
   });
+}
+
+// ─────────────────────────────────────────────
+// EXPORT PROFIL AGENT COMMERCIAL
+// Génère un fichier .c2p contenant :
+//   - profil complet (logo, RIB, mentions, coordonnées)
+//   - tarifs personnalisés
+// L'agent importe ce fichier une seule fois dans son app
+// pour créer des devis au nom du diagnostiqueur.
+// ─────────────────────────────────────────────
+
+function exporterProfilAgent() {
+  try {
+    var profil  = getCompanyProfile();
+    var tarifs  = JSON.parse(localStorage.getItem('dd_tarifs') || '{}');
+
+    // Vérification minimale : le profil doit avoir au moins un nom
+    if (!profil.nom_societe && !profil.nom_responsable) {
+      alert('Ton profil société est vide. Remplis au moins le nom de la société avant d\'exporter.');
+      return;
+    }
+
+    var payload = {
+      type:        'coup2pouce_agent_profile',
+      version:     '1.0',
+      exported_at: new Date().toISOString(),
+      // Identifiant unique du diagnostiqueur (pour que l'agent puisse en gérer plusieurs)
+      diag_uid:    localStorage.getItem('fb_uid') || ('diag_' + Date.now()),
+      profil: {
+        nom_societe:       profil.nom_societe       || '',
+        nom_responsable:   profil.nom_responsable   || '',
+        adresse:           profil.adresse           || '',
+        telephone:         profil.telephone         || '',
+        email:             profil.email             || '',
+        siret:             profil.siret             || '',
+        rcs:               profil.rcs               || '',
+        tva:               profil.tva               || '',
+        // RIB pour les factures de commission
+        iban:              profil.iban              || '',
+        bic:               profil.bic               || '',
+        banque:            profil.banque            || '',
+        // Mentions légales
+        mentions:          profil.mentions          || '',
+        assurance:         profil.assurance         || '',
+        certification:     profil.certification     || '',
+        // Lien paiement en ligne
+        lien_paiement:     profil.lien_paiement     || '',
+        // Validité devis (jours)
+        validite_devis:    profil.validite_devis    || 30,
+        // Logo (base64 complet pour l'en-tête des PDFs)
+        logo:              profil.logo              || '',
+        logo_w:            profil.logo_w            || '',
+        logo_h:            profil.logo_h            || '',
+        // Signature numérique
+        signature:         profil.signature         || ''
+      },
+      tarifs: tarifs
+    };
+
+    var json    = JSON.stringify(payload, null, 2);
+    var blob    = new Blob([json], { type: 'application/json' });
+    var url     = URL.createObjectURL(blob);
+    var today   = new Date().toISOString().split('T')[0];
+    var nomFich = 'profil-agent-' + (profil.nom_societe || 'diag').replace(/\s+/g, '-') + '-' + today + '.c2p';
+    var a       = document.createElement('a');
+    a.href      = url;
+    a.download  = nomFich;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    // Feedback visuel
+    var btn = document.querySelector('[onclick="exporterProfilAgent()"]');
+    if (btn) {
+      var orig = btn.textContent;
+      btn.textContent = '✅ Profil exporté — envoie le fichier à ton agent !';
+      btn.style.background = 'linear-gradient(135deg,#059669,#10B981)';
+      setTimeout(function() {
+        btn.textContent = orig;
+        btn.style.background = 'linear-gradient(135deg,#6366F1,#4F46E5)';
+      }, 4000);
+    }
+
+  } catch(err) {
+    alert('Erreur lors de l\'export : ' + err.message);
+  }
 }
