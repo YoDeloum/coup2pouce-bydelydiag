@@ -184,7 +184,8 @@ var _FS_DOC_IDS  = ['consentement', 'cgv', 'cgi', 'doc_mission'];
 var _FS_BIG_KEYS = ['dd_devis_list', 'dd_missions', 'dd_factures_list',
                     'dd_doc_consentement', 'dd_doc_cgv', 'dd_doc_cgi', 'dd_doc_mission',
                     // Agent commercial — stockage sous le compte de l'agent
-                    'dd_agent_profiles', 'dd_agent_devis'];
+                    'dd_agent_profiles', 'dd_agent_devis',
+                    'dd_agent_comm_factures', 'dd_agent_own_profil'];
 var _FS_BIG_COL  = 'https://firestore.googleapis.com/v1/projects/' + _FS_PROJECT + '/databases/(default)/documents/userdata_big/';
 
 function _fsPushBig(uid, token, key, value) {
