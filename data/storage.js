@@ -16,7 +16,7 @@ var _FS_KEYS = [
   'dd_devis_list',
   'dd_missions',
   'dd_factures_list',
-  'dd_docs_reglementaires', // PDFs en base64 → stocké dans userdata_big (sous-collection dédiée)
+  // dd_docs_reglementaires : exclu de _FS_KEYS → stockage fractionné (un sous-doc Firestore par PDF)
   'dd_avatar',
   'dd_avatar_color',
   'dd_prenom',
@@ -38,6 +38,10 @@ Storage.prototype.setItem = function(key, value) {
   _lsSetItem.call(this, key, value);
   if (this === localStorage && _FS_KEYS.indexOf(key) !== -1) {
     _fsPush(key, value);
+  }
+  // Docs réglementaires : stockage fractionné (un PDF = un sous-doc Firestore)
+  if (this === localStorage && key === 'dd_docs_reglementaires') {
+    _fsSplitAndPushDocs(value);
   }
   // Sync créneaux publics pour les prescripteurs quand les missions changent
   if (this === localStorage && key === 'dd_missions') {
@@ -136,8 +140,46 @@ function _fsSyncShowWarning() {
   }
 }
 
+// ─── Docs réglementaires : fractionnement + reassemblage ───
+
+// Pousse chaque PDF individuellement vers Firestore (évite la limite 1 Mo)
+function _fsSplitAndPushDocs(value) {
+  var uid   = localStorage.getItem('fb_uid');
+  var token = localStorage.getItem('fb_token');
+  if (!uid || !token) return;
+  try {
+    var docs = JSON.parse(value || '{}');
+    _FS_DOC_IDS.forEach(function(docId) {
+      if (docs[docId]) {
+        _fsPushBig(uid, token, 'dd_doc_' + docId, JSON.stringify(docs[docId]));
+      }
+    });
+  } catch(e) {}
+}
+
+// Après _doSyncBig, reconstitue dd_docs_reglementaires depuis les clés individuelles
+function _reassembleDocsFromCloud() {
+  var existing = {};
+  try { existing = JSON.parse(localStorage.getItem('dd_docs_reglementaires') || '{}'); } catch(e) {}
+  var changed = false;
+  _FS_DOC_IDS.forEach(function(docId) {
+    var raw = localStorage.getItem('dd_doc_' + docId);
+    if (raw) {
+      try { existing[docId] = JSON.parse(raw); changed = true; } catch(e) {}
+      localStorage.removeItem('dd_doc_' + docId); // nettoyer la clé temporaire
+    }
+  });
+  if (changed) {
+    _lsSetItem.call(localStorage, 'dd_docs_reglementaires', JSON.stringify(existing));
+  }
+}
+
 // ─── Clés volumineuses : stockées dans des sous-collections dédiées ───
-var _FS_BIG_KEYS = ['dd_devis_list', 'dd_missions', 'dd_factures_list', 'dd_docs_reglementaires'];
+// Clés volumineuses → sous-collection userdata_big (1 document Firestore par clé)
+// Les 4 docs réglementaires sont stockés individuellement pour ne pas dépasser 1 Mo chacun
+var _FS_DOC_IDS  = ['consentement', 'cgv', 'cgi', 'doc_mission'];
+var _FS_BIG_KEYS = ['dd_devis_list', 'dd_missions', 'dd_factures_list',
+                    'dd_doc_consentement', 'dd_doc_cgv', 'dd_doc_cgi', 'dd_doc_mission'];
 var _FS_BIG_COL  = 'https://firestore.googleapis.com/v1/projects/' + _FS_PROJECT + '/databases/(default)/documents/userdata_big/';
 
 function _fsPushBig(uid, token, key, value) {
@@ -285,7 +327,10 @@ function _doSync(uid, token, callback) {
         .then(function(r) { return r.json(); })
         .then(function(d) {
           _processSync(d, uid, function() {
-            _doSyncBig(uid, newToken, callback);
+            _doSyncBig(uid, newToken, function() {
+              _reassembleDocsFromCloud();
+              if (callback) callback();
+            });
           });
         })
         .catch(function() { if (callback) callback(); });
@@ -293,7 +338,10 @@ function _doSync(uid, token, callback) {
       return;
     }
     _processSync(data, uid, function() {
-      _doSyncBig(uid, token, callback);
+      _doSyncBig(uid, token, function() {
+        _reassembleDocsFromCloud();
+        if (callback) callback();
+      });
     });
   })
   .catch(function() { if (callback) callback(); });
@@ -312,6 +360,10 @@ function forcerSyncCloud(btn) {
     var val = localStorage.getItem(key);
     if (val) { _fsPush(key, val); pushed++; }
   });
+
+  // Docs réglementaires : envoi fractionné (un PDF par sous-doc Firestore)
+  var docsVal = localStorage.getItem('dd_docs_reglementaires');
+  if (docsVal) { _fsSplitAndPushDocs(docsVal); pushed++; }
 
   // Sync aussi les créneaux publics (inclut les tarifs pour les prescripteurs)
   if (typeof updatePublicSlots === 'function') updatePublicSlots();
