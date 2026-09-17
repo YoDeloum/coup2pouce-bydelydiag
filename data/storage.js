@@ -16,8 +16,7 @@ var _FS_KEYS = [
   'dd_devis_list',
   'dd_missions',
   'dd_factures_list',
-  // 'dd_docs_reglementaires' exclu du sync Firestore : les PDFs en base64 sont trop volumineux
-  // et Firestore écrase les données locales à chaque login. Ces docs restent en localStorage uniquement.
+  'dd_docs_reglementaires', // PDFs en base64 → stocké dans userdata_big (sous-collection dédiée)
   'dd_avatar',
   'dd_avatar_color',
   'dd_prenom',
@@ -138,7 +137,7 @@ function _fsSyncShowWarning() {
 }
 
 // ─── Clés volumineuses : stockées dans des sous-collections dédiées ───
-var _FS_BIG_KEYS = ['dd_devis_list', 'dd_missions', 'dd_factures_list'];
+var _FS_BIG_KEYS = ['dd_devis_list', 'dd_missions', 'dd_factures_list', 'dd_docs_reglementaires'];
 var _FS_BIG_COL  = 'https://firestore.googleapis.com/v1/projects/' + _FS_PROJECT + '/databases/(default)/documents/userdata_big/';
 
 function _fsPushBig(uid, token, key, value) {
