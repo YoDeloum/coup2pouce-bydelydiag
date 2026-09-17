@@ -834,3 +834,36 @@ function convertirMissionEnFacture() {
   closeMission();
   openFacture();
 }
+
+// ─── Pré-remplissage depuis un deep link agent commercial ─────────────────
+// Appelée par app.js après décodage de ?import_mission=BASE64
+// data = { client_nom, client_prenom, client_tel, client_email,
+//          bien_adresse, typeBien, periode_construction, nb_pieces,
+//          surface, annee, type_transaction, diags[], total, devis_ref }
+function preRemplirMissionFromAgent(data) {
+  if (!data || typeof data !== 'object') return;
+
+  // Adapter les champs au format attendu par renderMissionForm (_devisToMission)
+  window._devisToMission = {
+    client_societe:       data.client_societe       || '',
+    client_nom:           data.client_nom            || '',
+    client_prenom:        data.client_prenom         || '',
+    client_tel:           data.client_tel            || '',
+    client_email:         data.client_email          || '',
+    bien_adresse:         data.bien_adresse          || '',
+    bien_type:            data.typeBien              || '',
+    periode_construction: data.periode_construction  || '',
+    nb_pieces:            data.nb_pieces             || '',
+    type_transaction:     data.type_transaction      || '',
+    diagnostics:          Array.isArray(data.diags) ? data.diags : [],
+    total_ht:             parseFloat(data.total)     || 0,
+    prix_final:           parseFloat(data.total)     || 0,
+    numero:               data.devis_ref             || '',
+    date_mission:         ''
+  };
+
+  // Naviguer vers le formulaire de nouvelle mission
+  currentMissionIdx = null;
+  missionView = 'form';
+  openMission();
+}
