@@ -345,6 +345,26 @@ function renderDevisForm(body) {
     ${_devisEdit !== null ? '<button onclick="supprimerDevis()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #EF4444;background:#fff;color:#EF4444;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🗑️ Supprimer ce devis</button>' : ''}`;
 
   updateDevisTotal();
+
+  // ─── Autocomplétion clients ───
+  setTimeout(function() {
+    if (typeof clientsAutocomplete === 'function') {
+      var nomEl    = document.getElementById('dv-client_nom');
+      var prenomEl = document.getElementById('dv-client_prenom');
+      var telEl    = document.getElementById('dv-client_tel');
+      var emailEl  = document.getElementById('dv-client_email');
+      if (nomEl) {
+        nomEl.addEventListener('input', function() {
+          clientsAutocomplete(nomEl, telEl, prenomEl, emailEl);
+        });
+      }
+      if (prenomEl) {
+        prenomEl.addEventListener('input', function() {
+          clientsAutocomplete(nomEl, telEl, prenomEl, emailEl);
+        });
+      }
+    }
+  }, 50);
 }
 
 // ─── TOGGLE ───
