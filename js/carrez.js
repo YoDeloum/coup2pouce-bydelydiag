@@ -155,6 +155,7 @@ function triHtmlDraw() {
 function triHtmlMeasure() {
   var phase = window.tri_phase, cur = window.tri_cur || 0;
   var pts = window.tri_pts || [], N = pts.length;
+  var walls = window.tri_walls || [], diags = window.tri_diags || [];
   var totalSteps = N + (N - 3), stepNum, label, hint, color, grad;
   if (phase === 'walls') {
     stepNum = cur + 1;
@@ -169,19 +170,44 @@ function triHtmlMeasure() {
     color = '#DC2626'; grad = '#B91C1C';
   }
   var pct = Math.round(stepNum / totalSteps * 100);
+  var canGoBack = (phase === 'walls' && cur > 0) || phase === 'diagonals';
+
+  // ─── Récapitulatif des mesures déjà saisies ───
+  var recapLines = [];
+  for (var wi = 0; wi < walls.length; wi++) {
+    var toCorner = (wi + 1 < N ? wi + 2 : 1);
+    recapLines.push('<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #F3F4F6;font-size:12px">'
+      + '<span style="color:#0891B2;font-weight:600">Mur ' + (wi+1) + ' → ' + toCorner + '</span>'
+      + '<span style="font-weight:700;color:#374151">' + walls[wi].toFixed(2) + ' m ✓</span></div>');
+  }
+  for (var di = 0; di < diags.length; di++) {
+    recapLines.push('<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #F3F4F6;font-size:12px">'
+      + '<span style="color:#DC2626;font-weight:600">Diagonale 1 → ' + (di+3) + '</span>'
+      + '<span style="font-weight:700;color:#374151">' + diags[di].toFixed(2) + ' m ✓</span></div>');
+  }
+  var recapHtml = recapLines.length > 0
+    ? '<div style="background:#F8F9FB;border-radius:8px;padding:8px 10px;margin-bottom:10px">'
+      + '<p style="font-size:10px;font-weight:700;color:#9CA3AF;letter-spacing:.5px;margin-bottom:4px">MESURES SAISIES</p>'
+      + recapLines.join('') + '</div>'
+    : '';
+
   return '<div class="card">'
     + '<h2 style="font-size:15px;font-weight:800;margin-bottom:6px;color:' + color + '">📐 ' + (phase === 'walls' ? 'Murs périphériques' : 'Diagonales') + '</h2>'
     + '<div style="display:flex;align-items:center;gap:8px;background:#F5F6FA;border-radius:8px;padding:7px 10px;margin-bottom:10px">'
     + '<div style="height:4px;flex:1;background:#E5E7EB;border-radius:4px"><div style="height:4px;background:' + color + ';border-radius:4px;width:' + pct + '%"></div></div>'
     + '<span style="font-size:11px;font-weight:700;color:#6B7280;white-space:nowrap">Étape ' + stepNum + ' / ' + totalSteps + '</span></div>'
     + '<canvas id="tri-canvas" width="320" height="190" style="width:100%;border-radius:10px;display:block;margin-bottom:10px"></canvas>'
+    + recapHtml
     + '<p style="font-size:18px;font-weight:800;color:' + color + ';margin-bottom:3px;text-align:center">' + label + '</p>'
     + '<p style="font-size:11px;color:#6B7280;margin-bottom:12px;text-align:center">' + hint + '</p>'
     + '<div style="display:flex;align-items:center;gap:8px">'
     + '<input id="tri-meas-input" type="text" inputmode="decimal" placeholder="ex: 3,45" onkeydown="if(event.key===\'Enter\')triValidate()" style="flex:1;font-size:26px;font-weight:700;text-align:center;padding:12px;border-radius:10px;border:2px solid ' + color + ';font-family:inherit;outline:none;background:#fff">'
     + '<span style="font-size:16px;color:#6B7280;font-weight:700">m</span></div>'
     + '<button onclick="triValidate()" style="width:100%;padding:14px;border-radius:10px;border:none;background:linear-gradient(135deg,' + color + ',' + grad + ');color:#fff;font-weight:800;font-size:16px;cursor:pointer;font-family:inherit;margin-top:10px">✅ Valider</button>'
-    + '<button onclick="triReset()" style="width:100%;padding:9px;border-radius:9px;border:2px solid #E5E7EB;background:#fff;color:#9CA3AF;font-weight:600;cursor:pointer;font-family:inherit;font-size:12px;margin-top:8px">🔄 Tout recommencer</button>'
+    + '<div style="display:flex;gap:8px;margin-top:8px">'
+    + (canGoBack ? '<button onclick="triStepBack()" style="flex:1;padding:9px;border-radius:9px;border:2px solid #F59E0B;background:#fff;color:#D97706;font-weight:700;cursor:pointer;font-family:inherit;font-size:12px">↩ Corriger</button>' : '')
+    + '<button onclick="triReset()" style="flex:1;padding:9px;border-radius:9px;border:2px solid #E5E7EB;background:#fff;color:#9CA3AF;font-weight:600;cursor:pointer;font-family:inherit;font-size:12px">🔄 Tout recommencer</button>'
+    + '</div>'
     + '</div>';
 }
 
@@ -348,5 +374,25 @@ function triCalculate() {
 function triReset() {
   window.tri_phase='draw'; window.tri_pts=[];
   window.tri_walls=[]; window.tri_diags=[]; window.tri_cur=0;
+  setCarrezTab('tri');
+}
+
+function triStepBack() {
+  var phase = window.tri_phase, cur = window.tri_cur || 0;
+  var N = (window.tri_pts || []).length;
+  if (phase === 'diagonals') {
+    if (cur > 0) {
+      window.tri_cur--;
+      (window.tri_diags || []).splice(window.tri_cur, 1);
+    } else {
+      // Retour à la dernière mesure de murs
+      window.tri_phase = 'walls';
+      window.tri_cur = N - 1;
+      (window.tri_walls || []).splice(N - 1, 1);
+    }
+  } else if (phase === 'walls' && cur > 0) {
+    window.tri_cur--;
+    (window.tri_walls || []).splice(window.tri_cur, 1);
+  }
   setCarrezTab('tri');
 }
