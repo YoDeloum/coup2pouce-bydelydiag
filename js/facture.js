@@ -68,7 +68,7 @@ function renderFactureList(body) {
             ${f.numero ? '<div class="devis-card-sub" style="color:#9ca3af">Réf. devis : ' + f.numero + '</div>' : ''}
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
               <div style="font-size:11px;color:#9ca3af">${f.date_facture ? new Date(f.date_facture).toLocaleDateString('fr-FR') : ''}</div>
-              <div style="font-size:16px;font-weight:800;color:#1B4332">${f.total_ht ? parseFloat(f.total_ht).toFixed(2) + ' € HT' : ''}</div>
+              <div style="font-size:16px;font-weight:800;color:#1B4332">${(f.prix_final && f.prix_final > 0 ? f.prix_final : f.total_ht) ? parseFloat(f.prix_final && f.prix_final > 0 ? f.prix_final : f.total_ht).toFixed(2) + ' € HT' : ''}</div>
             </div>
           </div>
         </div>`;
