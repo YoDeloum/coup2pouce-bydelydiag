@@ -44,6 +44,8 @@ function openAgentDevisForm(devisId) {
   body.innerHTML = _agentDevisFormHtml(devis, profil);
   // Recalculer total immédiatement si édition
   agentUpdateDevisTotal();
+  // Auto-check si les données du bien sont déjà renseignées (mode édition)
+  if (devisId && devis.typeBien) agentAutoCheckDiags();
 }
 
 // ─── HTML du formulaire de devis agent ───────
@@ -81,13 +83,22 @@ function _agentDevisFormHtml(devis, profil) {
       + '</div>';
   }).join('');
 
+  var isEdit   = !!(devis.id);
+  var isSent   = !!(devis.envoye);
+  var headerTxt = isEdit
+    ? (isSent ? '✏️ Modifier le devis ' + (devis.numero || '') : '📝 Modifier le devis ' + (devis.numero || ''))
+    : '📝 Nouveau devis';
+  var backFn = isEdit ? 'renderAgentDevisList()' : 'renderAgentScreen()';
+
   return `
     <!-- ── En-tête formulaire ── -->
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-      <button onclick="renderAgentScreen()"
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:${isSent ? '8' : '16'}px">
+      <button onclick="${backFn}"
         style="background:none;border:none;color:#6366F1;font-weight:700;font-size:14px;cursor:pointer;padding:0;font-family:inherit">← Retour</button>
-      <div style="flex:1;font-size:15px;font-weight:800;color:#1B4332">📝 Nouveau devis</div>
+      <div style="flex:1;font-size:15px;font-weight:800;color:#1B4332">${headerTxt}</div>
     </div>
+
+    ${isSent ? '<div style="background:#FEF3C7;border:1.5px solid #FCD34D;border-radius:10px;padding:9px 13px;margin-bottom:12px;font-size:12px;color:#92400E;font-weight:600">⚠️ Ce devis a déjà été envoyé au client. Après modification, pensez à le renvoyer via "↩️ Renvoyer".</div>' : ''}
 
     <!-- ── Pour qui ── -->
     <div style="background:#EEF2FF;border:1.5px solid #A5B4FC;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#4338CA;font-weight:600">
@@ -137,14 +148,14 @@ function _agentDevisFormHtml(devis, profil) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div>
           <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Type de bien</label>
-          <select id="ag-typeBien" style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;background:#fff">
+          <select id="ag-typeBien" onchange="agentAutoCheckDiags()" style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;background:#fff">
             <option value="">— Choisir —</option>
             ${typeBienOptions.map(function(t) { return '<option value="' + t + '" ' + sel(devis.typeBien, t) + '>' + t + '</option>'; }).join('')}
           </select>
         </div>
         <div>
           <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Type de transaction</label>
-          <select id="ag-type_transaction" style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;background:#fff">
+          <select id="ag-type_transaction" onchange="agentAutoCheckDiags()" style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;background:#fff">
             <option value="">— Choisir —</option>
             <option value="Vente" ${sel(devis.type_transaction,'Vente')}>Vente</option>
             <option value="Location" ${sel(devis.type_transaction,'Location')}>Location</option>
@@ -152,7 +163,7 @@ function _agentDevisFormHtml(devis, profil) {
         </div>
         <div>
           <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Période de construction</label>
-          <select id="ag-periode_construction" style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;background:#fff">
+          <select id="ag-periode_construction" onchange="agentAutoCheckDiags()" style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;background:#fff">
             <option value="">— Choisir —</option>
             ${periodOptions.map(function(p) { return '<option value="' + p + '" ' + sel(devis.periode_construction, p) + '>' + p + '</option>'; }).join('')}
           </select>
@@ -177,24 +188,45 @@ function _agentDevisFormHtml(devis, profil) {
 
     <!-- ── Prestations ── -->
     <div style="background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)">
-      <div style="font-size:12px;font-weight:800;color:#6366F1;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">🔬 Prestations</div>
-      <div style="font-size:11px;color:#9CA3AF;margin-bottom:10px">Coche les diagnostics — tarifs du diagnostiqueur</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="font-size:12px;font-weight:800;color:#6366F1;letter-spacing:.5px;text-transform:uppercase">🔬 Prestations</div>
+        <button onclick="agentAutoCheckDiags()" style="padding:5px 10px;border-radius:8px;border:1.5px solid #6366F1;background:#EEF2FF;color:#4338CA;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">
+          🤖 Auto-sélectionner
+        </button>
+      </div>
+      <div style="font-size:11px;color:#9CA3AF;margin-bottom:6px">Coche les diagnostics — tarifs du diagnostiqueur · Le bouton "Auto" sélectionne les obligatoires selon le bien</div>
+      <div id="ag-auto-info" style="display:none;background:#F0FDF4;border:1px solid #A7F3D0;border-radius:8px;padding:6px 10px;font-size:11px;color:#059669;font-weight:600;margin-bottom:8px"></div>
       ${diagsHtml}
-      <!-- Total -->
+      <!-- Total avec remise -->
       <div style="background:#EEF2FF;border-radius:10px;padding:12px;margin-top:8px;border:1px solid #A5B4FC">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-size:13px;font-weight:700;color:#4338CA">Total HT</span>
-          <span id="ag-total-display" style="font-size:18px;font-weight:800;color:#6366F1">0.00 €</span>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:12px;font-weight:600;color:#6B7280">Sous-total</span>
+          <span id="ag-total-display" style="font-size:14px;font-weight:700;color:#6366F1">0.00 €</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-size:12px;color:#EF4444;white-space:nowrap;font-weight:600">− Remise</span>
+          <input id="ag-remise" type="number" min="0" step="5"
+            value="${devis.remise && devis.remise > 0 ? parseFloat(devis.remise) : ''}"
+            placeholder="0"
+            onchange="agentUpdateDevisTotal()"
+            style="width:72px;padding:5px 8px;border-radius:7px;border:1.5px solid #FCA5A5;font-size:13px;font-family:inherit;outline:none;color:#EF4444;font-weight:700;text-align:right"/>
+          <span style="font-size:12px;color:#6B7280">€</span>
+          <span id="ag-remise-display" style="font-size:11px;color:#EF4444;font-weight:600;margin-left:4px"></span>
+        </div>
+        <div style="border-top:1px dashed #A5B4FC;padding-top:8px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <span style="font-size:13px;font-weight:800;color:#4338CA">Total HT</span>
+          <span id="ag-net-total-display" style="font-size:20px;font-weight:800;color:#6366F1">0.00 €</span>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:12px;color:#6B7280;white-space:nowrap;font-weight:600">Prix forfaitaire</span>
+          <span style="font-size:11px;color:#9CA3AF;white-space:nowrap;font-weight:600">Prix forfaitaire (override)</span>
           <input id="ag-prix_final" type="number" min="0" step="1"
             value="${devis.prix_final && devis.prix_final > 0 ? parseFloat(devis.prix_final) : ''}"
             placeholder="Vide = calcul auto"
-            style="flex:1;padding:6px 10px;border-radius:8px;border:1.5px solid #A5B4FC;font-size:13px;font-family:inherit;outline:none;color:#6366F1;font-weight:700"/>
+            onchange="agentUpdateDevisTotal()"
+            style="flex:1;padding:5px 8px;border-radius:7px;border:1.5px dashed #A5B4FC;font-size:13px;font-family:inherit;outline:none;color:#6366F1;font-weight:700"/>
           <span style="font-size:12px;color:#6B7280">€ HT</span>
         </div>
-        <div style="font-size:10px;color:#9ca3af;margin-top:4px">Si renseigné, remplace le total dans le PDF</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:4px">Si renseigné, remplace le total HT dans le PDF</div>
       </div>
     </div>
 
@@ -223,17 +255,32 @@ function _agentDevisFormHtml(devis, profil) {
 
 // ─── Recalculer le total du formulaire ────────
 function agentUpdateDevisTotal() {
-  var total = 0;
+  var subtotal = 0;
   document.querySelectorAll('.ag-diag-item').forEach(function(el) {
     var cb = el.querySelector('input[type="checkbox"]');
     if (cb && cb.checked) {
       var inp = el.querySelector('.ag-tarif-input');
-      total  += parseFloat(inp ? inp.value : 0) || 0;
+      subtotal += parseFloat(inp ? inp.value : 0) || 0;
     }
   });
-  var disp = document.getElementById('ag-total-display');
-  if (disp) disp.textContent = total.toFixed(2) + ' €';
-  window._agentDevisTotal = total;
+
+  var remise  = parseFloat((document.getElementById('ag-remise') || {}).value) || 0;
+  var net     = Math.max(0, subtotal - remise);
+  var override = parseFloat((document.getElementById('ag-prix_final') || {}).value) || 0;
+  var display  = override > 0 ? override : net;
+
+  var dispSub  = document.getElementById('ag-total-display');
+  var dispRem  = document.getElementById('ag-remise-display');
+  var dispNet  = document.getElementById('ag-net-total-display');
+
+  if (dispSub)  dispSub.textContent  = subtotal.toFixed(2) + ' €';
+  if (dispRem)  dispRem.textContent  = remise > 0 ? ('(−' + remise.toFixed(2) + ' €)') : '';
+  if (dispNet)  {
+    dispNet.textContent = display.toFixed(2) + ' €';
+    dispNet.style.color = override > 0 ? '#059669' : '#6366F1';
+  }
+
+  window._agentDevisTotal = display;
 }
 
 // ─── Cocher/décocher un diagnostic ───────────
@@ -259,8 +306,10 @@ function _collectAgentDevisForm() {
     tarifsMan[nom] = val;
     if (cb && cb.checked) selDiags.push(nom);
   });
-  var total = selDiags.reduce(function(s, nom) { return s + (tarifsMan[nom] || 0); }, 0);
-  var prixFinal = parseFloat(document.getElementById('ag-prix_final').value) || 0;
+  var subtotal  = selDiags.reduce(function(s, nom) { return s + (tarifsMan[nom] || 0); }, 0);
+  var remise    = parseFloat((document.getElementById('ag-remise') || {}).value) || 0;
+  var total     = Math.max(0, subtotal - remise);
+  var prixFinal = parseFloat((document.getElementById('ag-prix_final') || {}).value) || 0;
 
   return {
     client_nom:           (document.getElementById('ag-client_nom')            || {}).value || '',
@@ -278,6 +327,7 @@ function _collectAgentDevisForm() {
     notes:                (document.getElementById('ag-notes')                 || {}).value || '',
     diagnostics:          selDiags,
     tarifs_manuels:       tarifsMan,
+    remise:               remise,
     total_ht:             total,
     prix_final:           prixFinal > 0 ? prixFinal : 0
   };
@@ -584,5 +634,154 @@ function agentEnvoyerDevis(devisId) {
   .catch(function(err) {
     if (btn) { btn.textContent = '✉️ Envoyer'; btn.disabled = false; }
     alert('❌ Erreur : ' + err.message);
+  });
+}
+
+// ─── Auto-sélection des diagnostics obligatoires ──────────────────
+// Appelée automatiquement quand type de bien / période / transaction change,
+// ou via le bouton "🤖 Auto-sélectionner".
+// N'efface PAS les diagnostics déjà cochés manuellement.
+
+function agentAutoCheckDiags() {
+  var typeBien = (document.getElementById('ag-typeBien') || {}).value || '';
+  var periode  = (document.getElementById('ag-periode_construction') || {}).value || '';
+  var transac  = (document.getElementById('ag-type_transaction') || {}).value || '';
+
+  if (!typeBien && !periode && !transac) return; // Pas assez d'info
+
+  // ── Règles obligatoires françaises simplifiées ──
+  var autoCheck = [];
+
+  // DPE : toujours requis (Vente et Location)
+  autoCheck.push('DPE');
+
+  // ERP : toujours requis
+  autoCheck.push('ERP');
+
+  // Amiante : construction avant 1997 (Avant 1949 ou 1949-1997)
+  if (periode === 'Avant 1949' || periode === '1949-1997') {
+    autoCheck.push('Amiante');
+  }
+
+  // Plomb : construction avant 1949
+  if (periode === 'Avant 1949') {
+    autoCheck.push('Plomb');
+  }
+
+  // Électricité : installation > 15 ans (Avant 1949, 1949-1997, 1997-2011)
+  if (periode === 'Avant 1949' || periode === '1949-1997' || periode === '1997-2011') {
+    autoCheck.push('Électricité');
+  }
+
+  // Gaz : même règle
+  if (periode === 'Avant 1949' || periode === '1949-1997' || periode === '1997-2011') {
+    autoCheck.push('Gaz');
+  }
+
+  // Carrez : appartement / immeuble en vente
+  if ((typeBien === 'Appartement' || typeBien === 'Immeuble') && transac === 'Vente') {
+    autoCheck.push('Carrez');
+  }
+
+  // Boutin : appartement en location
+  if (typeBien === 'Appartement' && transac === 'Location') {
+    autoCheck.push('Boutin');
+  }
+
+  // ── Appliquer sur les checkboxes ──
+  var nbAdded = 0;
+  document.querySelectorAll('.ag-diag-item').forEach(function(el) {
+    var nom = el.getAttribute('data-nom');
+    var cb  = el.querySelector('input[type="checkbox"]');
+    if (!cb) return;
+    if (autoCheck.indexOf(nom) !== -1 && !cb.checked) {
+      cb.checked           = true;
+      el.style.borderColor = '#6366F1';
+      el.style.background  = '#EEF2FF';
+      nbAdded++;
+    }
+  });
+
+  agentUpdateDevisTotal();
+
+  if (nbAdded > 0) {
+    // Petit feedback visuel (pas d'alert, juste un message discret)
+    var info = document.getElementById('ag-auto-info');
+    if (info) {
+      info.textContent = '✅ ' + nbAdded + ' diagnostic(s) ajouté(s) automatiquement';
+      info.style.display = 'block';
+      setTimeout(function() { info.style.display = 'none'; }, 3000);
+    }
+  }
+}
+
+// ─── Relance (email rappel court) ─────────────────────────────────
+// Envoie un email simple rappelant au client qu'il n'a pas encore signé.
+
+function agentRelancerDevis(devisId) {
+  var allDev = getAgentDevis();
+  var d      = allDev.find(function(x) { return x.id === devisId; });
+  if (!d) { alert('Devis introuvable.'); return; }
+
+  if (!d.client_email) {
+    alert('Pas d\'email client sur ce devis.');
+    return;
+  }
+  if (!d.signature_url) {
+    alert('Ce devis n\'a pas encore été envoyé. Utilise "Envoyer" d\'abord.');
+    return;
+  }
+
+  var profil = getAgentProfiles().find(function(p) { return p.diag_uid === d.diag_uid; });
+  var p      = (profil && profil.profil) || {};
+  var societe = p.nom_societe || 'Coup 2 Pouce';
+  var montant = parseFloat(d.prix_final > 0 ? d.prix_final : d.total_ht || 0).toFixed(2);
+
+  var btn = document.querySelector('[onclick*="agentRelancerDevis(\'' + devisId + '\')"]');
+  if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+
+  var html = '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">'
+    + '<div style="background:linear-gradient(135deg,#F59E0B,#D97706);padding:20px 32px;border-radius:12px 12px 0 0">'
+    + '<h2 style="color:#fff;margin:0;font-size:18px">⏰ Rappel — Votre devis attend votre signature</h2>'
+    + '</div>'
+    + '<div style="background:#FFFBEB;border:1px solid #FDE68A;padding:24px 32px;border-radius:0 0 12px 12px">'
+    + '<p style="color:#374151">Bonjour ' + (d.client_prenom || '') + ',</p>'
+    + '<p style="color:#374151">Nous n\'avons pas encore reçu votre accord pour le devis <strong>N° ' + (d.numero || '') + '</strong> — ' + (d.bien_adresse || '') + '.</p>'
+    + '<div style="background:#fff;border:1px solid #FDE68A;border-radius:8px;padding:14px;margin:16px 0;text-align:center">'
+    + '<div style="font-size:20px;font-weight:800;color:#D97706">' + montant + ' € HT</div>'
+    + '<div style="font-size:12px;color:#9CA3AF;margin-top:4px">Diagnostics : ' + (d.diagnostics || []).join(', ') + '</div>'
+    + '</div>'
+    + '<div style="text-align:center;margin:20px 0">'
+    + '<a href="' + d.signature_url + '" style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#059669,#10B981);color:#fff;text-decoration:none;border-radius:10px;font-size:15px;font-weight:700">'
+    + '✅ Signer mon devis maintenant</a>'
+    + '</div>'
+    + '<p style="font-size:12px;color:#9CA3AF;text-align:center">Ce lien est unique et sécurisé. En cas de question, contactez-nous.</p>'
+    + '<p style="color:#374151;margin-top:20px">Cordialement,<br><strong>' + (p.nom_responsable || societe) + '</strong></p>'
+    + '</div></div>';
+
+  fetch('/.netlify/functions/send-email', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      to:        d.client_email,
+      subject:   '⏰ Rappel — Devis N° ' + (d.numero || '') + ' en attente de signature',
+      html:      html,
+      fromName:  societe,
+      fromEmail: 'noreply@coup2pouce-pro.fr',
+      replyTo:   p.email || ''
+    })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    if (btn) { btn.textContent = '📣 Relancer'; btn.disabled = false; }
+    if (res.success || res.id) {
+      alert('✅ Email de relance envoyé à ' + d.client_email);
+    } else {
+      alert('⚠️ Erreur : ' + (res.error || JSON.stringify(res)));
+    }
+  })
+  .catch(function(err) {
+    if (btn) { btn.textContent = '📣 Relancer'; btn.disabled = false; }
+    alert('❌ Erreur réseau : ' + err.message);
   });
 }
