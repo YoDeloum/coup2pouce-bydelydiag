@@ -20,6 +20,7 @@ function closeMission() {
 function renderMissionScreen() {
   var body = document.getElementById('mission-body');
   if (missionView === 'form') renderMissionForm(body);
+  else if (missionView === 'feuille_visite') renderFeuilleVisite(body);
   else if (missionView === 'dpe') renderDPEScreen(body);
   else if (missionView === 'calendar') renderMissionCalendar(body);
   else renderMissionList(body);
@@ -211,6 +212,7 @@ function renderMissionForm(body) {
       <button onclick="addToCalendar()" style="padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#0891B2,#0E7490);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">📅 Agenda</button>
       <button onclick="setMissionRappel()" style="padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">🔔 Rappel</button>
     </div>
+    <button onclick="ouvrirFeuilleVisite()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#2D6A4F,#40916C);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px">📋 Feuille de visite terrain</button>
     <button onclick="missionView='dpe';renderMissionScreen()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#1D4ED8,#2563EB);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px">📐 Relevé DPE — Analyser un croquis</button>
     <button class="mission-save-btn" onclick="saveMissionForm()">💾 Sauvegarder la mission</button>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
