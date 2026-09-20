@@ -1,5 +1,5 @@
 // Service Worker — Coup 2 Pouce DELY DIAG
-const CACHE = 'coup2pouce-v33';
+const CACHE = 'coup2pouce-v30';
 
 // ─── Fichiers à mettre en cache pour le mode hors-ligne ───
 const PRECACHE = [
@@ -63,8 +63,8 @@ const PRECACHE = [
 
 // ─── Installation : mise en cache de tous les fichiers ───
 self.addEventListener('install', function(e) {
-  // skipWaiting() immédiat → le nouveau SW s'active sans attendre l'utilisateur
-  self.skipWaiting();
+  // PAS de skipWaiting() ici — on attend que l'utilisateur clique "Actualiser"
+  // pour éviter que le SW s'active en plein milieu d'une session
   e.waitUntil(
     caches.open(CACHE).then(function(cache) {
       return Promise.allSettled(
