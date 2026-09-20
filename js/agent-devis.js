@@ -183,6 +183,22 @@ function _agentDevisFormHtml(devis, profil) {
           <input id="ag-annee" type="number" min="1800" max="2030" value="${devis.annee||''}" placeholder="Ex : 1985"
             style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
         </div>
+        <div style="grid-column:1/-1">
+          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:6px">🔥 Présence de gaz</label>
+          <div style="display:flex;gap:8px">
+            <button type="button" id="ag-gaz-oui"
+              onclick="agentSetGaz('oui')"
+              style="flex:1;padding:9px;border-radius:8px;border:2px solid ${devis.has_gaz==='oui'?'#EF4444':'#E2E5F0'};background:${devis.has_gaz==='oui'?'#FEF2F2':'#FAFAFA'};color:${devis.has_gaz==='oui'?'#EF4444':'#6B7280'};font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">
+              🔥 Oui, présence de gaz
+            </button>
+            <button type="button" id="ag-gaz-non"
+              onclick="agentSetGaz('non')"
+              style="flex:1;padding:9px;border-radius:8px;border:2px solid ${devis.has_gaz==='non'||!devis.has_gaz?'#6366F1':'#E2E5F0'};background:${devis.has_gaz==='non'||!devis.has_gaz?'#EEF2FF':'#FAFAFA'};color:${devis.has_gaz==='non'||!devis.has_gaz?'#4338CA':'#6B7280'};font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">
+              🚫 Pas de gaz
+            </button>
+          </div>
+          <input type="hidden" id="ag-has_gaz" value="${devis.has_gaz||'non'}"/>
+        </div>
       </div>
     </div>
 
@@ -325,6 +341,7 @@ function _collectAgentDevisForm() {
     surface:              (document.getElementById('ag-surface')               || {}).value || '',
     annee:                (document.getElementById('ag-annee')                 || {}).value || '',
     notes:                (document.getElementById('ag-notes')                 || {}).value || '',
+    has_gaz:              (document.getElementById('ag-has_gaz') || {}).value || 'non',
     diagnostics:          selDiags,
     tarifs_manuels:       tarifsMan,
     remise:               remise,
@@ -637,6 +654,23 @@ function agentEnvoyerDevis(devisId) {
   });
 }
 
+// ─── Basculer présence de gaz ─────────────────────────────────────
+function agentSetGaz(val) {
+  var inp = document.getElementById('ag-has_gaz');
+  if (inp) inp.value = val;
+
+  var btnOui = document.getElementById('ag-gaz-oui');
+  var btnNon = document.getElementById('ag-gaz-non');
+  if (val === 'oui') {
+    if (btnOui) { btnOui.style.borderColor='#EF4444'; btnOui.style.background='#FEF2F2'; btnOui.style.color='#EF4444'; }
+    if (btnNon) { btnNon.style.borderColor='#E2E5F0'; btnNon.style.background='#FAFAFA'; btnNon.style.color='#6B7280'; }
+  } else {
+    if (btnNon) { btnNon.style.borderColor='#6366F1'; btnNon.style.background='#EEF2FF'; btnNon.style.color='#4338CA'; }
+    if (btnOui) { btnOui.style.borderColor='#E2E5F0'; btnOui.style.background='#FAFAFA'; btnOui.style.color='#6B7280'; }
+  }
+  agentAutoCheckDiags();
+}
+
 // ─── Auto-sélection des diagnostics obligatoires ──────────────────
 // Appelée automatiquement quand type de bien / période / transaction change,
 // ou via le bouton "🤖 Auto-sélectionner".
@@ -646,10 +680,11 @@ function agentAutoCheckDiags() {
   var typeBien = (document.getElementById('ag-typeBien') || {}).value || '';
   var periode  = (document.getElementById('ag-periode_construction') || {}).value || '';
   var transac  = (document.getElementById('ag-type_transaction') || {}).value || '';
+  var hasGaz   = (document.getElementById('ag-has_gaz') || {}).value === 'oui';
 
   if (!typeBien && !periode && !transac) return; // Pas assez d'info
 
-  // ── Règles obligatoires françaises simplifiées ──
+  // ── Règles obligatoires françaises ──
   var autoCheck = [];
 
   // DPE : toujours requis (Vente et Location)
@@ -658,33 +693,40 @@ function agentAutoCheckDiags() {
   // ERP : toujours requis
   autoCheck.push('ERP');
 
-  // Amiante : construction avant 1997 (Avant 1949 ou 1949-1997)
+  // Amiante : construction avant juillet 1997
+  // - VENTE : obligatoire pour tous types de biens
+  // - LOCATION : uniquement pour les biens en copropriété (appartements, immeubles)
+  //   → PAS pour une maison individuelle en location
   if (periode === 'Avant 1949' || periode === '1949-1997') {
-    autoCheck.push('Amiante');
+    if (transac === 'Vente') {
+      autoCheck.push('Amiante');
+    } else if (transac === 'Location' && typeBien !== 'Maison') {
+      autoCheck.push('Amiante');
+    }
   }
 
-  // Plomb : construction avant 1949
+  // Plomb : construction avant 1949 — vente ET location
   if (periode === 'Avant 1949') {
     autoCheck.push('Plomb');
   }
 
-  // Électricité : installation > 15 ans (Avant 1949, 1949-1997, 1997-2011)
+  // Électricité : installation > 15 ans (avant 2011)
   if (periode === 'Avant 1949' || periode === '1949-1997' || periode === '1997-2011') {
     autoCheck.push('Électricité');
   }
 
-  // Gaz : même règle
-  if (periode === 'Avant 1949' || periode === '1949-1997' || periode === '1997-2011') {
+  // Gaz : installation > 15 ans ET présence de gaz déclarée
+  if (hasGaz && (periode === 'Avant 1949' || periode === '1949-1997' || periode === '1997-2011')) {
     autoCheck.push('Gaz');
   }
 
-  // Carrez : appartement / immeuble en vente
+  // Carrez : appartement / immeuble EN VENTE (copropriété uniquement, pas les maisons)
   if ((typeBien === 'Appartement' || typeBien === 'Immeuble') && transac === 'Vente') {
     autoCheck.push('Carrez');
   }
 
-  // Boutin : appartement en location
-  if (typeBien === 'Appartement' && transac === 'Location') {
+  // Boutin : LOCATION uniquement — TOUS types de biens (maison ET appartement)
+  if (transac === 'Location') {
     autoCheck.push('Boutin');
   }
 
