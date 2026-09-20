@@ -72,9 +72,20 @@ function firebaseLogin() {
             missions = JSON.parse(localStorage.getItem('dd_missions') || '[]');
           }
           document.getElementById('login-screen').classList.add('hidden');
+          // Traiter une mission en attente transmise via deep link agent
+          setTimeout(function() {
+            if (typeof _processPendingMissionImport === 'function') {
+              _processPendingMissionImport();
+            }
+          }, 600);
         });
       } else {
         document.getElementById('login-screen').classList.add('hidden');
+        setTimeout(function() {
+          if (typeof _processPendingMissionImport === 'function') {
+            _processPendingMissionImport();
+          }
+        }, 600);
       }
     } else {
       var msg = 'Email ou mot de passe incorrect';
