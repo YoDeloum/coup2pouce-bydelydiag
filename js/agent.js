@@ -1,663 +1,835 @@
 // ─────────────────────────────────────────────
-// AGENT.JS — Module Agent Commercial
+// AGENT-DEVIS.JS — Création de devis par l'agent commercial
 // Coup 2 Pouce — DELY DIAG
 //
-// Clés localStorage utilisées (isolées, propres à l'agent) :
-//   dd_agent_role      → 'agent' si ce compte est un agent
-//   dd_agent_profiles  → tableau des profils diagnostiqueurs importés
-//   dd_agent_active    → diag_uid du diagnostiqueur actuellement sélectionné
-//   dd_agent_devis     → tableau de tous les devis créés par cet agent
-//
-// AUCUNE interférence avec les clés des diagnostiqueurs.
+// Fonctions exportées (appelées depuis agent.js / index.html) :
+//   openAgentDevisForm()       — ouvre le formulaire de création
+//   saveAgentDevisForm()       — valide et enregistre le devis
+//   agentUpdateDevisTotal()    — recalcule le total en temps réel
+//   agentToggleDiag(el, nom)   — coche/décoche un diagnostic
+//   telechargerPDFAgentDevis(devisId)  — PDF download
+//   agentEnvoyerDevis(devisId)         — envoi mail + signature
 // ─────────────────────────────────────────────
 
-// ─── Helpers données agent ───────────────────
-
-function isAgentAccount() {
-  return localStorage.getItem('dd_agent_role') === 'agent';
+// ─── Numérotation des devis agent ────────────
+// Format : AG-YYYY-NNN  (par diagnostiqueur)
+function genAgentDevisNumero(diagUid) {
+  var year    = new Date().getFullYear();
+  var allDev  = getAgentDevis();
+  var prefix  = 'AG-' + year + '-';
+  var count   = allDev.filter(function(d) {
+    return d.diag_uid === diagUid && d.numero && d.numero.startsWith(prefix);
+  }).length + 1;
+  return prefix + String(count).padStart(3, '0');
 }
 
-function getAgentProfiles() {
-  try { return JSON.parse(localStorage.getItem('dd_agent_profiles') || '[]'); }
-  catch(e) { return []; }
-}
-
-function saveAgentProfiles(profiles) {
-  localStorage.setItem('dd_agent_profiles', JSON.stringify(profiles));
-}
-
-function getAgentActiveUid() {
-  return localStorage.getItem('dd_agent_active') || '';
-}
-
-function getAgentActiveProfil() {
-  var uid      = getAgentActiveUid();
-  var profiles = getAgentProfiles();
-  if (!uid && profiles.length > 0) uid = profiles[0].diag_uid;
-  return profiles.find(function(p) { return p.diag_uid === uid; }) || null;
-}
-
-function getAgentDevis() {
-  try { return JSON.parse(localStorage.getItem('dd_agent_devis') || '[]'); }
-  catch(e) { return []; }
-}
-
-function saveAgentDevis(list) {
-  localStorage.setItem('dd_agent_devis', JSON.stringify(list));
-}
-
-// ─── Import d'un profil diagnostiqueur (.c2p) ─
-
-function agentImporterProfil(event) {
-  var file = event.target.files && event.target.files[0];
-  if (!file) return;
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      var data = JSON.parse(e.target.result);
-
-      // Validation du format
-      if (!data || data.type !== 'coup2pouce_agent_profile') {
-        alert('Fichier invalide. Ce fichier n\'est pas un profil agent Coup 2 Pouce (.c2p).');
-        return;
-      }
-      if (!data.profil || !data.diag_uid) {
-        alert('Fichier incomplet. Demande au diagnostiqueur de ré-exporter son profil.');
-        return;
-      }
-
-      var profiles = getAgentProfiles();
-      var existing = profiles.findIndex(function(p) { return p.diag_uid === data.diag_uid; });
-
-      var entry = {
-        diag_uid:    data.diag_uid,
-        profil:      data.profil,
-        tarifs:      data.tarifs || {},
-        imported_at: new Date().toISOString(),
-        nom_affiche: data.profil.nom_societe || data.profil.nom_responsable || 'Diagnostiqueur'
-      };
-
-      if (existing >= 0) {
-        // Mise à jour d'un profil existant
-        profiles[existing] = entry;
-        alert('✅ Profil de ' + entry.nom_affiche + ' mis à jour !');
-      } else {
-        profiles.push(entry);
-        alert('✅ Profil de ' + entry.nom_affiche + ' ajouté !');
-      }
-
-      saveAgentProfiles(profiles);
-
-      // Activer ce profil si c'est le premier importé
-      if (!getAgentActiveUid() || profiles.length === 1) {
-        localStorage.setItem('dd_agent_active', data.diag_uid);
-      }
-
-      // Marquer ce compte comme agent
-      localStorage.setItem('dd_agent_role', 'agent');
-
-      renderAgentScreen();
-
-    } catch(err) {
-      alert('Erreur lors de la lecture du fichier : ' + err.message);
-    }
-  };
-  reader.readAsText(file);
-}
-
-// ─── Supprimer un profil diagnostiqueur ──────
-
-function agentSupprimerProfil(diagUid) {
-  var profiles = getAgentProfiles();
-  var entry    = profiles.find(function(p) { return p.diag_uid === diagUid; });
-  if (!entry) return;
-  if (!confirm('Supprimer le profil de ' + entry.nom_affiche + ' ? Ses devis resteront dans la liste.')) return;
-  profiles = profiles.filter(function(p) { return p.diag_uid !== diagUid; });
-  saveAgentProfiles(profiles);
-  if (getAgentActiveUid() === diagUid) {
-    localStorage.setItem('dd_agent_active', profiles.length > 0 ? profiles[0].diag_uid : '');
-  }
-  renderAgentScreen();
-}
-
-// ─── Sélectionner le diagnostiqueur actif ────
-
-function agentSwitchDiag(diagUid) {
-  localStorage.setItem('dd_agent_active', diagUid);
-  renderAgentScreen();
-}
-
-// ─── Ouvrir / Fermer / Rendre l'écran agent ──
-
-function openAgentScreen() {
-  document.getElementById('agent-screen').style.display = 'flex';
-  renderAgentScreen();
-}
-
-function closeAgentScreen() {
-  document.getElementById('agent-screen').style.display = 'none';
-}
-
-function renderAgentScreen() {
-  var body     = document.getElementById('agent-body');
+// ─── Ouvrir le formulaire de création ────────
+// Remplace le contenu de agent-body par le formulaire.
+// devisId : si fourni → édition d'un brouillon existant.
+function openAgentDevisForm(devisId) {
+  var body    = document.getElementById('agent-body');
   if (!body) return;
-  var profiles = getAgentProfiles();
-  var activeUid = getAgentActiveUid();
-  var activeProfil = getAgentActiveProfil();
-  var allDevis = getAgentDevis();
-
-  // ─── Pas de profil importé → écran d'accueil vide
-  if (profiles.length === 0) {
-    body.innerHTML = _agentHtmlEmpty();
+  var profil  = getAgentActiveProfil();
+  if (!profil) {
+    alert('Aucun diagnostiqueur sélectionné. Importe un profil .c2p d\'abord.');
     return;
   }
-
-  // ─── Calcul statistiques pour le tableau de bord
-  var now     = new Date();
-  var moisCur = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-  var devisActif = allDevis.filter(function(d) { return d.diag_uid === activeUid; });
-  var caMois = devisActif.filter(function(d) {
-    return (d.date || '').startsWith(moisCur) && d.statut_signature === 'accepte';
-  }).reduce(function(s, d) { return s + parseFloat(d.prix_final > 0 ? d.prix_final : d.total_ht || 0); }, 0);
-  var caTotal = devisActif.filter(function(d) {
-    return d.statut_signature === 'accepte';
-  }).reduce(function(s, d) { return s + parseFloat(d.prix_final > 0 ? d.prix_final : d.total_ht || 0); }, 0);
-  var nbEnvoyes = devisActif.filter(function(d) { return d.envoye; }).length;
-  var nbSignes  = devisActif.filter(function(d) { return d.statut_signature === 'accepte'; }).length;
-  var commission = caTotal * 0.15;
-
-  body.innerHTML = `
-    <!-- ── Sélecteur diagnostiqueur ── -->
-    <div style="background:#fff;border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.08)">
-      <div style="font-size:11px;font-weight:700;color:#6B7280;letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px">Je travaille pour</div>
-      ${profiles.map(function(p) {
-        var isActive = p.diag_uid === activeUid;
-        return '<div onclick="agentSwitchDiag(\'' + p.diag_uid + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:2px solid ' + (isActive ? '#6366F1' : '#E2E5F0') + ';background:' + (isActive ? '#EEF2FF' : '#FAFAFA') + ';margin-bottom:8px;cursor:pointer">'
-          + (p.profil.logo ? '<img src="' + p.profil.logo + '" style="width:36px;height:36px;object-fit:contain;border-radius:6px;background:#fff;border:1px solid #E2E5F0"/>' : '<div style="width:36px;height:36px;border-radius:6px;background:#6366F1;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px">' + (p.nom_affiche[0]||'?') + '</div>')
-          + '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:#1B4332">' + p.nom_affiche + '</div>'
-          + '<div style="font-size:11px;color:#6B7280">' + (p.profil.email || '') + '</div></div>'
-          + (isActive ? '<span style="font-size:18px">✓</span>' : '')
-          + '</div>';
-      }).join('')}
-      <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border-radius:10px;border:2px dashed #6366F1;color:#6366F1;font-size:13px;font-weight:600;cursor:pointer;background:#EEF2FF">
-        ➕ Ajouter un diagnostiqueur
-        <input type="file" accept=".c2p,application/json" style="display:none" onchange="agentImporterProfil(event)"/>
-      </label>
-    </div>
-
-    ${activeProfil ? `
-    <!-- ── Dashboard CA (toutes les tuiles sont cliquables) ── -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-      <div onclick="renderAgentCADetail()" style="background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.08);cursor:pointer;border:1.5px solid transparent" onmouseover="this.style.borderColor='#6366F1'" onmouseout="this.style.borderColor='transparent'">
-        <div style="font-size:22px;font-weight:800;color:#6366F1">${caMois.toFixed(0)} €</div>
-        <div style="font-size:10px;color:#6B7280;font-weight:600;margin-top:2px">CA ce mois 📊</div>
-      </div>
-      <div onclick="renderAgentCADetail()" style="background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.08);cursor:pointer;border:1.5px solid transparent" onmouseover="this.style.borderColor='#059669'" onmouseout="this.style.borderColor='transparent'">
-        <div style="font-size:22px;font-weight:800;color:#059669">${commission.toFixed(0)} €</div>
-        <div style="font-size:10px;color:#6B7280;font-weight:600;margin-top:2px">Ma commission 📊</div>
-      </div>
-      <div onclick="renderAgentDevisList()" style="background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.08);cursor:pointer;border:1.5px solid transparent" onmouseover="this.style.borderColor='#0891B2'" onmouseout="this.style.borderColor='transparent'">
-        <div style="font-size:22px;font-weight:800;color:#0891B2">${nbEnvoyes}</div>
-        <div style="font-size:10px;color:#6B7280;font-weight:600;margin-top:2px">Devis envoyés 👁️</div>
-      </div>
-      <div onclick="renderAgentDevisList()" style="background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.08);cursor:pointer;border:1.5px solid transparent" onmouseover="this.style.borderColor='#22C55E'" onmouseout="this.style.borderColor='transparent'">
-        <div style="font-size:22px;font-weight:800;color:#22C55E">${nbSignes}</div>
-        <div style="font-size:10px;color:#6B7280;font-weight:600;margin-top:2px">Devis signés 👁️</div>
-      </div>
-    </div>
-
-    <!-- ── Boutons d'action ── -->
-    <button onclick="openAgentDevisForm()" style="width:100%;padding:16px;border-radius:12px;border:none;background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:10px">
-      📝 Créer un devis pour ${activeProfil.nom_affiche}
-    </button>
-    <button onclick="renderAgentDevisList()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #6366F1;background:#fff;color:#6366F1;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">
-      📋 Voir mes devis (${devisActif.length})
-    </button>
-    <button onclick="renderAgentCADetail()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #0891B2;background:#fff;color:#0891B2;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">
-      📊 Mon CA détaillé (par mois)
-    </button>
-    <button onclick="openAgentFactures()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #059669;background:#fff;color:#059669;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:14px">
-      🧾 Mes factures de commission
-    </button>
-
-    <!-- ── Profil actif résumé ── -->
-    <div style="background:#F8F9FB;border-radius:12px;padding:12px;margin-bottom:14px">
-      <div style="font-size:11px;font-weight:700;color:#9CA3AF;letter-spacing:.5px;margin-bottom:8px">PROFIL ACTIF</div>
-      <div style="font-size:13px;font-weight:700;color:#1B4332;margin-bottom:2px">${activeProfil.profil.nom_societe || ''}</div>
-      <div style="font-size:12px;color:#6B7280">${activeProfil.profil.adresse || ''}</div>
-      <div style="font-size:12px;color:#6B7280">${activeProfil.profil.telephone || ''} — ${activeProfil.profil.email || ''}</div>
-      ${activeProfil.profil.siret ? '<div style="font-size:11px;color:#9CA3AF;margin-top:4px">SIRET : ' + activeProfil.profil.siret + '</div>' : ''}
-      <button onclick="agentSupprimerProfil('${activeUid}')" style="margin-top:10px;padding:6px 12px;border-radius:8px;border:1.5px solid #EF4444;background:#fff;color:#EF4444;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">
-        🗑️ Supprimer ce profil
-      </button>
-    </div>
-    ` : ''}
-  `;
-}
-
-// ─── Écran vide (aucun profil importé) ───────
-
-function _agentHtmlEmpty() {
-  return `
-    <div style="text-align:center;padding:40px 20px">
-      <div style="font-size:48px;margin-bottom:16px">🤝</div>
-      <div style="font-size:18px;font-weight:800;color:#1B4332;margin-bottom:8px">Bienvenue Agent Commercial</div>
-      <p style="font-size:13px;color:#6B7280;line-height:1.7;margin-bottom:24px">
-        Pour commencer, importe le fichier profil (.c2p)<br>
-        fourni par le diagnostiqueur pour lequel tu travailles.
-      </p>
-      <label style="display:inline-flex;align-items:center;gap:8px;padding:14px 24px;border-radius:12px;border:none;background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">
-        📥 Importer un profil (.c2p)
-        <input type="file" accept=".c2p,application/json" style="display:none" onchange="agentImporterProfil(event)"/>
-      </label>
-      <p style="font-size:11px;color:#9CA3AF;margin-top:16px">
-        Demande à ton diagnostiqueur d'aller dans<br>
-        son Profil → "Exporter mon profil pour l'agent"
-      </p>
-    </div>
-  `;
-}
-
-// ─── Liste des devis de l'agent ──────────────
-
-function renderAgentDevisList() {
-  var body     = document.getElementById('agent-body');
-  if (!body) return;
-  var activeUid = getAgentActiveUid();
-  var allDevis  = getAgentDevis();
-  var list      = allDevis.filter(function(d) { return d.diag_uid === activeUid; })
-                          .sort(function(a,b) { return (b.date||'').localeCompare(a.date||''); });
-
-  body.innerHTML = _renderDevisListHtml(list);
-
-  // ── Vérification automatique silencieuse des signatures en attente ──
-  agentVerifierToutesSignatures(function(updated) {
-    if (updated) {
-      // Re-rendre la liste avec les nouveaux statuts
-      var allDev2 = getAgentDevis();
-      var list2   = allDev2.filter(function(d) { return d.diag_uid === activeUid; })
-                           .sort(function(a,b) { return (b.date||'').localeCompare(a.date||''); });
-      var container = document.getElementById('agent-devis-list-container');
-      if (container) {
-        container.innerHTML = _renderDevisCardsHtml(list2);
-      }
-    }
-  });
-}
-
-// ─── HTML complet de la liste ─────────────────
-function _renderDevisListHtml(list) {
-  return '<button onclick="renderAgentScreen()" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:#6366F1;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:16px;font-family:inherit">← Retour</button>'
-    + '<div style="font-size:15px;font-weight:800;color:#1B4332;margin-bottom:4px">📋 Mes devis</div>'
-    + '<div style="font-size:12px;color:#9CA3AF;margin-bottom:14px">Les signatures sont vérifiées automatiquement à l\'ouverture</div>'
-    + '<div id="agent-devis-list-container">' + _renderDevisCardsHtml(list) + '</div>';
-}
-
-// ─── Rendu des cartes de devis ────────────────
-function _renderDevisCardsHtml(list) {
-  if (list.length === 0) {
-    return '<div style="text-align:center;padding:40px;color:#9CA3AF;font-size:14px">Aucun devis créé pour le moment</div>';
+  // Récupérer le devis existant si édition, sinon objet vide
+  var devis = {};
+  if (devisId) {
+    var allDev = getAgentDevis();
+    devis = allDev.find(function(d) { return d.id === devisId; }) || {};
   }
-  return list.map(function(d) {
-    var signe   = d.statut_signature === 'accepte';
-    var envoye  = d.envoye && !signe;
-    var brouill = !d.envoye && !signe;
-    var montant = parseFloat(d.prix_final > 0 ? d.prix_final : d.total_ht || 0);
+  window._agentDevisEdit = devisId || null;
+  body.innerHTML = _agentDevisFormHtml(devis, profil);
+  // Recalculer total immédiatement si édition
+  agentUpdateDevisTotal();
+  // Auto-check si les données du bien sont déjà renseignées (mode édition)
+  if (devisId && devis.typeBien) agentAutoCheckDiags();
+}
 
-    var statutCls = signe ? '#059669' : (d.envoye ? '#0891B2' : '#9CA3AF');
-    var statutLbl = signe ? '✅ Signé' : (d.envoye ? '📤 Envoyé' : '📝 Brouillon');
-    var cardBorder = signe ? 'border:2px solid #059669' : '';
+// ─── HTML du formulaire de devis agent ───────
+function _agentDevisFormHtml(devis, profil) {
+  var tarifs      = Object.assign({}, profil.tarifs || {});
+  var selDiags    = devis.diagnostics  || [];
+  var tarManuel   = devis.tarifs_manuels || {};
+  var societe     = (profil.profil && profil.profil.nom_societe) || profil.nom_affiche || '';
+  var diagsList   = [
+    'DPE','DPE Projeté','DPE Immeuble','Amiante','Prélèvement Amiante',
+    'Plomb','Prélèvement Plomb','Électricité','Gaz','Termites',
+    'ERP','Carrez','Boutin','Avant travaux','Avant démolition','Frais déplacement'
+  ];
 
-    // ── Bloc d'actions selon l'état ──
-    var actionsHtml = '';
+  var periodOptions = ['Avant 1949','1949-1997','1997-2011','Après 2011'];
+  var typeBienOptions = ['Appartement','Maison','Immeuble','Commerce','Local','Terrain','Autre'];
 
-    if (signe) {
-      // Devis signé : action principale = Transférer
-      var dateSig = d.signature_date ? new Date(d.signature_date).toLocaleDateString('fr-FR') : '';
-      actionsHtml = '<div style="background:#F0FDF4;border-radius:10px;padding:10px 12px;margin-top:10px;border:1px solid #A7F3D0">'
-        + '<div style="font-size:12px;font-weight:700;color:#059669;margin-bottom:8px">🎉 Signé' + (dateSig ? ' le ' + dateSig : '') + ' — Transférez la mission au diagnostiqueur !</div>'
-        + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
-        + '<button onclick="agentTransfererMission(\'' + d.id + '\')" style="flex:1;padding:10px;border-radius:8px;border:none;background:linear-gradient(135deg,#059669,#10B981);color:#fff;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;min-width:140px">📨 Transférer au diagnostiqueur</button>'
-        + '<button onclick="telechargerPDFAgentDevis(\'' + d.id + '\')" style="padding:10px 14px;border-radius:8px;border:2px solid #6B7280;background:#fff;color:#6B7280;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">📄 PDF</button>'
-        + '<button onclick="agentEnvoyerDevis(\'' + d.id + '\')" style="padding:10px 14px;border-radius:8px;border:2px solid #6366F1;background:#fff;color:#6366F1;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">↩️ Renvoyer</button>'
-        + '</div>'
-        + '</div>';
-    } else if (d.envoye) {
-      // En attente de signature
-      actionsHtml = '<div style="background:#EFF6FF;border-radius:10px;padding:10px 12px;margin-top:10px;border:1px solid #BFDBFE">'
-        + '<div style="font-size:12px;color:#0891B2;font-weight:600;margin-bottom:8px">⏳ En attente de signature client — Cliquez 🔄 pour vérifier maintenant</div>'
-        + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
-        + '<button onclick="agentVerifierSignature(\'' + d.id + '\')" style="flex:1;padding:10px;border-radius:8px;border:none;background:linear-gradient(135deg,#0891B2,#06B6D4);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔄 Vérifier</button>'
-        + '<button onclick="agentRelancerDevis(\'' + d.id + '\')" style="flex:1;padding:10px;border-radius:8px;border:none;background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">📣 Relancer</button>'
-        + '</div>'
-        + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">'
-        + '<button onclick="openAgentDevisForm(\'' + d.id + '\')" style="flex:1;padding:8px;border-radius:8px;border:2px solid #6366F1;background:#fff;color:#6366F1;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">✏️ Modifier</button>'
-        + '<button onclick="telechargerPDFAgentDevis(\'' + d.id + '\')" style="flex:1;padding:8px;border-radius:8px;border:2px solid #6B7280;background:#fff;color:#6B7280;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">📄 PDF</button>'
-        + '<button onclick="agentEnvoyerDevis(\'' + d.id + '\')" style="flex:1;padding:8px;border-radius:8px;border:2px solid #9CA3AF;background:#fff;color:#9CA3AF;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">↩️ Renvoyer</button>'
-        + '</div>'
-        + '</div>';
-    } else {
-      // Brouillon
-      actionsHtml = '<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">'
-        + '<button onclick="openAgentDevisForm(\'' + d.id + '\')" style="flex:1;padding:10px;border-radius:8px;border:none;background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;min-width:100px">✏️ Modifier</button>'
-        + '<button onclick="agentEnvoyerDevis(\'' + d.id + '\')" style="flex:1;padding:10px;border-radius:8px;border:2px solid #6366F1;background:#fff;color:#6366F1;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;min-width:100px">✉️ Envoyer</button>'
-        + '<button onclick="telechargerPDFAgentDevis(\'' + d.id + '\')" style="padding:10px 14px;border-radius:8px;border:2px solid #6B7280;background:#fff;color:#6B7280;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">📄 PDF</button>'
-        + '</div>';
-    }
+  function sel(v, match) { return v === match ? 'selected' : ''; }
 
-    return '<div style="background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.06);' + cardBorder + '">'
-      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">'
-      + '<div style="flex:1">'
-      + '<div style="font-size:14px;font-weight:800;color:#1B4332">' + (d.client_nom||'') + ' ' + (d.client_prenom||'') + '</div>'
-      + '<div style="font-size:11px;color:#6B7280;margin-top:2px">' + (d.bien_adresse||'') + '</div>'
-      + '<div style="font-size:11px;color:#9CA3AF;margin-top:1px">' + (d.numero||'') + ' — ' + (d.date ? new Date(d.date).toLocaleDateString('fr-FR') : '') + '</div>'
-      + '</div>'
-      + '<span style="font-size:11px;font-weight:700;color:' + statutCls + ';white-space:nowrap;padding:4px 8px;border-radius:20px;background:' + statutCls + '18;margin-left:8px">' + statutLbl + '</span>'
-      + '</div>'
-      + '<div style="font-size:17px;font-weight:800;color:#6366F1;margin-top:4px">' + montant.toFixed(2) + ' € HT</div>'
-      + actionsHtml
+  var diagsHtml = diagsList.map(function(nom) {
+    var isSel   = selDiags.includes(nom);
+    var prix    = tarManuel[nom] !== undefined ? tarManuel[nom] : (tarifs[nom] || 0);
+    var border  = isSel ? 'border-color:#6366F1;background:#EEF2FF' : '';
+    return '<div class="ag-diag-item" onclick="agentToggleDiag(this,\'' + nom + '\')" '
+      + 'data-nom="' + nom + '" '
+      + 'style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:10px;border:2px solid '
+      + (isSel ? '#6366F1' : '#E2E5F0') + ';background:' + (isSel ? '#EEF2FF' : '#FAFAFA')
+      + ';cursor:pointer;margin-bottom:6px">'
+      + '<input type="checkbox" ' + (isSel ? 'checked' : '') + ' readonly style="accent-color:#6366F1;pointer-events:none;width:16px;height:16px"/>'
+      + '<span style="flex:1;font-size:13px;color:#1B4332">' + nom + '</span>'
+      + '<input type="number" class="ag-tarif-input" data-diag="' + nom + '" value="' + prix + '" min="0" step="5" '
+      + 'onclick="event.stopPropagation()" onchange="agentUpdateDevisTotal()" '
+      + 'style="width:56px;padding:4px 6px;border-radius:6px;border:1px dashed #A5B4FC;font-size:12px;font-weight:700;color:#6366F1;text-align:right;background:transparent;outline:none;font-family:inherit"/>'
+      + '<span style="font-size:11px;color:#9ca3af">€</span>'
       + '</div>';
   }).join('');
+
+  var isEdit   = !!(devis.id);
+  var isSent   = !!(devis.envoye);
+  var headerTxt = isEdit
+    ? (isSent ? '✏️ Modifier le devis ' + (devis.numero || '') : '📝 Modifier le devis ' + (devis.numero || ''))
+    : '📝 Nouveau devis';
+  var backFn = isEdit ? 'renderAgentDevisList()' : 'renderAgentScreen()';
+
+  return `
+    <!-- ── En-tête formulaire ── -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:${isSent ? '8' : '16'}px">
+      <button onclick="${backFn}"
+        style="background:none;border:none;color:#6366F1;font-weight:700;font-size:14px;cursor:pointer;padding:0;font-family:inherit">← Retour</button>
+      <div style="flex:1;font-size:15px;font-weight:800;color:#1B4332">${headerTxt}</div>
+    </div>
+
+    ${isSent ? '<div style="background:#FEF3C7;border:1.5px solid #FCD34D;border-radius:10px;padding:9px 13px;margin-bottom:12px;font-size:12px;color:#92400E;font-weight:600">⚠️ Ce devis a déjà été envoyé au client. Après modification, pensez à le renvoyer via "↩️ Renvoyer".</div>' : ''}
+
+    <!-- ── Pour qui ── -->
+    <div style="background:#EEF2FF;border:1.5px solid #A5B4FC;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#4338CA;font-weight:600">
+      🏢 Devis au nom de : <strong>${societe}</strong>
+    </div>
+
+    <!-- ── Client ── -->
+    <div style="background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+      <div style="font-size:12px;font-weight:800;color:#6366F1;letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px">👤 Le client</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">NOM *</label>
+          <input id="ag-client_nom" type="text" value="${devis.client_nom||''}" placeholder="Dupont"
+            style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Prénom</label>
+          <input id="ag-client_prenom" type="text" value="${devis.client_prenom||''}" placeholder="Jean"
+            style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Téléphone</label>
+          <input id="ag-client_tel" type="tel" value="${devis.client_tel||''}" placeholder="06 00 00 00 00"
+            style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Email *</label>
+          <input id="ag-client_email" type="email" value="${devis.client_email||''}" placeholder="jean@email.fr"
+            style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
+        </div>
+        <div style="grid-column:1/-1">
+          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Société (optionnel)</label>
+          <input id="ag-client_societe" type="text" value="${devis.client_societe||''}" placeholder="Entreprise XYZ"
+            style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Le Bien ── -->
+    <div style="background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+      <div style="font-size:12px;font-weight:800;color:#6366F1;letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px">🏠 Le bien</div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Adresse du bien *</label>
+        <input id="ag-bien_adresse" type="text" value="${devis.bien_adresse||''}" placeholder="12 rue de la Paix, 75001 Paris"
+          style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
+        <div style="margin-top:7px;padding:8px 11px;background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:8px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:13px">🐜</span>
+          <span style="font-size:12px;color:#92400E">Vérifier si la zone est soumise aux termites :</span>
+          <a href="https://termite.com.fr/rechercher/" target="_blank" rel="noopener"
+            style="font-size:12px;font-weight:700;color:#B45309;text-decoration:underline;white-space:nowrap">termite.com.fr →</a>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Type de bien</label>
+          <select id="ag-typeBien" onchange="agentAutoCheckDiags()" style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;background:#fff">
+            <option value="">— Choisir —</option>
+            ${typeBienOptions.map(function(t) { return '<option value="' + t + '" ' + sel(devis.typeBien, t) + '>' + t + '</option>'; }).join('')}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Type de transaction</label>
+          <select id="ag-type_transaction" onchange="agentAutoCheckDiags()" style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;background:#fff">
+            <option value="">— Choisir —</option>
+            <option value="Vente" ${sel(devis.type_transaction,'Vente')}>Vente</option>
+            <option value="Location" ${sel(devis.type_transaction,'Location')}>Location</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Période de construction</label>
+          <select id="ag-periode_construction" onchange="agentAutoCheckDiags()" style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;background:#fff">
+            <option value="">— Choisir —</option>
+            ${periodOptions.map(function(p) { return '<option value="' + p + '" ' + sel(devis.periode_construction, p) + '>' + p + '</option>'; }).join('')}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Nombre de pièces</label>
+          <input id="ag-nb_pieces" type="number" min="1" max="99" value="${devis.nb_pieces||''}" placeholder="Ex : 4"
+            style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Surface (m²)</label>
+          <input id="ag-surface" type="number" min="1" max="9999" value="${devis.surface||''}" placeholder="Ex : 85"
+            style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Année de construction</label>
+          <input id="ag-annee" type="number" min="1800" max="2030" value="${devis.annee||''}" placeholder="Ex : 1985"
+            style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
+        </div>
+        <div style="grid-column:1/-1">
+          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:6px">🔥 Présence de gaz</label>
+          <div style="display:flex;gap:8px">
+            <button type="button" id="ag-gaz-oui"
+              onclick="agentSetGaz('oui')"
+              style="flex:1;padding:9px;border-radius:8px;border:2px solid ${devis.has_gaz==='oui'?'#EF4444':'#E2E5F0'};background:${devis.has_gaz==='oui'?'#FEF2F2':'#FAFAFA'};color:${devis.has_gaz==='oui'?'#EF4444':'#6B7280'};font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">
+              🔥 Oui, présence de gaz
+            </button>
+            <button type="button" id="ag-gaz-non"
+              onclick="agentSetGaz('non')"
+              style="flex:1;padding:9px;border-radius:8px;border:2px solid ${devis.has_gaz==='non'||!devis.has_gaz?'#6366F1':'#E2E5F0'};background:${devis.has_gaz==='non'||!devis.has_gaz?'#EEF2FF':'#FAFAFA'};color:${devis.has_gaz==='non'||!devis.has_gaz?'#4338CA':'#6B7280'};font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">
+              🚫 Pas de gaz
+            </button>
+          </div>
+          <input type="hidden" id="ag-has_gaz" value="${devis.has_gaz||'non'}"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Prestations ── -->
+    <div style="background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="font-size:12px;font-weight:800;color:#6366F1;letter-spacing:.5px;text-transform:uppercase">🔬 Prestations</div>
+        <button onclick="agentAutoCheckDiags()" style="padding:5px 10px;border-radius:8px;border:1.5px solid #6366F1;background:#EEF2FF;color:#4338CA;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">
+          🤖 Auto-sélectionner
+        </button>
+      </div>
+      <div style="font-size:11px;color:#9CA3AF;margin-bottom:6px">Coche les diagnostics — tarifs du diagnostiqueur · Le bouton "Auto" sélectionne les obligatoires selon le bien</div>
+      <div id="ag-auto-info" style="display:none;background:#F0FDF4;border:1px solid #A7F3D0;border-radius:8px;padding:6px 10px;font-size:11px;color:#059669;font-weight:600;margin-bottom:8px"></div>
+      ${diagsHtml}
+      <!-- Total avec remise -->
+      <div style="background:#EEF2FF;border-radius:10px;padding:12px;margin-top:8px;border:1px solid #A5B4FC">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:12px;font-weight:600;color:#6B7280">Sous-total</span>
+          <span id="ag-total-display" style="font-size:14px;font-weight:700;color:#6366F1">0.00 €</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-size:12px;color:#EF4444;white-space:nowrap;font-weight:600">− Remise</span>
+          <input id="ag-remise" type="number" min="0" step="5"
+            value="${devis.remise && devis.remise > 0 ? parseFloat(devis.remise) : ''}"
+            placeholder="0"
+            onchange="agentUpdateDevisTotal()"
+            style="width:72px;padding:5px 8px;border-radius:7px;border:1.5px solid #FCA5A5;font-size:13px;font-family:inherit;outline:none;color:#EF4444;font-weight:700;text-align:right"/>
+          <span style="font-size:12px;color:#6B7280">€</span>
+          <span id="ag-remise-display" style="font-size:11px;color:#EF4444;font-weight:600;margin-left:4px"></span>
+        </div>
+        <div style="border-top:1px dashed #A5B4FC;padding-top:8px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <span style="font-size:13px;font-weight:800;color:#4338CA">Total HT</span>
+          <span id="ag-net-total-display" style="font-size:20px;font-weight:800;color:#6366F1">0.00 €</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:11px;color:#9CA3AF;white-space:nowrap;font-weight:600">Prix forfaitaire (override)</span>
+          <input id="ag-prix_final" type="number" min="0" step="1"
+            value="${devis.prix_final && devis.prix_final > 0 ? parseFloat(devis.prix_final) : ''}"
+            placeholder="Vide = calcul auto"
+            onchange="agentUpdateDevisTotal()"
+            style="flex:1;padding:5px 8px;border-radius:7px;border:1.5px dashed #A5B4FC;font-size:13px;font-family:inherit;outline:none;color:#6366F1;font-weight:700"/>
+          <span style="font-size:12px;color:#6B7280">€ HT</span>
+        </div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:4px">Si renseigné, remplace le total HT dans le PDF</div>
+      </div>
+    </div>
+
+    <!-- ── Notes ── -->
+    <div style="background:#fff;border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+      <div style="font-size:12px;font-weight:800;color:#6366F1;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">📝 Notes</div>
+      <textarea id="ag-notes" rows="3" placeholder="Informations complémentaires..."
+        style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;resize:vertical;outline:none;box-sizing:border-box">${devis.notes||''}</textarea>
+    </div>
+
+    <!-- ── Actions ── -->
+    <button onclick="saveAgentDevisForm()"
+      style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:8px">
+      💾 Enregistrer le devis
+    </button>
+    <button onclick="saveAgentDevisForm(true)"
+      style="width:100%;padding:12px;border-radius:12px;border:2px solid #6366F1;background:#fff;color:#6366F1;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px">
+      💾 Enregistrer &amp; envoyer par mail
+    </button>
+    <button onclick="renderAgentScreen()"
+      style="width:100%;padding:10px;border-radius:10px;border:1.5px solid #E2E5F0;background:#fff;color:#6B7280;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">
+      ✕ Annuler
+    </button>
+  `;
 }
 
-// ─── Vérifier signature d'un devis agent ─────
+// ─── Recalculer le total du formulaire ────────
+function agentUpdateDevisTotal() {
+  var subtotal = 0;
+  document.querySelectorAll('.ag-diag-item').forEach(function(el) {
+    var cb = el.querySelector('input[type="checkbox"]');
+    if (cb && cb.checked) {
+      var inp = el.querySelector('.ag-tarif-input');
+      subtotal += parseFloat(inp ? inp.value : 0) || 0;
+    }
+  });
 
-function agentVerifierSignature(devisId) {
-  var allDevis = getAgentDevis();
-  var idx      = allDevis.findIndex(function(d) { return d.id === devisId; });
-  if (idx < 0) return;
-  var d = allDevis[idx];
-  if (!d.signature_token) {
-    alert('Ce devis n\'a pas encore été envoyé pour signature.');
+  var remise  = parseFloat((document.getElementById('ag-remise') || {}).value) || 0;
+  var net     = Math.max(0, subtotal - remise);
+  var override = parseFloat((document.getElementById('ag-prix_final') || {}).value) || 0;
+  var display  = override > 0 ? override : net;
+
+  var dispSub  = document.getElementById('ag-total-display');
+  var dispRem  = document.getElementById('ag-remise-display');
+  var dispNet  = document.getElementById('ag-net-total-display');
+
+  if (dispSub)  dispSub.textContent  = subtotal.toFixed(2) + ' €';
+  if (dispRem)  dispRem.textContent  = remise > 0 ? ('(−' + remise.toFixed(2) + ' €)') : '';
+  if (dispNet)  {
+    dispNet.textContent = display.toFixed(2) + ' €';
+    dispNet.style.color = override > 0 ? '#059669' : '#6366F1';
+  }
+
+  window._agentDevisTotal = display;
+}
+
+// ─── Cocher/décocher un diagnostic ───────────
+function agentToggleDiag(el, nom) {
+  var cb = el.querySelector('input[type="checkbox"]');
+  if (!cb) return;
+  cb.checked = !cb.checked;
+  var isSel = cb.checked;
+  el.style.borderColor  = isSel ? '#6366F1' : '#E2E5F0';
+  el.style.background   = isSel ? '#EEF2FF' : '#FAFAFA';
+  agentUpdateDevisTotal();
+}
+
+// ─── Collecter les données du formulaire ─────
+function _collectAgentDevisForm() {
+  var selDiags    = [];
+  var tarifsMan   = {};
+  document.querySelectorAll('.ag-diag-item').forEach(function(el) {
+    var cb  = el.querySelector('input[type="checkbox"]');
+    var nom = el.getAttribute('data-nom');
+    var inp = el.querySelector('.ag-tarif-input');
+    var val = parseFloat(inp ? inp.value : 0) || 0;
+    tarifsMan[nom] = val;
+    if (cb && cb.checked) selDiags.push(nom);
+  });
+  var subtotal  = selDiags.reduce(function(s, nom) { return s + (tarifsMan[nom] || 0); }, 0);
+  var remise    = parseFloat((document.getElementById('ag-remise') || {}).value) || 0;
+  var total     = Math.max(0, subtotal - remise);
+  var prixFinal = parseFloat((document.getElementById('ag-prix_final') || {}).value) || 0;
+
+  return {
+    client_nom:           (document.getElementById('ag-client_nom')            || {}).value || '',
+    client_prenom:        (document.getElementById('ag-client_prenom')         || {}).value || '',
+    client_tel:           (document.getElementById('ag-client_tel')            || {}).value || '',
+    client_email:         (document.getElementById('ag-client_email')          || {}).value || '',
+    client_societe:       (document.getElementById('ag-client_societe')        || {}).value || '',
+    bien_adresse:         (document.getElementById('ag-bien_adresse')          || {}).value || '',
+    typeBien:             (document.getElementById('ag-typeBien')              || {}).value || '',
+    type_transaction:     (document.getElementById('ag-type_transaction')      || {}).value || '',
+    periode_construction: (document.getElementById('ag-periode_construction')  || {}).value || '',
+    nb_pieces:            (document.getElementById('ag-nb_pieces')             || {}).value || '',
+    surface:              (document.getElementById('ag-surface')               || {}).value || '',
+    annee:                (document.getElementById('ag-annee')                 || {}).value || '',
+    notes:                (document.getElementById('ag-notes')                 || {}).value || '',
+    has_gaz:              (document.getElementById('ag-has_gaz') || {}).value || 'non',
+    diagnostics:          selDiags,
+    tarifs_manuels:       tarifsMan,
+    remise:               remise,
+    total_ht:             total,
+    prix_final:           prixFinal > 0 ? prixFinal : 0
+  };
+}
+
+// ─── Enregistrer le devis agent ──────────────
+// envoyer : si true, déclenche l'envoi mail juste après la sauvegarde
+function saveAgentDevisForm(envoyer) {
+  var data   = _collectAgentDevisForm();
+  var profil = getAgentActiveProfil();
+  if (!profil) { alert('Aucun diagnostiqueur actif.'); return; }
+
+  // Validations minimales
+  if (!data.client_nom.trim()) {
+    alert('Le nom du client est obligatoire.'); return;
+  }
+  if (!data.bien_adresse.trim()) {
+    alert('L\'adresse du bien est obligatoire.'); return;
+  }
+  if (data.diagnostics.length === 0) {
+    alert('Sélectionne au moins un diagnostic.'); return;
+  }
+  if (envoyer && !data.client_email.trim()) {
+    alert('L\'email du client est obligatoire pour envoyer le devis.'); return;
+  }
+
+  var allDev   = getAgentDevis();
+  var diagUid  = profil.diag_uid;
+  var editId   = window._agentDevisEdit || null;
+
+  if (editId) {
+    // Mise à jour d'un devis existant
+    var idx = allDev.findIndex(function(d) { return d.id === editId; });
+    if (idx >= 0) {
+      allDev[idx] = Object.assign(allDev[idx], data, { updated_at: new Date().toISOString() });
+      saveAgentDevis(allDev);
+      if (envoyer) { agentEnvoyerDevis(editId); } else { renderAgentDevisList(); }
+      return;
+    }
+  }
+
+  // Nouveau devis
+  var newDevis = Object.assign({
+    id:               'ag-' + diagUid + '-' + Date.now(),
+    numero:           genAgentDevisNumero(diagUid),
+    diag_uid:         diagUid,
+    date:             new Date().toISOString(),
+    envoye:           false,
+    statut_signature: null,
+    signature_token:  null,
+    signature_url:    null,
+    signature_new:    false
+  }, data);
+
+  allDev.push(newDevis);
+  saveAgentDevis(allDev);
+  window._agentDevisEdit = newDevis.id;
+
+  if (envoyer) {
+    agentEnvoyerDevis(newDevis.id);
+  } else {
+    alert('✅ Devis ' + newDevis.numero + ' enregistré !');
+    renderAgentDevisList();
+  }
+}
+
+// ─── Génération PDF avec profil du diagnostiqueur ──
+// Effectue un swap temporaire de dd_company_profile SANS déclencher
+// la synchro Firestore (utilise _lsSetItem qui est la fonction native
+// capturée dans storage.js avant l'override du prototype).
+function genererPDFAgentDevis(devis, returnBlob, opts) {
+  opts = opts || {};
+  var profil = getAgentProfiles().find(function(p) { return p.diag_uid === devis.diag_uid; });
+  if (!profil) {
+    alert('Profil diagnostiqueur introuvable pour ce devis.');
+    return null;
+  }
+
+  // ── Swap temporaire SANS sync Firestore ──
+  var origProfile = localStorage.getItem('dd_company_profile') || '';
+  var diagProfile = JSON.stringify(profil.profil || {});
+
+  // _lsSetItem est la fonction native avant l'override dans storage.js
+  if (typeof _lsSetItem === 'function') {
+    _lsSetItem.call(localStorage, 'dd_company_profile', diagProfile);
+  } else {
+    // Fallback (ne devrait pas arriver)
+    Object.getPrototypeOf(localStorage).setItem.call(localStorage, 'dd_company_profile', diagProfile);
+  }
+
+  // ── Adapter le devis au format attendu par genererPDFDevis ──
+  // genererPDFDevis lit devis.diagnostics (array de noms) + devis.tarifs_manuels
+  var devisForPDF = Object.assign({}, devis, {
+    bien_type:       devis.typeBien || '',
+    periode_construction: devis.periode_construction || '',
+    type_transaction: devis.type_transaction || ''
+  });
+
+  var result;
+  try {
+    result = genererPDFDevis(devisForPDF, returnBlob || false, opts);
+  } finally {
+    // ── Restauration immédiate, quoi qu'il arrive ──
+    if (typeof _lsSetItem === 'function') {
+      _lsSetItem.call(localStorage, 'dd_company_profile', origProfile);
+    } else {
+      Object.getPrototypeOf(localStorage).setItem.call(localStorage, 'dd_company_profile', origProfile);
+    }
+  }
+
+  return result;
+}
+
+// ─── Télécharger le PDF d'un devis agent ─────
+function telechargerPDFAgentDevis(devisId) {
+  var allDev = getAgentDevis();
+  var devis  = allDev.find(function(d) { return d.id === devisId; });
+  if (!devis) { alert('Devis introuvable.'); return; }
+  genererPDFAgentDevis(devis, false, {});
+}
+
+// ─── Envoyer le devis par email + lien de signature ──
+function agentEnvoyerDevis(devisId) {
+  var allDev = getAgentDevis();
+  var idx    = allDev.findIndex(function(d) { return d.id === devisId; });
+  if (idx < 0) { alert('Devis introuvable.'); return; }
+  var devis  = allDev[idx];
+
+  if (!devis.client_email) {
+    alert('Renseigne d\'abord l\'email du client dans le devis avant d\'envoyer.');
     return;
   }
-  var _FS_PROJECT = 'coup2pouce-by-delydiag';
-  var _FS_API_KEY = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
-  var url = 'https://firestore.googleapis.com/v1/projects/' + _FS_PROJECT + '/databases/(default)/documents/signatures/' + d.signature_token + '?key=' + _FS_API_KEY;
 
-  fetch(url)
-    .then(function(r) { return r.json(); })
-    .then(function(doc) {
-      // sign.html stocke tout dans doc.fields.value.stringValue (JSON stringify)
-      // avec { signed: true, signedAt: "...", signature_img: "..." }
-      if (!doc || !doc.fields || !doc.fields.value) {
-        alert('⏳ Le client n\'a pas encore signé ce devis.');
-        return;
-      }
-      var data;
-      try { data = JSON.parse(doc.fields.value.stringValue); }
-      catch(e) { alert('Erreur de lecture. Réessaie.'); return; }
+  var profil = getAgentProfiles().find(function(p) { return p.diag_uid === devis.diag_uid; });
+  if (!profil) { alert('Profil diagnostiqueur introuvable.'); return; }
+  var p      = profil.profil || {};
 
-      if (data && data.signed === true) {
-        allDevis[idx].statut_signature = 'accepte';
-        allDevis[idx].signature_img    = data.signature_img || '';
-        allDevis[idx].signature_date   = data.signedAt || '';
-        saveAgentDevis(allDevis);
-        alert('✅ Devis signé par ' + (d.client_nom||'le client') + ' !\n\nCliquez sur "📨 Transférer au diagnostiqueur" pour lui envoyer la mission.');
-        renderAgentDevisList();
-      } else {
-        alert('⏳ Le client n\'a pas encore signé ce devis.');
-      }
-    })
-    .catch(function() { alert('Erreur de connexion. Réessaie.'); });
-}
+  // Trouver le bouton pour feedback visuel
+  var btn = document.querySelector('[onclick*="agentEnvoyerDevis(\'' + devisId + '\')"]');
+  if (btn) { btn.textContent = '⏳ Préparation...'; btn.disabled = true; }
 
-// ─── Vérification automatique de TOUTES les signatures en attente ──
-// Appelée silencieusement à l'ouverture de la liste.
-// callback(updated) : true si au moins un devis a été mis à jour.
+  // ── 1. Générer le token de signature ─────────────────────────────
+  var token   = _generateUUID();
+  var signUrl = 'https://coup2pouce-bydelydiag.netlify.app/sign.html?token=' + token;
 
-function agentVerifierToutesSignatures(callback) {
-  var allDevis = getAgentDevis();
-  var pending  = allDevis.filter(function(d) {
-    return d.signature_token && d.statut_signature !== 'accepte';
-  });
-  if (pending.length === 0) { if (callback) callback(false); return; }
+  // ── 2. Préparer les données Firestore pour la page de signature ──
+  var montant   = devis.prix_final > 0 ? devis.prix_final : (devis.total_ht || 0);
+  var fsData    = {
+    devisNumero:      devis.numero    || '',
+    clientPrenom:     devis.client_prenom || '',
+    clientNom:        devis.client_nom    || '',
+    clientEmail:      devis.client_email  || '',
+    bienAdresse:      devis.bien_adresse  || '',
+    bienType:         devis.typeBien      || '',
+    typeTransaction:  devis.type_transaction || '',
+    diagnostics:      devis.diagnostics   || [],
+    totalHt:          montant,
+    prixFinal:        devis.prix_final    || 0,
+    statut_fiscal:    'HT',
+    nomSociete:       p.nom_societe       || '',
+    telephoneSociete: p.telephone         || '',
+    emailSociete:     p.email             || '',
+    uid:              'agent-' + (devis.diag_uid || ''),
+    token:            token,
+    signed:           false,
+    createdAt:        new Date().toISOString(),
+    isAgent:          true
+  };
 
   var _FS_PROJECT = 'coup2pouce-by-delydiag';
-  var _FS_API_KEY = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
-  var updated = false;
-  var count   = 0;
+  var _FS_KEY     = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+  var fsUrl       = 'https://firestore.googleapis.com/v1/projects/' + _FS_PROJECT
+    + '/databases/(default)/documents/signatures/' + token + '?key=' + _FS_KEY;
 
-  pending.forEach(function(d) {
-    var idx = allDevis.findIndex(function(x) { return x.id === d.id; });
-    var url = 'https://firestore.googleapis.com/v1/projects/' + _FS_PROJECT
-      + '/databases/(default)/documents/signatures/' + d.signature_token + '?key=' + _FS_API_KEY;
-    (function(localIdx) {
-      fetch(url)
-        .then(function(r) { return r.json(); })
-        .then(function(doc) {
-          if (doc && doc.fields && doc.fields.value) {
-            var data;
-            try { data = JSON.parse(doc.fields.value.stringValue); } catch(e) { data = null; }
-            if (data && data.signed === true) {
-              allDevis[localIdx].statut_signature = 'accepte';
-              allDevis[localIdx].signature_img    = data.signature_img || '';
-              allDevis[localIdx].signature_date   = data.signedAt || '';
-              updated = true;
-            }
-          }
-          count++;
-          if (count === pending.length) {
-            if (updated) saveAgentDevis(allDevis);
-            if (callback) callback(updated);
-          }
-        })
-        .catch(function() {
-          count++;
-          if (count === pending.length) {
-            if (updated) saveAgentDevis(allDevis);
-            if (callback) callback(updated);
-          }
-        });
-    })(idx);
+  // ── 3. Sauvegarder token dans le devis local ──────────────────────
+  allDev[idx].signature_token = token;
+  allDev[idx].signature_url   = signUrl;
+  saveAgentDevis(allDev);
+
+  // ── 4. Écrire dans Firestore ──────────────────────────────────────
+  fetch(fsUrl, {
+    method:  'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ fields: { value: { stringValue: JSON.stringify(fsData) } } })
+  })
+  .catch(function() {})  // Silencieux — le mail sera envoyé quand même
+  .then(function() {
+    // ── 5. Compresser logo du diagnostiqueur + générer PDF ────────
+    return new Promise(function(resolve) {
+      var logoSrc = p.logo || '';
+      _compressLogoForEmail(logoSrc, function(compressedLogo) {
+        var pdfResult = genererPDFAgentDevis(
+          allDev[idx],
+          true,
+          compressedLogo ? { compressedLogo: compressedLogo } : { skipLogo: true }
+        );
+        if (!pdfResult || !pdfResult.blob) {
+          if (btn) { btn.textContent = '✉️ Envoyer'; btn.disabled = false; }
+          alert('Erreur lors de la génération du PDF devis.');
+          resolve(null);
+          return;
+        }
+        var reader  = new FileReader();
+        reader.onload = function(e) {
+          var attachments = [{ filename: pdfResult.filename, content: e.target.result.split(',')[1] }];
+          // Ajouter les docs réglementaires du diagnostiqueur
+          // (ils sont dans le profil du diagnostiqueur importé via .c2p)
+          // Note : les docs réglementaires ne sont pas exportés dans le .c2p pour l'instant,
+          // mais si le diagnostiqueur les a fournis, on les ajoute.
+          resolve(attachments);
+        };
+        reader.readAsDataURL(pdfResult.blob);
+      });
+    });
+  })
+  .then(function(attachments) {
+    if (!attachments) return null;
+    if (btn) btn.textContent = '⏳ Envoi en cours...';
+
+    var societe  = p.nom_societe  || 'Coup 2 Pouce';
+    var d        = allDev[idx];
+    var montantDisplay = parseFloat(montant).toFixed(2);
+    var subject  = 'Votre devis N° ' + (d.numero || '') + ' — ' + (d.bien_adresse || '');
+    var diagsList = (d.diagnostics || []).join(', ') || '';
+
+    // ── 6. HTML de l'email ────────────────────────────────────────
+    var html = '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff">'
+      + '<div style="background:linear-gradient(135deg,#6366F1,#4F46E5);padding:24px 32px;border-radius:12px 12px 0 0">'
+      + '<h1 style="color:#fff;margin:0;font-size:22px">' + societe + '</h1>'
+      + (p.telephone ? '<p style="color:#C7D2FE;margin:4px 0;font-size:13px">' + p.telephone + '</p>' : '')
+      + (p.email     ? '<p style="color:#C7D2FE;margin:4px 0;font-size:13px">' + p.email     + '</p>' : '')
+      + '</div>'
+      + '<div style="background:#F9FAFB;padding:28px 32px;border:1px solid #E5E7EB;border-top:none">'
+      + '<p style="font-size:15px;color:#111827">Bonjour ' + (d.client_prenom ? d.client_prenom : '') + ',</p>'
+      + '<p style="color:#374151">Veuillez trouver ci-joint votre devis pour la réalisation '
+      + 'de diagnostics immobiliers au <strong>' + (d.bien_adresse || '') + '</strong>.</p>'
+      + '<div style="background:#fff;border:2px solid #E5E7EB;border-radius:10px;padding:16px 20px;margin:20px 0">'
+      + '<p style="margin:0 0 6px;font-size:13px;color:#6B7280">N° Devis</p>'
+      + '<p style="margin:0 0 12px;font-size:18px;font-weight:700;color:#4F46E5">' + (d.numero || '') + '</p>'
+      + '<p style="margin:0 0 4px;font-size:13px;color:#6B7280">Montant HT</p>'
+      + '<p style="margin:0 0 12px;font-size:22px;font-weight:800;color:#4F46E5">' + montantDisplay + ' €</p>'
+      + (diagsList ? '<p style="margin:0;font-size:12px;color:#6B7280">Diagnostics : ' + diagsList + '</p>' : '')
+      + '</div>'
+      + (p.lien_paiement
+        ? '<a href="' + p.lien_paiement + '" style="display:inline-block;padding:12px 24px;background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;margin-bottom:16px">💳 Payer en ligne</a><br>'
+        : '')
+      + '<div style="text-align:center;margin:24px 0">'
+      + '<a href="' + signUrl + '" style="display:inline-block;padding:16px 32px;background:linear-gradient(135deg,#059669,#10B981);color:#fff;text-decoration:none;border-radius:12px;font-size:16px;font-weight:700">'
+      + '✅ Accepter &amp; signer ce devis</a>'
+      + '</div>'
+      + '<p style="font-size:12px;color:#9CA3AF;text-align:center">Ce lien vous permet de signer électroniquement votre accord.</p>'
+      + '<p style="color:#374151;margin-top:24px">Cordialement,<br><strong>' + (p.nom_responsable || societe) + '</strong></p>'
+      + '</div>'
+      + '<div style="padding:12px 32px;font-size:11px;color:#9ca3af;border:1px solid #E5E7EB;border-top:none;border-radius:0 0 8px 8px;background:#fff">'
+      + societe + (p.adresse ? ' — ' + p.adresse : '') + (p.siret ? ' — SIRET : ' + p.siret : '')
+      + '</div>'
+      + '</div>';
+
+    // Vérifier taille payload (limite Netlify ~6 Mo)
+    var totalB64 = attachments.reduce(function(s, a) { return s + (a.content ? a.content.length : 0); }, 0);
+    if (totalB64 > 4 * 1024 * 1024) {
+      attachments = attachments.slice(0, 1);
+    }
+
+    // ── 7. Appel Netlify Function send-email ─────────────────────
+    return fetch('/.netlify/functions/send-email', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to:          d.client_email,
+        subject:     subject,
+        html:        html,
+        attachments: attachments,
+        fromName:    societe,
+        fromEmail:   'noreply@coup2pouce-pro.fr',
+        replyTo:     p.email || '',
+        cc:          p.email || ''   // copie au diagnostiqueur
+      })
+    });
+  })
+  .then(function(res) {
+    if (!res) return null;
+    var status = res.status;
+    return res.text().then(function(text) {
+      if (!text || !text.trim()) throw new Error('Réponse vide (HTTP ' + status + ')');
+      try { return JSON.parse(text); } catch(e) { throw new Error('HTTP ' + status + ' — ' + text.substring(0, 300)); }
+    });
+  })
+  .then(function(data) {
+    if (btn) { btn.textContent = '✉️ Envoyer'; btn.disabled = false; }
+    if (!data) return;
+    if (data.success) {
+      // Marquer comme envoyé
+      var all2 = getAgentDevis();
+      var i2   = all2.findIndex(function(d) { return d.id === devisId; });
+      if (i2 >= 0) { all2[i2].envoye = true; saveAgentDevis(all2); }
+      alert('✅ Devis envoyé à ' + allDev[idx].client_email
+        + '\n\nLe client peut signer via le lien dans l\'email.\nUtilise 🔄 pour vérifier la signature.');
+      renderAgentDevisList();
+    } else {
+      alert('⚠️ Erreur envoi : ' + (data.error || JSON.stringify(data)));
+    }
+  })
+  .catch(function(err) {
+    if (btn) { btn.textContent = '✉️ Envoyer'; btn.disabled = false; }
+    alert('❌ Erreur : ' + err.message);
   });
 }
 
-// ─── Transférer devis signé au diagnostiqueur ─
+// ─── Basculer présence de gaz ─────────────────────────────────────
+function agentSetGaz(val) {
+  var inp = document.getElementById('ag-has_gaz');
+  if (inp) inp.value = val;
 
-function agentTransfererMission(devisId) {
-  var allDevis = getAgentDevis();
-  var d        = allDevis.find(function(x) { return x.id === devisId; });
-  if (!d) return;
-  var profil   = getAgentActiveProfil();
-  if (!profil) return;
+  var btnOui = document.getElementById('ag-gaz-oui');
+  var btnNon = document.getElementById('ag-gaz-non');
+  if (val === 'oui') {
+    if (btnOui) { btnOui.style.borderColor='#EF4444'; btnOui.style.background='#FEF2F2'; btnOui.style.color='#EF4444'; }
+    if (btnNon) { btnNon.style.borderColor='#E2E5F0'; btnNon.style.background='#FAFAFA'; btnNon.style.color='#6B7280'; }
+  } else {
+    if (btnNon) { btnNon.style.borderColor='#6366F1'; btnNon.style.background='#EEF2FF'; btnNon.style.color='#4338CA'; }
+    if (btnOui) { btnOui.style.borderColor='#E2E5F0'; btnOui.style.background='#FAFAFA'; btnOui.style.color='#6B7280'; }
+  }
+  agentAutoCheckDiags();
+}
 
-  if (!profil.profil.email) {
-    alert('Le profil du diagnostiqueur ne contient pas d\'email. Impossible d\'envoyer.');
+// ─── Auto-sélection des diagnostics obligatoires ──────────────────
+// Appelée automatiquement quand type de bien / période / transaction change,
+// ou via le bouton "🤖 Auto-sélectionner".
+// N'efface PAS les diagnostics déjà cochés manuellement.
+
+function agentAutoCheckDiags() {
+  var typeBien = (document.getElementById('ag-typeBien') || {}).value || '';
+  var periode  = (document.getElementById('ag-periode_construction') || {}).value || '';
+  var transac  = (document.getElementById('ag-type_transaction') || {}).value || '';
+  var hasGaz   = (document.getElementById('ag-has_gaz') || {}).value === 'oui';
+
+  if (!typeBien && !periode && !transac) return; // Pas assez d'info
+
+  // ── Règles obligatoires françaises ──
+  var autoCheck = [];
+
+  // DPE : toujours requis (Vente et Location)
+  autoCheck.push('DPE');
+
+  // ERP : toujours requis
+  autoCheck.push('ERP');
+
+  // Amiante : construction avant juillet 1997
+  // - VENTE : obligatoire pour tous types de biens
+  // - LOCATION : uniquement pour les biens en copropriété (appartements, immeubles)
+  //   → PAS pour une maison individuelle en location
+  if (periode === 'Avant 1949' || periode === '1949-1997') {
+    if (transac === 'Vente') {
+      autoCheck.push('Amiante');
+    } else if (transac === 'Location' && typeBien !== 'Maison') {
+      autoCheck.push('Amiante');
+    }
+  }
+
+  // Plomb : construction avant 1949 — vente ET location
+  if (periode === 'Avant 1949') {
+    autoCheck.push('Plomb');
+  }
+
+  // Électricité : installation > 15 ans (avant 2011)
+  if (periode === 'Avant 1949' || periode === '1949-1997' || periode === '1997-2011') {
+    autoCheck.push('Électricité');
+  }
+
+  // Gaz : installation > 15 ans ET présence de gaz déclarée
+  if (hasGaz && (periode === 'Avant 1949' || periode === '1949-1997' || periode === '1997-2011')) {
+    autoCheck.push('Gaz');
+  }
+
+  // Carrez : appartement / immeuble EN VENTE (copropriété uniquement, pas les maisons)
+  if ((typeBien === 'Appartement' || typeBien === 'Immeuble') && transac === 'Vente') {
+    autoCheck.push('Carrez');
+  }
+
+  // Boutin : LOCATION uniquement — TOUS types de biens (maison ET appartement)
+  if (transac === 'Location') {
+    autoCheck.push('Boutin');
+  }
+
+  // ── Appliquer sur les checkboxes ──
+  var nbAdded = 0;
+  document.querySelectorAll('.ag-diag-item').forEach(function(el) {
+    var nom = el.getAttribute('data-nom');
+    var cb  = el.querySelector('input[type="checkbox"]');
+    if (!cb) return;
+    if (autoCheck.indexOf(nom) !== -1 && !cb.checked) {
+      cb.checked           = true;
+      el.style.borderColor = '#6366F1';
+      el.style.background  = '#EEF2FF';
+      nbAdded++;
+    }
+  });
+
+  agentUpdateDevisTotal();
+
+  if (nbAdded > 0) {
+    // Petit feedback visuel (pas d'alert, juste un message discret)
+    var info = document.getElementById('ag-auto-info');
+    if (info) {
+      info.textContent = '✅ ' + nbAdded + ' diagnostic(s) ajouté(s) automatiquement';
+      info.style.display = 'block';
+      setTimeout(function() { info.style.display = 'none'; }, 3000);
+    }
+  }
+}
+
+// ─── Relance (email rappel court) ─────────────────────────────────
+// Envoie un email simple rappelant au client qu'il n'a pas encore signé.
+
+function agentRelancerDevis(devisId) {
+  var allDev = getAgentDevis();
+  var d      = allDev.find(function(x) { return x.id === devisId; });
+  if (!d) { alert('Devis introuvable.'); return; }
+
+  if (!d.client_email) {
+    alert('Pas d\'email client sur ce devis.');
+    return;
+  }
+  if (!d.signature_url) {
+    alert('Ce devis n\'a pas encore été envoyé. Utilise "Envoyer" d\'abord.');
     return;
   }
 
-  // Préparer le deep link "Intégrer la mission"
-  var missionData = {
-    client_nom:           d.client_nom          || '',
-    client_prenom:        d.client_prenom       || '',
-    client_tel:           d.client_tel          || '',
-    client_email:         d.client_email        || '',
-    bien_adresse:         d.bien_adresse        || '',
-    typeBien:             d.typeBien            || '',
-    periode_construction: d.periode_construction|| '',
-    nb_pieces:            d.nb_pieces           || '',
-    surface:              d.surface             || '',
-    annee:                d.annee               || '',
-    type_transaction:     d.type_transaction    || '',
-    diags:                d.diagnostics         || [],
-    total:                d.prix_final > 0 ? d.prix_final : (d.total_ht || 0),
-    devis_ref:            d.numero              || '',
-    source:               'agent',
-    agent_email:          localStorage.getItem('fb_uid') || ''
-  };
-  var encoded  = btoa(unescape(encodeURIComponent(JSON.stringify(missionData))));
-  var appUrl   = window.location.origin + window.location.pathname;
-  var deepLink = appUrl + '?import_mission=' + encoded;
+  var profil = getAgentProfiles().find(function(p) { return p.diag_uid === d.diag_uid; });
+  var p      = (profil && profil.profil) || {};
+  var societe = p.nom_societe || 'Coup 2 Pouce';
+  var montant = parseFloat(d.prix_final > 0 ? d.prix_final : d.total_ht || 0).toFixed(2);
 
-  var montant  = parseFloat(d.prix_final > 0 ? d.prix_final : d.total_ht || 0);
-  var diagsList = (d.diagnostics || []).join(', ');
-  var agentNom = localStorage.getItem('dd_prenom') || 'Votre agent commercial';
+  var btn = document.querySelector('[onclick*="agentRelancerDevis(\'' + devisId + '\')"]');
+  if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
 
-  var htmlEmail = `
-    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff">
-      <div style="background:linear-gradient(135deg,#6366F1,#4F46E5);padding:24px;border-radius:12px 12px 0 0;text-align:center">
-        <h1 style="color:#fff;font-size:22px;margin:0">📅 Nouveau RDV à planifier</h1>
-      </div>
-      <div style="padding:24px">
-        <p style="font-size:14px;color:#374151">Bonjour,</p>
-        <p style="font-size:14px;color:#374151">
-          <strong>${agentNom}</strong> vous transfère un devis signé.
-          Un client souhaite bénéficier de vos services.
-        </p>
-        <div style="background:#F0FDF4;border:1px solid #A7F3D0;border-radius:10px;padding:16px;margin:16px 0">
-          <div style="font-size:13px;margin-bottom:6px"><strong>Client :</strong> ${d.client_prenom||''} ${d.client_nom||''}</div>
-          <div style="font-size:13px;margin-bottom:6px"><strong>Téléphone :</strong> ${d.client_tel||'—'}</div>
-          <div style="font-size:13px;margin-bottom:6px"><strong>Email :</strong> ${d.client_email||'—'}</div>
-          <div style="font-size:13px;margin-bottom:6px"><strong>Adresse du bien :</strong> ${d.bien_adresse||'—'}</div>
-          <div style="font-size:13px;margin-bottom:6px"><strong>Diagnostics :</strong> ${diagsList}</div>
-          <div style="font-size:15px;font-weight:700;color:#059669;margin-top:10px">Montant devis : ${montant.toFixed(2)} € HT</div>
-        </div>
-        <div style="text-align:center;margin:24px 0">
-          <a href="${deepLink}"
-             style="display:inline-block;padding:16px 32px;background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;text-decoration:none;border-radius:12px;font-size:16px;font-weight:700">
-            📅 Intégrer la mission
-          </a>
-        </div>
-        <p style="font-size:12px;color:#9CA3AF;text-align:center">
-          Ce bouton ouvre votre application Coup 2 Pouce avec toutes les informations pré-remplies.<br>
-          Il ne vous restera qu'à saisir la date et l'heure du rendez-vous.
-        </p>
-        <p style="font-size:11px;color:#9CA3AF;text-align:center;margin-top:16px">
-          Référence devis : ${d.numero||'—'} | Signé le ${d.signature_date ? new Date(d.signature_date).toLocaleDateString('fr-FR') : '—'}
-        </p>
-      </div>
-    </div>`;
-
-  var payload = {
-    to:        profil.profil.email,
-    subject:   '📅 Nouveau RDV à planifier — ' + (d.client_prenom||'') + ' ' + (d.client_nom||'') + ' — ' + (d.bien_adresse||''),
-    html:      htmlEmail,
-    fromName:  agentNom,
-    fromEmail: 'noreply@coup2pouce-pro.fr',
-    replyTo:   localStorage.getItem('fb_email') || ''
-  };
+  var html = '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">'
+    + '<div style="background:linear-gradient(135deg,#F59E0B,#D97706);padding:20px 32px;border-radius:12px 12px 0 0">'
+    + '<h2 style="color:#fff;margin:0;font-size:18px">⏰ Rappel — Votre devis attend votre signature</h2>'
+    + '</div>'
+    + '<div style="background:#FFFBEB;border:1px solid #FDE68A;padding:24px 32px;border-radius:0 0 12px 12px">'
+    + '<p style="color:#374151">Bonjour ' + (d.client_prenom || '') + ',</p>'
+    + '<p style="color:#374151">Nous n\'avons pas encore reçu votre accord pour le devis <strong>N° ' + (d.numero || '') + '</strong> — ' + (d.bien_adresse || '') + '.</p>'
+    + '<div style="background:#fff;border:1px solid #FDE68A;border-radius:8px;padding:14px;margin:16px 0;text-align:center">'
+    + '<div style="font-size:20px;font-weight:800;color:#D97706">' + montant + ' € HT</div>'
+    + '<div style="font-size:12px;color:#9CA3AF;margin-top:4px">Diagnostics : ' + (d.diagnostics || []).join(', ') + '</div>'
+    + '</div>'
+    + '<div style="text-align:center;margin:20px 0">'
+    + '<a href="' + d.signature_url + '" style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#059669,#10B981);color:#fff;text-decoration:none;border-radius:10px;font-size:15px;font-weight:700">'
+    + '✅ Signer mon devis maintenant</a>'
+    + '</div>'
+    + '<p style="font-size:12px;color:#9CA3AF;text-align:center">Ce lien est unique et sécurisé. En cas de question, contactez-nous.</p>'
+    + '<p style="color:#374151;margin-top:20px">Cordialement,<br><strong>' + (p.nom_responsable || societe) + '</strong></p>'
+    + '</div></div>';
 
   fetch('/.netlify/functions/send-email', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(payload)
+    body: JSON.stringify({
+      to:        d.client_email,
+      subject:   '⏰ Rappel — Devis N° ' + (d.numero || '') + ' en attente de signature',
+      html:      html,
+      fromName:  societe,
+      fromEmail: 'noreply@coup2pouce-pro.fr',
+      replyTo:   p.email || ''
+    })
   })
   .then(function(r) { return r.json(); })
   .then(function(res) {
-    if (res.id || res.success) {
-      alert('✅ Mission transférée à ' + profil.nom_affiche + ' !\nIl va recevoir un email avec le bouton "Intégrer la mission".');
+    if (btn) { btn.textContent = '📣 Relancer'; btn.disabled = false; }
+    if (res.success || res.id) {
+      alert('✅ Email de relance envoyé à ' + d.client_email);
     } else {
-      alert('Erreur d\'envoi : ' + (res.error || JSON.stringify(res)));
+      alert('⚠️ Erreur : ' + (res.error || JSON.stringify(res)));
     }
   })
-  .catch(function() { alert('Erreur réseau. Réessaie.'); });
-}
-
-// ─── Vue CA détaillée par mois ───────────────
-
-function renderAgentCADetail() {
-  var body     = document.getElementById('agent-body');
-  if (!body) return;
-  var activeUid = getAgentActiveUid();
-  var activeProfil = getAgentActiveProfil();
-  var allDevis  = getAgentDevis();
-  var devisActif = allDevis.filter(function(d) { return d.diag_uid === activeUid; });
-
-  // ── Grouper par mois ──
-  var byMonth = {};
-  devisActif.forEach(function(d) {
-    var ref    = d.signature_date || d.date || '';
-    var month  = ref ? ref.substring(0, 7) : 'inconnu';
-    if (!byMonth[month]) byMonth[month] = { signes: [], envoyes: [], brouillons: [] };
-    var signe = d.statut_signature === 'accepte';
-    var env   = d.envoye && !signe;
-    if (signe)       byMonth[month].signes.push(d);
-    else if (env)    byMonth[month].envoyes.push(d);
-    else             byMonth[month].brouillons.push(d);
+  .catch(function(err) {
+    if (btn) { btn.textContent = '📣 Relancer'; btn.disabled = false; }
+    alert('❌ Erreur réseau : ' + err.message);
   });
-
-  var months = Object.keys(byMonth).filter(function(m) { return m !== 'inconnu'; }).sort().reverse();
-  if (byMonth['inconnu']) months.push('inconnu');
-
-  function montantDevis(d) {
-    return parseFloat(d.prix_final > 0 ? d.prix_final : d.total_ht || 0);
-  }
-  function sumMontants(list) {
-    return list.reduce(function(s, d) { return s + montantDevis(d); }, 0);
-  }
-
-  var totalCA        = sumMontants(devisActif.filter(function(d) { return d.statut_signature === 'accepte'; }));
-  var totalCommission = totalCA * 0.15;
-
-  var monthsHtml = months.map(function(m) {
-    var g      = byMonth[m];
-    var caM    = sumMontants(g.signes);
-    var commM  = caM * 0.15;
-    var label  = m === 'inconnu' ? 'Date inconnue' : (function() {
-      var parts = m.split('-');
-      var d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
-      return d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-    })();
-
-    var rowsHtml = g.signes.map(function(d) {
-      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #F3F4F6">'
-        + '<div><div style="font-size:12px;font-weight:600;color:#1B4332">' + (d.client_nom||'') + ' ' + (d.client_prenom||'') + '</div>'
-        + '<div style="font-size:10px;color:#9CA3AF">' + (d.bien_adresse||'') + ' — ' + (d.numero||'') + '</div></div>'
-        + '<div style="text-align:right"><div style="font-size:13px;font-weight:800;color:#6366F1">' + montantDevis(d).toFixed(2) + ' €</div>'
-        + '<div style="font-size:10px;color:#059669">comm. ' + (montantDevis(d) * 0.15).toFixed(2) + ' €</div></div>'
-        + '</div>';
-    }).join('');
-
-    return '<div style="background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.06)">'
-      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:' + (g.signes.length > 0 ? '10' : '0') + 'px">'
-      + '<div>'
-      + '<div style="font-size:13px;font-weight:800;color:#1B4332;text-transform:capitalize">' + label + '</div>'
-      + '<div style="font-size:11px;color:#9CA3AF;margin-top:2px">'
-      + g.signes.length + ' signé(s) · ' + g.envoyes.length + ' en attente · ' + g.brouillons.length + ' brouillon(s)'
-      + '</div>'
-      + '</div>'
-      + '<div style="text-align:right">'
-      + '<div style="font-size:16px;font-weight:800;color:#6366F1">' + caM.toFixed(2) + ' €</div>'
-      + (commM > 0 ? '<div style="font-size:11px;color:#059669;font-weight:600">comm. ' + commM.toFixed(2) + ' €</div>' : '')
-      + '</div>'
-      + '</div>'
-      + (rowsHtml ? '<div style="border-top:1px solid #F3F4F6;padding-top:8px">' + rowsHtml + '</div>' : '')
-      + '</div>';
-  }).join('');
-
-  body.innerHTML = '<button onclick="renderAgentScreen()" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:#6366F1;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:16px;font-family:inherit">← Retour</button>'
-    + '<div style="font-size:15px;font-weight:800;color:#1B4332;margin-bottom:4px">📊 Mon CA détaillé</div>'
-    + '<div style="font-size:12px;color:#9CA3AF;margin-bottom:14px">Diagnostiqueur : ' + (activeProfil ? activeProfil.nom_affiche : '—') + '</div>'
-    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">'
-    + '<div style="background:linear-gradient(135deg,#6366F1,#4F46E5);border-radius:12px;padding:14px;text-align:center">'
-    + '<div style="font-size:22px;font-weight:800;color:#fff">' + totalCA.toFixed(2) + ' €</div>'
-    + '<div style="font-size:10px;color:#C7D2FE;font-weight:600;margin-top:2px">CA total généré</div>'
-    + '</div>'
-    + '<div style="background:linear-gradient(135deg,#059669,#10B981);border-radius:12px;padding:14px;text-align:center">'
-    + '<div style="font-size:22px;font-weight:800;color:#fff">' + totalCommission.toFixed(2) + ' €</div>'
-    + '<div style="font-size:10px;color:#A7F3D0;font-weight:600;margin-top:2px">Mes commissions (15%)</div>'
-    + '</div>'
-    + '</div>'
-    + (months.length === 0 ? '<div style="text-align:center;padding:30px;color:#9CA3AF">Aucun devis signé pour le moment</div>' : monthsHtml);
-}
-
-// ─── Placeholder — Factures commissions ───────
-// Sera remplacé par agent-factures.js (Task #17)
-function openAgentFactures() {
-  var body = document.getElementById('agent-body');
-  if (!body) return;
-  body.innerHTML = `
-    <button onclick="renderAgentScreen()"
-      style="background:none;border:none;color:#6366F1;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:16px;font-family:inherit">← Retour</button>
-    <div style="text-align:center;padding:40px 20px">
-      <div style="font-size:48px;margin-bottom:16px">🧾</div>
-      <div style="font-size:16px;font-weight:800;color:#1B4332;margin-bottom:8px">Factures de commission</div>
-      <p style="font-size:13px;color:#6B7280;line-height:1.7">
-        Ce module est en cours de développement.<br>
-        Il te permettra de générer tes factures de commission (15%)<br>
-        pour chaque devis validé.
-      </p>
-    </div>
-  `;
 }
