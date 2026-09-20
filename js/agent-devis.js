@@ -144,6 +144,12 @@ function _agentDevisFormHtml(devis, profil) {
         <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Adresse du bien *</label>
         <input id="ag-bien_adresse" type="text" value="${devis.bien_adresse||''}" placeholder="12 rue de la Paix, 75001 Paris"
           style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
+        <div style="margin-top:7px;padding:8px 11px;background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:8px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:13px">🐜</span>
+          <span style="font-size:12px;color:#92400E">Vérifier si la zone est soumise aux termites :</span>
+          <a href="https://termite.com.fr/rechercher/" target="_blank" rel="noopener"
+            style="font-size:12px;font-weight:700;color:#B45309;text-decoration:underline;white-space:nowrap">termite.com.fr →</a>
+        </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div>
