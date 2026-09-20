@@ -63,7 +63,6 @@ const PRECACHE = [
 
 // ─── Installation : mise en cache de tous les fichiers ───
 self.addEventListener('install', function(e) {
-  // skipWaiting() immédiat → le nouveau SW s'active sans attendre l'utilisateur
   self.skipWaiting();
   e.waitUntil(
     caches.open(CACHE).then(function(cache) {
@@ -87,7 +86,7 @@ self.addEventListener('activate', function(e) {
             .map(function(k) { return caches.delete(k); })
       );
     }).then(function() {
-      return self.clients.claim(); // Prend le contrôle de tous les onglets ouverts
+      return self.clients.claim();
     })
   );
 });
@@ -100,12 +99,9 @@ self.addEventListener('message', function(e) {
 });
 
 // ─── Stratégie fetch ─────────────────────────────
-// Fichiers statiques de l'app → Cache d'abord, réseau en fallback
-// API externes (Firestore, Claude, email) → Réseau uniquement
 self.addEventListener('fetch', function(e) {
   var url = e.request.url;
 
-  // API externes → toujours réseau (pas de cache)
   if (
     url.indexOf('firestore.googleapis.com') !== -1 ||
     url.indexOf('googleapis.com') !== -1 ||
@@ -115,14 +111,12 @@ self.addEventListener('fetch', function(e) {
     url.indexOf('/.netlify/') !== -1 ||
     e.request.method !== 'GET'
   ) {
-    return; // Laisser passer sans interception
+    return;
   }
 
-  // Fichiers statiques → Cache d'abord, réseau en fallback
   e.respondWith(
     caches.match(e.request).then(function(cached) {
       if (cached) return cached;
-      // Pas en cache → réseau + mise en cache automatique
       return fetch(e.request).then(function(response) {
         if (response && response.status === 200) {
           var clone = response.clone();
@@ -132,7 +126,6 @@ self.addEventListener('fetch', function(e) {
         }
         return response;
       }).catch(function() {
-        // Hors-ligne et pas en cache → page de secours
         if (e.request.destination === 'document') {
           return caches.match('./index.html');
         }
