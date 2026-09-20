@@ -186,23 +186,23 @@ function renderAgentScreen() {
     </div>
 
     ${activeProfil ? `
-    <!-- ── Dashboard CA ── -->
+    <!-- ── Dashboard CA (toutes les tuiles sont cliquables) ── -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-      <div style="background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+      <div onclick="renderAgentCADetail()" style="background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.08);cursor:pointer;border:1.5px solid transparent" onmouseover="this.style.borderColor='#6366F1'" onmouseout="this.style.borderColor='transparent'">
         <div style="font-size:22px;font-weight:800;color:#6366F1">${caMois.toFixed(0)} €</div>
-        <div style="font-size:10px;color:#6B7280;font-weight:600;margin-top:2px">CA ce mois</div>
+        <div style="font-size:10px;color:#6B7280;font-weight:600;margin-top:2px">CA ce mois 📊</div>
       </div>
-      <div style="background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+      <div onclick="renderAgentCADetail()" style="background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.08);cursor:pointer;border:1.5px solid transparent" onmouseover="this.style.borderColor='#059669'" onmouseout="this.style.borderColor='transparent'">
         <div style="font-size:22px;font-weight:800;color:#059669">${commission.toFixed(0)} €</div>
-        <div style="font-size:10px;color:#6B7280;font-weight:600;margin-top:2px">Ma commission (15%)</div>
+        <div style="font-size:10px;color:#6B7280;font-weight:600;margin-top:2px">Ma commission 📊</div>
       </div>
-      <div style="background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+      <div onclick="renderAgentDevisList()" style="background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.08);cursor:pointer;border:1.5px solid transparent" onmouseover="this.style.borderColor='#0891B2'" onmouseout="this.style.borderColor='transparent'">
         <div style="font-size:22px;font-weight:800;color:#0891B2">${nbEnvoyes}</div>
-        <div style="font-size:10px;color:#6B7280;font-weight:600;margin-top:2px">Devis envoyés</div>
+        <div style="font-size:10px;color:#6B7280;font-weight:600;margin-top:2px">Devis envoyés 👁️</div>
       </div>
-      <div style="background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+      <div onclick="renderAgentDevisList()" style="background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.08);cursor:pointer;border:1.5px solid transparent" onmouseover="this.style.borderColor='#22C55E'" onmouseout="this.style.borderColor='transparent'">
         <div style="font-size:22px;font-weight:800;color:#22C55E">${nbSignes}</div>
-        <div style="font-size:10px;color:#6B7280;font-weight:600;margin-top:2px">Devis signés</div>
+        <div style="font-size:10px;color:#6B7280;font-weight:600;margin-top:2px">Devis signés 👁️</div>
       </div>
     </div>
 
@@ -378,10 +378,20 @@ function agentVerifierSignature(devisId) {
   fetch(url)
     .then(function(r) { return r.json(); })
     .then(function(doc) {
-      if (doc && doc.fields && doc.fields.accepte && doc.fields.accepte.booleanValue === true) {
+      // sign.html stocke tout dans doc.fields.value.stringValue (JSON stringify)
+      // avec { signed: true, signedAt: "...", signature_img: "..." }
+      if (!doc || !doc.fields || !doc.fields.value) {
+        alert('⏳ Le client n\'a pas encore signé ce devis.');
+        return;
+      }
+      var data;
+      try { data = JSON.parse(doc.fields.value.stringValue); }
+      catch(e) { alert('Erreur de lecture. Réessaie.'); return; }
+
+      if (data && data.signed === true) {
         allDevis[idx].statut_signature = 'accepte';
-        allDevis[idx].signature_img    = doc.fields.signature_img ? doc.fields.signature_img.stringValue : '';
-        allDevis[idx].signature_date   = doc.fields.date ? doc.fields.date.stringValue : '';
+        allDevis[idx].signature_img    = data.signature_img || '';
+        allDevis[idx].signature_date   = data.signedAt || '';
         saveAgentDevis(allDevis);
         alert('✅ Devis signé par ' + (d.client_nom||'le client') + ' !\n\nCliquez sur "📨 Transférer au diagnostiqueur" pour lui envoyer la mission.');
         renderAgentDevisList();
@@ -416,11 +426,15 @@ function agentVerifierToutesSignatures(callback) {
       fetch(url)
         .then(function(r) { return r.json(); })
         .then(function(doc) {
-          if (doc && doc.fields && doc.fields.accepte && doc.fields.accepte.booleanValue === true) {
-            allDevis[localIdx].statut_signature = 'accepte';
-            allDevis[localIdx].signature_img    = doc.fields.signature_img ? doc.fields.signature_img.stringValue : '';
-            allDevis[localIdx].signature_date   = doc.fields.date ? doc.fields.date.stringValue : '';
-            updated = true;
+          if (doc && doc.fields && doc.fields.value) {
+            var data;
+            try { data = JSON.parse(doc.fields.value.stringValue); } catch(e) { data = null; }
+            if (data && data.signed === true) {
+              allDevis[localIdx].statut_signature = 'accepte';
+              allDevis[localIdx].signature_img    = data.signature_img || '';
+              allDevis[localIdx].signature_date   = data.signedAt || '';
+              updated = true;
+            }
           }
           count++;
           if (count === pending.length) {
