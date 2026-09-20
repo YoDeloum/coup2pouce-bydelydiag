@@ -1,14 +1,13 @@
-
 // Service Worker — Coup 2 Pouce DELY DIAG
 const CACHE = 'coup2pouce-v33';
- 
+
 // ─── Fichiers à mettre en cache pour le mode hors-ligne ───
 const PRECACHE = [
   './',
   './index.html',
   './sign.html',
   './prescripteur.html',
- 
+
   // JS principal
   './js/state.js',
   './js/app.js',
@@ -46,7 +45,7 @@ const PRECACHE = [
   './js/agent-devis.js',
   './js/agent-factures.js',
   './js/feuille-visite-mission.js',
- 
+
   // Data
   './data/modules.js',
   './data/storage.js',
@@ -54,14 +53,14 @@ const PRECACHE = [
   './data/checklist.js',
   './data/glossaire.js',
   './data/astuces.js',
- 
+
   // Icônes
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
   './assets/icons/icon-180.png',
   './assets/icons/icon-512-maskable.png'
 ];
- 
+
 // ─── Installation : mise en cache de tous les fichiers ───
 self.addEventListener('install', function(e) {
   // skipWaiting() immédiat → le nouveau SW s'active sans attendre l'utilisateur
@@ -78,7 +77,7 @@ self.addEventListener('install', function(e) {
     })
   );
 });
- 
+
 // ─── Activation : supprimer les anciens caches et prendre le contrôle ───
 self.addEventListener('activate', function(e) {
   e.waitUntil(
@@ -92,20 +91,20 @@ self.addEventListener('activate', function(e) {
     })
   );
 });
- 
+
 // ─── Message utilisateur (bouton "Actualiser") ───
 self.addEventListener('message', function(e) {
   if (e.data && e.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
 });
- 
+
 // ─── Stratégie fetch ─────────────────────────────
 // Fichiers statiques de l'app → Cache d'abord, réseau en fallback
 // API externes (Firestore, Claude, email) → Réseau uniquement
 self.addEventListener('fetch', function(e) {
   var url = e.request.url;
- 
+
   // API externes → toujours réseau (pas de cache)
   if (
     url.indexOf('firestore.googleapis.com') !== -1 ||
@@ -118,7 +117,7 @@ self.addEventListener('fetch', function(e) {
   ) {
     return; // Laisser passer sans interception
   }
- 
+
   // Fichiers statiques → Cache d'abord, réseau en fallback
   e.respondWith(
     caches.match(e.request).then(function(cached) {
@@ -141,7 +140,7 @@ self.addEventListener('fetch', function(e) {
     })
   );
 });
- 
+
 // ─── Notifications push ───
 self.addEventListener('push', function(e) {
   var data = { title: '✍️ Coup 2 Pouce', body: 'Nouvelle notification' };
@@ -156,7 +155,7 @@ self.addEventListener('push', function(e) {
     })
   );
 });
- 
+
 // ─── Clic notification ───
 self.addEventListener('notificationclick', function(e) {
   e.notification.close();
@@ -167,4 +166,3 @@ self.addEventListener('notificationclick', function(e) {
     })
   );
 });
- 
