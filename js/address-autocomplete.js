@@ -10,7 +10,7 @@
   var _dropdown = null;
   var _active   = null;
 
-  var WATCHED_IDS = ['dv-bien_adresse', 'm-adresse', 'p-adresse'];
+  var WATCHED_IDS = ['dv-bien_adresse', 'm-adresse', 'p-adresse', 'ag-bien_adresse'];
 
   // ── Crée ou réutilise le dropdown ──────────────────────────────
   function getDropdown() {
