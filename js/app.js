@@ -151,6 +151,9 @@ function showHome() {
       else document.getElementById('clients-screen').style.display = 'none';
       return true;
     }
+    if (_isDisplayed('agent-screen')) {
+      if (typeof closeAgentScreen === 'function') closeAgentScreen(); return true;
+    }
     if (_isDisplayed('stats-screen')) {
       document.getElementById('stats-screen').style.display = 'none'; return true;
     }
@@ -277,6 +280,69 @@ function handleCameraPhoto(input) {
   }
 }
 
+// ─── DEEP LINK : ?import_mission=BASE64 ─────────────────────────────────────
+// Déclenché depuis l'email "Intégrer la mission" envoyé par l'agent commercial.
+// Ouvre automatiquement le formulaire mission pré-rempli avec les infos du client.
+// Stratégie : stocker en sessionStorage dès la détection du paramètre URL,
+// puis traiter après login (auth.js appelle _processPendingMissionImport).
+function _checkImportMission() {
+  try {
+    var params = new URLSearchParams(window.location.search);
+    var raw    = params.get('import_mission');
+    if (!raw) return;
+    // Nettoyer l'URL immédiatement (sans recharger la page)
+    var cleanUrl = window.location.pathname + window.location.hash;
+    history.replaceState({}, '', cleanUrl);
+
+    var data = JSON.parse(decodeURIComponent(escape(atob(raw))));
+    if (!data || typeof data !== 'object') return;
+
+    // ✅ Persister en sessionStorage pour survivre à l'écran de login
+    try { sessionStorage.setItem('_pending_mission_import', JSON.stringify(data)); } catch(e) {}
+
+    // Si déjà connecté → ouvrir directement après init
+    if (localStorage.getItem('fb_uid')) {
+      setTimeout(function() { _processPendingMissionImport(); }, 900);
+    }
+    // Sinon : auth.js appellera _processPendingMissionImport() après connexion réussie
+  } catch(e) {
+    console.warn('[import_mission] Erreur de décodage :', e);
+  }
+}
+
+// ─── Traitement de la mission en attente (après login ou au démarrage si déjà connecté)
+function _processPendingMissionImport() {
+  try {
+    var raw = sessionStorage.getItem('_pending_mission_import');
+    if (!raw) return;
+    sessionStorage.removeItem('_pending_mission_import');
+    var data = JSON.parse(raw);
+    if (!data || typeof data !== 'object') return;
+    if (typeof openMission !== 'function') return;
+    openMission();
+    // Petit délai pour laisser le formulaire mission se rendre
+    setTimeout(function() {
+      if (typeof preRemplirMissionFromAgent === 'function') {
+        preRemplirMissionFromAgent(data);
+      }
+    }, 400);
+  } catch(e) {
+    console.warn('[processPendingMission] Erreur :', e);
+  }
+}
+
+// ─── DÉTECTION RÔLE AGENT ─────────────────────────────────────────────────
+// Si l'utilisateur connecté est un agent commercial, affiche un bandeau discret
+// et ouvre automatiquement l'écran agent au démarrage.
+function _checkAgentRole() {
+  if (typeof isAgentAccount !== 'function') return;
+  if (!isAgentAccount()) return;
+  // Afficher l'écran agent automatiquement après la sync
+  setTimeout(function() {
+    if (typeof openAgentScreen === 'function') openAgentScreen();
+  }, 1000);
+}
+
 // ─── INIT GLOBAL ───
 function initApp() {
   checkLogin();
@@ -285,6 +351,8 @@ function initApp() {
   initAstuce();
   checkCertifRappels();
   renderHome();
+  _checkImportMission();
+  _checkAgentRole();
 
   // Relances automatiques — après 8s (laisse le temps au login + sync Firestore)
   setTimeout(function() {
