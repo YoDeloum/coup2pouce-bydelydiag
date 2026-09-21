@@ -15,9 +15,10 @@ exports.handler = async function(event) {
   try {
     const body = JSON.parse(event.body || '{}');
 
-    // Lire l'abonnement push depuis Firestore (stocké par l'app admin)
-    const FS_KEY = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
-    const FS_URL = 'https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents/push_subscriptions/admin?key=' + FS_KEY;
+    // Lire l'abonnement push depuis Firestore — chaque utilisateur a son propre document
+    const FS_KEY  = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+    const subId   = body.uid || 'admin';   // UID Firebase de l'utilisateur destinataire
+    const FS_URL  = 'https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents/push_subscriptions/' + subId + '?key=' + FS_KEY;
 
     const fsRes = await fetch(FS_URL);
     const fsData = await fsRes.json();
