@@ -452,9 +452,11 @@ function _subscribePush() {
 
 function _savePushSub(sub) {
   var token = localStorage.getItem('fb_token');
-  if (!token) return;
+  var uid   = localStorage.getItem('fb_uid');
+  if (!token || !uid) return;
   var FS_KEY = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
-  fetch('https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents/push_subscriptions/admin?key=' + FS_KEY, {
+  // Chaque utilisateur stocke son abonnement sous son propre UID (pas 'admin' partagé)
+  fetch('https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents/push_subscriptions/' + uid + '?key=' + FS_KEY, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify({ fields: { value: { stringValue: JSON.stringify(sub) } } })
