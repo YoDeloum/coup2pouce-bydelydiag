@@ -514,6 +514,7 @@ function agentEnvoyerDevis(devisId) {
     telephoneSociete: p.telephone         || '',
     emailSociete:     p.email             || '',
     uid:              'agent-' + (devis.diag_uid || ''),
+    owner_uid:        localStorage.getItem('fb_uid') || '',
     token:            token,
     signed:           false,
     createdAt:        new Date().toISOString(),
