@@ -83,7 +83,7 @@ function renderDevisList(body) {
         + (d.signature && d.signature.accepte ? '<div class="devis-card-sub" style="color:#1B4332;font-weight:600">✍️ Signé par '+d.signature.signataire+'</div>' : '')
         + '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">'
         + '<div style="font-size:11px;color:#9ca3af">'+(d.date ? new Date(d.date).toLocaleDateString('fr-FR') : '')+'</div>'
-        + '<div class="devis-card-amount">'+(d.total_ht ? parseFloat(d.total_ht).toFixed(2)+' € HT' : '')+'</div>'
+        + '<div class="devis-card-amount">'+(function(){ var m = (d.prix_final && parseFloat(d.prix_final) > 0) ? parseFloat(d.prix_final) : (d.total_ht ? parseFloat(d.total_ht) : 0); return m > 0 ? m.toFixed(2)+' € HT' : ''; })()+'</div>'
         + '</div></div></div>';
     }).join('')}`;
 }
