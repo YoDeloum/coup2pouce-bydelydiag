@@ -294,12 +294,17 @@ function soumettreSig() {
   .then(function(res) {
     if (res.fields) {
       showView('view-success');
-      // ─── Notification push admin ───
+      // ─── Notification push au propriétaire du devis ───
       var _signataire = ((_devisData.clientPrenom || '') + ' ' + (_devisData.clientNom || '')).trim();
+      // owner_uid = UID Firebase de l'utilisateur qui doit recevoir la notification
+      // Pour les devis agents : owner_uid est l'agent commercial (pas le diagnostiqueur)
+      // Pour les devis normaux : uid est l'UID du diagnostiqueur connecté
+      var _notifUid = _devisData.owner_uid || _devisData.uid || 'admin';
       fetch('/.netlify/functions/send-push', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
+          uid:   _notifUid,
           title: '✍️ Devis N°' + (_devisData.devisNumero || '') + ' signé !',
           body:  'Signé par ' + (_signataire || 'le client') + ' — ' + new Date().toLocaleString('fr-FR'),
           tag:   'coup2pouce-devis'
