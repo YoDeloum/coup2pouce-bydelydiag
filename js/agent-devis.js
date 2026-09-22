@@ -57,7 +57,7 @@ function _agentDevisFormHtml(devis, profil) {
   var diagsList   = [
     'DPE','DPE Projeté','DPE Immeuble','Amiante','Prélèvement Amiante',
     'Plomb','Prélèvement Plomb','Électricité','Gaz','Termites',
-    'ERP','Carrez','Boutin','Avant travaux','Avant démolition','Frais déplacement'
+    'ERP','Carrez','Boutin','Avant travaux','Avant démolition','Audit énergétique','Frais déplacement'
   ];
 
   var periodOptions = ['Avant 1949','1949-1997','1997-2011','Après 2011'];
