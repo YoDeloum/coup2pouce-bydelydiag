@@ -50,20 +50,19 @@ function buildClientsDB() {
            m.email||m.client_email, m.adresse||m.bien_adresse, montant, m.date, 'mission', m.id||m.date);
   });
 
-  // Devis
+  // Devis — listés pour info mais non comptabilisés dans le CA (propositions seulement)
   var allDevis = typeof getAllDevis === 'function' ? getAllDevis() : [];
   allDevis.forEach(function(d) {
-    var montant = d.prix_final && d.prix_final > 0 ? d.prix_final : (d.total_ht||0);
     upsert(d.client_nom, d.client_prenom, d.client_tel, d.client_email,
-           d.bien_adresse, montant, d.date, 'devis', d.numero);
+           d.bien_adresse, 0, d.date, 'devis', d.numero);
   });
 
-  // Factures
+  // Factures — listées pour info mais non comptabilisées dans le CA
+  // (les missions correspondantes sont déjà comptées ci-dessus)
   var allFact = typeof getAllFactures === 'function' ? getAllFactures() : [];
   allFact.forEach(function(f) {
-    var montant = f.prix_final && f.prix_final > 0 ? f.prix_final : (f.total_ht||0);
     upsert(f.client_nom, f.client_prenom, f.client_tel, f.client_email,
-           f.bien_adresse, montant, f.date_facture||f.date, 'facture', f.numero_facture);
+           f.bien_adresse, 0, f.date_facture||f.date, 'facture', f.numero_facture);
   });
 
   return Object.values(db).sort(function(a,b) { return b.ca - a.ca; });
