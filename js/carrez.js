@@ -165,8 +165,8 @@ function triHtmlMeasure() {
     color = '#0891B2'; grad = '#0369A1';
   } else {
     stepNum = N + cur + 1;
-    label = 'Diagonale 1 → ' + (cur + 3);
-    hint  = 'Mesurez entre le coin 1 (violet) et le coin ' + (cur + 3);
+    label = 'Diagonale : coin 1 → coin ' + (cur + 3);
+    hint  = '📏 Tendez votre mètre EN LIGNE DROITE à travers la pièce — du coin 1 🟣 jusqu\'au coin ' + (cur+3) + ' 🔴 (les deux sont surlignés sur le schéma)';
     color = '#DC2626'; grad = '#B91C1C';
   }
   var pct = Math.round(stepNum / totalSteps * 100);
@@ -213,18 +213,46 @@ function triHtmlMeasure() {
 
 function triHtmlResult() {
   var calc = triCalculate(), hasErr = calc.triangles.some(function(t){return !t.valid;});
+  var N = (window.tri_pts||[]).length, W = window.tri_walls||[];
+  // Estimation basse : somme des murs / (2×π) × π = périmètre²/(4π) — trop complexe
+  // On utilise plutôt : surface mini plausible = (max_mur)² × 0.1 et maxi = (périm/4)²
+  var perim = W.reduce(function(s,w){return s+w;},0);
+  var maxMur = W.reduce(function(m,w){return Math.max(m,w);},0);
+  var surfMin = maxMur * 0.5;  // au moins la moitié du plus grand mur × 0.5
+  var surfMax = (perim/4) * (perim/4) * 1.5;
+  var suspicious = !hasErr && (calc.total < surfMin || calc.total > surfMax);
+
   var detail = calc.triangles.map(function(t,i){
     return '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #F3F4F6;font-size:12px">'
       + '<span style="color:#6B7280">▲ Triangle ' + (i+1) + '</span>'
-      + '<span style="font-weight:700;color:' + (t.valid?'#374151':'#DC2626') + '">' + (t.valid?t.area.toFixed(3)+' m²':'⚠️ invalide') + '</span></div>';
+      + '<span style="font-weight:700;color:' + (t.valid?'#374151':'#DC2626') + '">' + (t.valid?t.area.toFixed(3)+' m²':'⚠️ invalide — diagonale incorrecte') + '</span></div>';
   }).join('');
+
+  var errHtml = '';
+  if (hasErr) {
+    errHtml = '<div style="background:#FEE2E2;border:1.5px solid #FCA5A5;border-radius:10px;padding:12px;margin-top:10px;font-size:12px;color:#991B1B">'
+      + '<p style="font-weight:800;margin-bottom:6px">⚠️ Mesure(s) de diagonale incorrecte(s)</p>'
+      + '<p style="line-height:1.6">Une diagonale saisie est incompatible avec les murs du triangle. Causes possibles :<br>'
+      + '• Mauvaise diagonale mesurée (vérifiez les coins 🟣 et 🔴 sur le schéma)<br>'
+      + '• Erreur de saisie (virgule vs point ?)<br>'
+      + '• Pièce concave (rentrant) — dans ce cas, préférez le Calculateur simple</p>'
+      + '<button onclick="triReset()" style="width:100%;margin-top:8px;padding:10px;border-radius:8px;border:none;background:#DC2626;color:#fff;font-weight:700;cursor:pointer;font-family:inherit">🔄 Recommencer</button>'
+      + '</div>';
+  } else if (suspicious) {
+    errHtml = '<div style="background:#FEF3C7;border:1.5px solid #FCD34D;border-radius:10px;padding:10px;margin-top:10px;font-size:12px;color:#92400E">'
+      + '⚠️ Résultat inhabituel par rapport au périmètre mesuré. Vérifiez vos diagonales.'
+      + '</div>';
+  }
+
   return '<div class="card">'
     + '<h2 style="font-size:15px;font-weight:800;margin-bottom:6px;color:#059669">📐 Résultat</h2>'
     + '<canvas id="tri-canvas" width="320" height="180" style="width:100%;border-radius:10px;display:block;margin-bottom:12px"></canvas>'
     + '<div class="calc-result"><div style="color:rgba(255,255,255,.8);font-size:12px;margin-bottom:4px">Surface totale calculée</div>'
     + '<div style="color:#fff;font-size:40px;font-weight:800">' + calc.total.toFixed(2) + ' m²</div></div>'
-    + (hasErr ? '<div style="background:#FEE2E2;border:1px solid #FCA5A5;border-radius:8px;padding:10px;margin-top:10px;font-size:12px;color:#991B1B">⚠️ Un ou plusieurs triangles ont des mesures incompatibles. Vérifiez vos valeurs.</div>' : '')
+    + errHtml
     + '<div style="margin:12px 0"><p style="font-size:11px;font-weight:700;color:#9CA3AF;margin-bottom:6px;letter-spacing:.5px">DÉTAIL PAR TRIANGLE</p>' + detail + '</div>'
+    + '<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px;font-size:11px;color:#1E40AF;margin-bottom:12px">'
+    + '💡 <strong>Pour une pièce quasi-rectangulaire</strong> avec un seul coin coupé, le <strong>Calculateur simple</strong> est plus facile et tout aussi précis : grand rectangle − petit triangle.</div>'
     + '<button onclick="triReset()" style="width:100%;padding:14px;border-radius:10px;border:none;background:linear-gradient(135deg,#7C3AED,#6D28D9);color:#fff;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit">🔄 Nouveau calcul</button>'
     + '</div>';
 }
@@ -271,6 +299,12 @@ function triDrawCanvas() {
   }
   // Diagonals
   if ((phase==='diagonals'||phase==='result') && N>=4) {
+    // Mettre en surbrillance le triangle courant (zone rouge semi-transparente)
+    if (phase==='diagonals') {
+      var pt0=pts[0], pt1=pts[cur+1], pt2=pts[cur+2];
+      ctx.beginPath(); ctx.moveTo(pt0.x,pt0.y); ctx.lineTo(pt1.x,pt1.y); ctx.lineTo(pt2.x,pt2.y); ctx.closePath();
+      ctx.fillStyle='rgba(220,38,38,0.12)'; ctx.fill();
+    }
     var nd=N-3;
     for (var d=0;d<nd;d++) {
       var act=(phase==='diagonals'&&d===cur);
@@ -284,8 +318,12 @@ function triDrawCanvas() {
   ctx.setLineDash([]);
   for (var i=0;i<N;i++) {
     var p=pts[i];
-    ctx.beginPath(); ctx.arc(p.x,p.y,7,0,Math.PI*2);
-    ctx.fillStyle=(i===0)?'#7C3AED':'#374151'; ctx.fill();
+    // Pendant les diagonales, les 3 coins du triangle courant sont mis en évidence
+    var isTriCorner = (phase==='diagonals') && (i===0 || i===cur+1 || i===cur+2);
+    var r = isTriCorner ? 9 : 7;
+    ctx.beginPath(); ctx.arc(p.x,p.y,r,0,Math.PI*2);
+    ctx.fillStyle = (i===0)?'#7C3AED' : (isTriCorner?'#DC2626':'#374151');
+    ctx.fill();
     ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke();
     ctx.fillStyle='#fff'; ctx.font='bold 9px sans-serif';
     ctx.textAlign='center'; ctx.textBaseline='middle';
