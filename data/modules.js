@@ -1146,5 +1146,6 @@ const TARIFS_DEFAULT = {
   'Avant démolition': 0,
   'Prélèvement Amiante': 60,
   'Prélèvement Plomb': 60,
+  'Audit énergétique': 0,
   'Frais déplacement': 50
 };
