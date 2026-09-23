@@ -1,5 +1,5 @@
 // Service Worker — Coup 2 Pouce DELY DIAG
-const CACHE = 'coup2pouce-v36';
+const CACHE = 'coup2pouce-v37';
 
 // ─── Fichiers à mettre en cache pour le mode hors-ligne ───
 const PRECACHE = [
@@ -152,10 +152,20 @@ self.addEventListener('push', function(e) {
 // ─── Clic notification ───
 self.addEventListener('notificationclick', function(e) {
   e.notification.close();
+  var notifTag = e.notification.tag || '';
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(cls) {
-      if (cls.length > 0) { return cls[0].focus(); }
-      return clients.openWindow('/#devis');
+      if (cls.length > 0) {
+        return cls[0].focus().then(function(client) {
+          // Si c'est une notif de devis signé, demander à l'app d'ouvrir la section agent
+          if (notifTag === 'coup2pouce-devis' && client && client.postMessage) {
+            client.postMessage({ type: 'NOTIF_DEVIS_SIGNE' });
+          }
+          return client;
+        });
+      }
+      // App pas ouverte : l'ouvrir sur la bonne section
+      return clients.openWindow(notifTag === 'coup2pouce-devis' ? '/#agent' : '/');
     })
   );
 });
