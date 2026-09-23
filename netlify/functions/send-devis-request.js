@@ -25,7 +25,7 @@ exports.handler = async function(event) {
     if (!code) return { statusCode: 400, headers: CORS, body: JSON.stringify({ valid: false, error: 'Code manquant' }) };
 
     try {
-      var docRes = await fetch(FS_BASE + '/devis_liens/' + code + '?key=' + FS_KEY);
+      var docRes = await fetch(FS_BASE + '/codes/' + code + '?key=' + FS_KEY);
       var doc    = await docRes.json();
 
       if (!doc.fields) {
@@ -65,7 +65,7 @@ exports.handler = async function(event) {
 
   try {
     // 1. Valider le code et récupérer l'email du diagnostiqueur
-    var docRes2 = await fetch(FS_BASE + '/devis_liens/' + code + '?key=' + FS_KEY);
+    var docRes2 = await fetch(FS_BASE + '/codes/' + code + '?key=' + FS_KEY);
     var doc2    = await docRes2.json();
 
     if (!doc2.fields) {
