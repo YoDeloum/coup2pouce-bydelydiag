@@ -688,7 +688,6 @@ function genererLienDevis() {
   for (var i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
 
   var FS_PROJECT = 'coup2pouce-by-delydiag';
-  var FS_KEY     = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
   var token      = localStorage.getItem('fb_token') || '';
   var url        = 'https://firestore.googleapis.com/v1/projects/' + FS_PROJECT + '/databases/(default)/documents/devis_liens/' + code;
 
