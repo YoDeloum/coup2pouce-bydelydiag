@@ -689,7 +689,7 @@ function genererLienDevis() {
 
   var FS_PROJECT = 'coup2pouce-by-delydiag';
   var token      = localStorage.getItem('fb_token') || '';
-  var url        = 'https://firestore.googleapis.com/v1/projects/' + FS_PROJECT + '/databases/(default)/documents/devis_liens/' + code;
+  var url        = 'https://firestore.googleapis.com/v1/projects/' + FS_PROJECT + '/databases/(default)/documents/codes/' + code;
 
   var wrap = document.getElementById('profil-devis-link-wrap');
   if (wrap) wrap.innerHTML = '<p style="font-size:13px;color:#6B7280;margin:0">⏳ Génération en cours...</p>';
@@ -702,7 +702,9 @@ function genererLienDevis() {
         uid:        { stringValue: uid },
         email_diag: { stringValue: email },
         nom_diag:   { stringValue: nomDiag },
-        actif:      { booleanValue: true }
+        agence:     { stringValue: nomDiag },
+        actif:      { booleanValue: true },
+        type:       { stringValue: 'devis' }
       }
     })
   }).then(function(res) {
