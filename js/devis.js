@@ -20,10 +20,63 @@ function genDevisNumero() {
   return year + '-' + String(seq).padStart(3, '0');
 }
 
+// ─── VÉRIFICATION AUTO DE TOUTES LES SIGNATURES EN ATTENTE ───
+// Appelée silencieusement à l'ouverture de la liste (ou sur clic notification).
+// callback(updated) : true si au moins un devis a été mis à jour.
+function verifierToutesSignaturesDevisAuto(callback) {
+  var list    = getAllDevis();
+  var FS_KEY  = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+  var pending = list.filter(function(d) {
+    return d.signature_token && !(d.signature && d.signature.accepte);
+  });
+  if (!pending.length) { if (callback) callback(false); return; }
+
+  var updated = 0;
+  var done    = 0;
+
+  pending.forEach(function(devis) {
+    var idx   = list.indexOf(devis);
+    var fsUrl = 'https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents/signatures/'
+              + devis.signature_token + '?key=' + FS_KEY;
+    fetch(fsUrl)
+      .then(function(r) { return r.json(); })
+      .then(function(doc) {
+        if (doc.fields && doc.fields.value) {
+          var data;
+          try { data = JSON.parse(doc.fields.value.stringValue); } catch(e) { data = null; }
+          if (data && data.signed) {
+            list[idx].signature = {
+              accepte:        true,
+              signataire:     data.signataire || '',
+              date_signature: data.signedAt   || new Date().toISOString(),
+              signature_img:  data.signature_img || '',
+              type:           'remote'
+            };
+            list[idx].statut = 'Accepté';
+            updated++;
+          }
+        }
+      })
+      .catch(function() {})
+      .then(function() {
+        done++;
+        if (done === pending.length) {
+          if (updated > 0) {
+            saveAllDevis(list);
+            renderDevisScreen('list'); // Rafraîchir la liste
+          }
+          if (callback) callback(updated > 0);
+        }
+      });
+  });
+}
+
 // ─── ÉCRAN DEVIS ───
 function openDevis() {
   document.getElementById('devis-screen').classList.add('open');
   renderDevisScreen('list');
+  // Vérification silencieuse des signatures à chaque ouverture de la liste
+  verifierToutesSignaturesDevisAuto(function() {});
 }
 function closeDevis() {
   document.getElementById('devis-screen').classList.remove('open');
