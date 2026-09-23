@@ -821,10 +821,10 @@ function genererPDFDevisSpecial(devis) {
 
   y += 2; y = pdfAddLine(doc, y); y += 3;
 
-  // Total
+  // Total — priorité au prix forfaitaire manuel (prix_final), sinon calcul auto (total_ht)
   var isHT  = (devis.statut_fiscal||'HT') === 'HT';
   var taux  = parseFloat(devis.taux_tva||20)/100;
-  var ht    = parseFloat(devis.total_ht||0);
+  var ht    = parseFloat(devis.prix_final && parseFloat(devis.prix_final) > 0 ? devis.prix_final : (devis.total_ht||0));
   var tvaMt = Math.round(ht*taux*100)/100;
   var ttc   = Math.round((ht+tvaMt)*100)/100;
 
