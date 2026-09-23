@@ -20,16 +20,33 @@ function genDevisNumero() {
   return year + '-' + String(seq).padStart(3, '0');
 }
 
-// ─── VÉRIFICATION AUTO DE TOUTES LES SIGNATURES EN ATTENTE ───
-// Appelée silencieusement à l'ouverture de la liste (ou sur clic notification).
-// callback(updated) : true si au moins un devis a été mis à jour.
-function verifierToutesSignaturesDevisAuto(callback) {
+// ─── TOAST DEVIS ───
+function _devisToast(msg, color) {
+  var t = document.createElement('div');
+  t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:99999;'
+    + 'background:'+(color||'#059669')+';color:#fff;padding:12px 20px;border-radius:12px;'
+    + 'font-size:14px;font-weight:700;font-family:inherit;box-shadow:0 4px 16px rgba(0,0,0,.25);'
+    + 'text-align:center;max-width:320px;pointer-events:none';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function() { t.remove(); }, 3500);
+}
+
+// ─── VÉRIFICATION DE TOUTES LES SIGNATURES EN ATTENTE ───
+// Appelée à l'ouverture de la liste ou manuellement.
+// showFeedback=true → affiche un toast du résultat
+function verifierToutesSignaturesDevisAuto(callback, showFeedback) {
   var list    = getAllDevis();
   var FS_KEY  = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
   var pending = list.filter(function(d) {
     return d.signature_token && !(d.signature && d.signature.accepte);
   });
-  if (!pending.length) { if (callback) callback(false); return; }
+
+  if (!pending.length) {
+    if (showFeedback) _devisToast('Aucun devis en attente de signature.', '#6B7280');
+    if (callback) callback(false);
+    return;
+  }
 
   var updated = 0;
   var done    = 0;
@@ -63,7 +80,10 @@ function verifierToutesSignaturesDevisAuto(callback) {
         if (done === pending.length) {
           if (updated > 0) {
             saveAllDevis(list);
-            renderDevisScreen('list'); // Rafraîchir la liste
+            renderDevisScreen('list');
+            _devisToast('✅ ' + updated + ' devis signé(s) mis à jour !');
+          } else if (showFeedback) {
+            _devisToast('Aucune signature trouvée pour le moment.', '#6B7280');
           }
           if (callback) callback(updated > 0);
         }
@@ -110,6 +130,7 @@ function renderDevisList(body) {
       <button onclick="_devisEdit=null;_isSpecialMode=false;renderDevisScreen('form')" style="flex:1;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#059669,#10B981);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">
         ➕ Nouveau devis
       </button>
+      <button onclick="verifierToutesSignaturesDevisAuto(null,true)" style="padding:14px 16px;border-radius:12px;border:1.5px solid #059669;background:#F0FDF4;color:#059669;font-size:18px;cursor:pointer" title="Vérifier si des clients ont signé">🔄</button>
       <button onclick="ouvrirParamRelances()" style="padding:14px 16px;border-radius:12px;border:1.5px solid #E2E5F0;background:#fff;color:#6B7280;font-size:18px;cursor:pointer" title="Relances automatiques">⚙️</button>
     </div>
     <button onclick="_devisEdit=null;_isSpecialMode=true;renderDevisScreen('form')" style="width:100%;padding:12px;border-radius:12px;border:2px dashed #F59E0B;background:#FFFBEB;color:#92400E;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:16px">
