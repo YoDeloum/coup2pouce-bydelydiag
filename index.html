@@ -674,6 +674,18 @@ document.addEventListener('DOMContentLoaded', function() {
     window.location.reload();
   });
 
+  // Message du SW (ex : clic sur notification devis signé → ouvrir les devis et vérifier)
+  navigator.serviceWorker.addEventListener('message', function(e) {
+    if (!e.data) return;
+    if (e.data.type === 'NOTIF_DEVIS_SIGNE') {
+      setTimeout(function() {
+        // Ouvrir la liste des devis
+        if (typeof openDevis === 'function') openDevis();
+        // openDevis() appelle déjà verifierToutesSignaturesDevisAuto() — la liste se met à jour
+      }, 400);
+    }
+  });
+
   window.pwaApplyUpdate = function() {
     if (_waitingSW) {
       // Demande au SW en attente de s'activer maintenant
