@@ -33,25 +33,61 @@ function _devisToast(msg, color) {
 }
 
 // ─── VÉRIFICATION DE TOUTES LES SIGNATURES EN ATTENTE ───
-// Appelée à l'ouverture de la liste ou manuellement.
+// Vérifie TOUS les devis non signés, avec OU sans token local (fallback scan Firestore).
 // showFeedback=true → affiche un toast du résultat
 function verifierToutesSignaturesDevisAuto(callback, showFeedback) {
-  var list    = getAllDevis();
-  var FS_KEY  = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
-  var pending = list.filter(function(d) {
-    return d.signature_token && !(d.signature && d.signature.accepte);
-  });
+  var list      = getAllDevis();
+  var FS_KEY    = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+  var uid       = localStorage.getItem('fb_uid') || '';
+  var unsigned  = list.filter(function(d) { return !(d.signature && d.signature.accepte); });
+  var withToken = unsigned.filter(function(d) { return !!d.signature_token; });
+  var noToken   = unsigned.filter(function(d) { return !d.signature_token; });
 
-  if (!pending.length) {
+  if (!unsigned.length) {
     if (showFeedback) _devisToast('Aucun devis en attente de signature.', '#6B7280');
     if (callback) callback(false);
     return;
   }
 
   var updated = 0;
+  var tasks   = withToken.length + (noToken.length > 0 && uid ? 1 : 0);
   var done    = 0;
 
-  pending.forEach(function(devis) {
+  if (tasks === 0) {
+    if (showFeedback) _devisToast('Connexion requise pour vérifier.', '#6B7280');
+    if (callback) callback(false);
+    return;
+  }
+
+  function _applySignature(idx, data) {
+    list[idx].signature = {
+      accepte:        true,
+      signataire:     data.signataire || '',
+      date_signature: data.signedAt   || new Date().toISOString(),
+      signature_img:  data.signature_img || '',
+      type:           'remote'
+    };
+    if (data.token) list[idx].signature_token = data.token;
+    list[idx].statut = 'Accepté';
+    updated++;
+  }
+
+  function _finish() {
+    done++;
+    if (done === tasks) {
+      if (updated > 0) {
+        saveAllDevis(list);
+        renderDevisScreen('list');
+        _devisToast('✅ ' + updated + ' devis signé(s) mis à jour !');
+      } else if (showFeedback) {
+        _devisToast('Aucune nouvelle signature trouvée.', '#6B7280');
+      }
+      if (callback) callback(updated > 0);
+    }
+  }
+
+  // Devis avec token → lookup direct (rapide)
+  withToken.forEach(function(devis) {
     var idx   = list.indexOf(devis);
     var fsUrl = 'https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents/signatures/'
               + devis.signature_token + '?key=' + FS_KEY;
@@ -61,36 +97,35 @@ function verifierToutesSignaturesDevisAuto(callback, showFeedback) {
         if (doc.fields && doc.fields.value) {
           var data;
           try { data = JSON.parse(doc.fields.value.stringValue); } catch(e) { data = null; }
-          if (data && data.signed) {
-            list[idx].signature = {
-              accepte:        true,
-              signataire:     data.signataire || '',
-              date_signature: data.signedAt   || new Date().toISOString(),
-              signature_img:  data.signature_img || '',
-              type:           'remote'
-            };
-            list[idx].statut = 'Accepté';
-            updated++;
-          }
+          if (data && data.signed) _applySignature(idx, data);
         }
       })
       .catch(function() {})
-      .then(function() {
-        done++;
-        if (done === pending.length) {
-          if (updated > 0) {
-            saveAllDevis(list);
-            renderDevisScreen('list');
-            _devisToast('✅ ' + updated + ' devis signé(s) mis à jour !');
-          } else if (showFeedback) {
-            _devisToast('Aucune signature trouvée pour le moment.', '#6B7280');
-          }
-          if (callback) callback(updated > 0);
-        }
-      });
+      .then(_finish);
   });
-}
 
+  // Devis sans token → 1 seul scan global, match par uid + devisNumero
+  if (noToken.length > 0 && uid) {
+    var scanUrl = 'https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents/signatures?key=' + FS_KEY + '&pageSize=200';
+    fetch(scanUrl)
+      .then(function(r) { return r.json(); })
+      .then(function(result) {
+        var docs = result.documents || [];
+        docs.forEach(function(doc) {
+          if (!doc.fields || !doc.fields.value) return;
+          var d;
+          try { d = JSON.parse(doc.fields.value.stringValue); } catch(e) { return; }
+          if (!d || !d.signed || d.uid !== uid) return;
+          noToken.forEach(function(devis) {
+            if (devis.signature && devis.signature.accepte) return;
+            if (d.devisNumero === devis.numero) _applySignature(list.indexOf(devis), d);
+          });
+        });
+      })
+      .catch(function() {})
+      .then(_finish);
+  }
+}
 // ─── ÉCRAN DEVIS ───
 function openDevis() {
   document.getElementById('devis-screen').classList.add('open');
@@ -403,7 +438,7 @@ function renderDevisForm(body) {
       <button onclick="if(_devisEdit!==null && getAllDevis()[_devisEdit]) genererPDFDevis(getAllDevis()[_devisEdit])" style="padding:12px;border-radius:10px;border:2px solid #059669;background:#fff;color:#059669;font-size:13px;font-weight:700;font-family:inherit;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>📄 Générer PDF</button>
       <button onclick="if(_devisEdit!==null && getAllDevis()[_devisEdit]) envoyerMailDevis(getAllDevis()[_devisEdit])" style="padding:12px;border-radius:10px;border:2px solid #0891B2;background:#fff;color:#0891B2;font-size:13px;font-weight:700;font-family:inherit;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>✉️ Envoyer mail</button>
     </div>
-    ${devis.signature_token ? '<button id="btn-verif-sig" onclick="verifierSignatureDistante()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #059669;background:#F0FDF4;color:#059669;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:pointer">🔄 Vérifier si le client a signé</button>' : ''}
+    ${!(devis.signature && devis.signature.accepte) ? '<button id="btn-verif-sig" onclick="verifierSignatureDistante()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #059669;background:#F0FDF4;color:#059669;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:pointer">🔄 Vérifier si le client a signé</button>' : ''}
     ${devis.signature && devis.signature.accepte && devis.signature.signature_img ? '<button onclick="genererPDFSigne(getAllDevis()[_devisEdit])" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#059669,#2D6A4F);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">📄 Télécharger le devis signé</button>' : ''}
     <button onclick="if(_devisEdit!==null) openSignature(_devisEdit)" style="width:100%;padding:12px;border-radius:10px;border:2px solid #1B4332;background:#fff;color:#1B4332;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>✍️ Signature / Acceptation client</button>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
@@ -825,46 +860,76 @@ function envoyerMailDevis(devis) {
 }
 
 // ─── VÉRIFIER SI LE CLIENT A SIGNÉ À DISTANCE ───
+// Fonctionne avec OU sans signature_token local (scan Firestore en fallback cross-appareil).
 function verifierSignatureDistante() {
   var list  = getAllDevis();
   var devis = _devisEdit !== null ? list[_devisEdit] : null;
-  if (!devis || !devis.signature_token) { alert('Aucun lien de signature envoy\u00e9 pour ce devis.'); return; }
+  if (!devis) { alert('Devis introuvable.'); return; }
 
-  var btn = document.getElementById('btn-verif-sig');
+  var btn    = document.getElementById('btn-verif-sig');
+  var FS_KEY = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+
+  function _reset() {
+    if (btn) { btn.textContent = '🔄 Vérifier si le client a signé'; btn.disabled = false; }
+  }
+  function _appliquer(data) {
+    var signedDate = data.signedAt ? new Date(data.signedAt).toLocaleString('fr-FR') : '';
+    list[_devisEdit].signature = {
+      accepte:        true,
+      signataire:     data.signataire || '',
+      date_signature: data.signedAt   || new Date().toISOString(),
+      signature_img:  data.signature_img || '',
+      type:           'remote'
+    };
+    if (data.token) list[_devisEdit].signature_token = data.token;
+    list[_devisEdit].statut = 'Accepté';
+    saveAllDevis(list);
+    _reset();
+    alert('✅ Signé par ' + (data.signataire || 'le client') + (signedDate ? ' le ' + signedDate : '') + ' !');
+    renderDevisScreen('form');
+  }
+
   if (btn) { btn.textContent = '⏳ Vérification...'; btn.disabled = true; }
 
-  var fsUrl = 'https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents/signatures/'
-    + devis.signature_token + '?key=' + ('AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4');
+  // ── Chemin 1 : token connu → lookup direct (rapide) ──
+  if (devis.signature_token) {
+    var fsUrl = 'https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents/signatures/'
+              + devis.signature_token + '?key=' + FS_KEY;
+    fetch(fsUrl)
+      .then(function(r) { return r.json(); })
+      .then(function(doc) {
+        if (!doc.fields || !doc.fields.value) { _reset(); alert('Lien introuvable dans Firestore.'); return; }
+        var data;
+        try { data = JSON.parse(doc.fields.value.stringValue); } catch(e) { _reset(); alert('Erreur de lecture.'); return; }
+        if (data.signed) { _appliquer(data); }
+        else { _reset(); alert('⏳ Le client n\'a pas encore signé ce devis.'); }
+      })
+      .catch(function() { _reset(); alert('Erreur réseau. Vérifiez votre connexion.'); });
+    return;
+  }
 
-  fetch(fsUrl)
+  // ── Chemin 2 : pas de token local → scan Firestore par uid + numéro de devis ──
+  // (email envoyé depuis un autre appareil — token non synchronisé)
+  var uid = localStorage.getItem('fb_uid') || '';
+  if (!uid || !devis.numero) { _reset(); alert('Impossible de vérifier : uid ou numéro de devis manquant.'); return; }
+
+  var scanUrl = 'https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents/signatures?key=' + FS_KEY + '&pageSize=200';
+  fetch(scanUrl)
     .then(function(r) { return r.json(); })
-    .then(function(doc) {
-      if (btn) { btn.textContent = '🔄 Vérifier si le client a signé'; btn.disabled = false; }
-      if (!doc.fields || !doc.fields.value) { alert('Impossible de v\u00e9rifier (lien introuvable).'); return; }
-      var data;
-      try { data = JSON.parse(doc.fields.value.stringValue); } catch(e) { alert('Erreur de lecture.'); return; }
-      if (data.signed) {
-        var signedDate = data.signedAt ? new Date(data.signedAt).toLocaleString('fr-FR') : '';
-        // Mettre à jour le devis local avec la signature
-        list[_devisEdit].signature = {
-          accepte:        true,
-          signataire:     data.signataire || '',
-          date_signature: data.signedAt || new Date().toISOString(),
-          signature_img:  data.signature_img || '',
-          type:           'remote'
-        };
-        list[_devisEdit].statut = 'Accepté';
-        saveAllDevis(list);
-        alert('✅ Signé par ' + (data.signataire || 'le client') + (signedDate ? ' le ' + signedDate : '') + ' !');
-        renderDevisScreen('form');
-      } else {
-        alert('\u23f3 Le client n\'a pas encore sign\u00e9 le devis.');
-      }
+    .then(function(result) {
+      var docs  = result.documents || [];
+      var found = null;
+      docs.forEach(function(doc) {
+        if (found) return;
+        if (!doc.fields || !doc.fields.value) return;
+        var d;
+        try { d = JSON.parse(doc.fields.value.stringValue); } catch(e) { return; }
+        if (d && d.signed && d.uid === uid && d.devisNumero === devis.numero) { found = d; }
+      });
+      if (found) { _appliquer(found); }
+      else { _reset(); alert('⏳ Le client n\'a pas encore signé ce devis (N°' + devis.numero + ').'); }
     })
-    .catch(function() {
-      if (btn) { btn.textContent = '🔄 Vérifier si le client a signé'; btn.disabled = false; }
-      alert('Erreur réseau lors de la vérification.');
-    });
+    .catch(function() { _reset(); alert('Erreur réseau. Vérifiez votre connexion.'); });
 }
 
 
@@ -1216,7 +1281,7 @@ function renderDevisSpecialForm(body) {
     +'<button onclick="if(_devisEdit!==null&&getAllDevis()[_devisEdit])genererPDFDevisSpecial(getAllDevis()[_devisEdit])" style="padding:12px;border-radius:10px;border:2px solid #059669;background:#fff;color:#059669;font-size:13px;font-weight:700;font-family:inherit;cursor:'+(_devisEdit===null?'not-allowed':'pointer')+';opacity:'+(_devisEdit===null?.4:1)+'" '+(_devisEdit===null?'disabled':'')+'>📄 Générer PDF</button>'
     +'<button onclick="if(_devisEdit!==null&&getAllDevis()[_devisEdit])envoyerMailDevis(getAllDevis()[_devisEdit])" style="padding:12px;border-radius:10px;border:2px solid #0891B2;background:#fff;color:#0891B2;font-size:13px;font-weight:700;font-family:inherit;cursor:'+(_devisEdit===null?'not-allowed':'pointer')+';opacity:'+(_devisEdit===null?.4:1)+'" '+(_devisEdit===null?'disabled':'')+'>✉️ Envoyer mail</button>'
     +'</div>'
-    +(_devisEdit !== null && getAllDevis()[_devisEdit] && getAllDevis()[_devisEdit].signature_token ? '<button id="btn-verif-sig" onclick="verifierSignatureDistante()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #059669;background:#F0FDF4;color:#059669;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:pointer">🔄 Vérifier si le client a signé</button>' : '')
+    +(_devisEdit !== null && getAllDevis()[_devisEdit] && !(getAllDevis()[_devisEdit].signature && getAllDevis()[_devisEdit].signature.accepte) ? '<button id="btn-verif-sig" onclick="verifierSignatureDistante()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #059669;background:#F0FDF4;color:#059669;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:pointer">🔄 Vérifier si le client a signé</button>' : '')
     +(_devisEdit !== null && getAllDevis()[_devisEdit] && getAllDevis()[_devisEdit].signature && getAllDevis()[_devisEdit].signature.accepte && getAllDevis()[_devisEdit].signature.signature_img ? '<button onclick="genererPDFSigne(getAllDevis()[_devisEdit])" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#059669,#2D6A4F);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">📄 Télécharger le devis signé</button>' : '')
     +'<button onclick="if(_devisEdit!==null) openSignature(_devisEdit)" style="width:100%;padding:12px;border-radius:10px;border:2px solid #1B4332;background:#fff;color:#1B4332;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:'+(_devisEdit===null?'not-allowed':'pointer')+';opacity:'+(_devisEdit===null?.4:1)+'" '+(_devisEdit===null?'disabled':'')+'>✍️ Signature / Acceptation client</button>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
