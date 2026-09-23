@@ -130,8 +130,6 @@ function verifierToutesSignaturesDevisAuto(callback, showFeedback) {
 function openDevis() {
   document.getElementById('devis-screen').classList.add('open');
   renderDevisScreen('list');
-  // Vérification silencieuse des signatures à chaque ouverture de la liste
-  verifierToutesSignaturesDevisAuto(function() {});
 }
 function closeDevis() {
   document.getElementById('devis-screen').classList.remove('open');
@@ -987,16 +985,41 @@ function calculerDiagsAuto() {
   alert('\u2705 ' + nb + ' diagnostic' + (nb > 1 ? 's' : '') + ' selectionne' + (nb > 1 ? 's' : '') + ' :\n' + obligatoires.join(', ') + '\n\nTu peux modifier la selection manuellement.');
 }
 
-// \u2500\u2500\u2500 V\u00c9RIFICATION AUTOMATIQUE DE TOUTES LES SIGNATURES \u2500\u2500\u2500
+// ─── VÉRIFICATION AUTOMATIQUE DE TOUTES LES SIGNATURES ───
 function checkAllSignatures() {
-  var list = getAllDevis();
-  var toCheck = list.filter(function(d) {
-    return d.signature_token && !(d.signature && d.signature.accepte);
-  });
-  if (!toCheck.length) return;
+  var list     = getAllDevis();
+  var FS_KEY   = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+  var uid      = localStorage.getItem('fb_uid') || '';
+  var unsigned = list.filter(function(d) { return !(d.signature && d.signature.accepte); });
+  var withTok  = unsigned.filter(function(d) { return !!d.signature_token; });
+  var noTok    = unsigned.filter(function(d) { return !d.signature_token; });
 
-  var FS_KEY = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
-  var promises = toCheck.map(function(d) {
+  if (!unsigned.length) return;
+
+  function _applyToList(list2, sigData, tokenOrNull) {
+    var applied = 0;
+    list2.forEach(function(d) {
+      var match = tokenOrNull
+        ? d.signature_token === tokenOrNull
+        : (d.uid !== undefined && sigData.devisNumero === d.numero) || sigData.devisNumero === d.numero;
+      if (match && !(d.signature && d.signature.accepte)) {
+        d.signature = {
+          accepte:        true,
+          signataire:     sigData.signataire || '',
+          date_signature: sigData.signedAt   || new Date().toISOString(),
+          signature_img:  sigData.signature_img || '',
+          type:           'remote'
+        };
+        if (sigData.token && !d.signature_token) d.signature_token = sigData.token;
+        d.statut        = 'Accepté';
+        d.signature_new = true;
+        applied++;
+      }
+    });
+    return applied;
+  }
+
+  var promises = withTok.map(function(d) {
     var url = 'https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents/signatures/'
       + d.signature_token + '?key=' + FS_KEY;
     return fetch(url)
@@ -1005,39 +1028,54 @@ function checkAllSignatures() {
         if (!doc.fields || !doc.fields.value) return null;
         var data;
         try { data = JSON.parse(doc.fields.value.stringValue); } catch(e) { return null; }
-        if (data.signed && data.signature_img) return { token: d.signature_token, sigData: data };
-        return null;
+        return (data && data.signed) ? { token: d.signature_token, sigData: data } : null;
       })
       .catch(function() { return null; });
   });
 
+  if (noTok.length > 0 && uid) {
+    var scanUrl = 'https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents/signatures?key=' + FS_KEY + '&pageSize=200';
+    promises.push(
+      fetch(scanUrl)
+        .then(function(r) { return r.json(); })
+        .then(function(result) {
+          var docs = result.documents || [];
+          var hits = [];
+          docs.forEach(function(doc) {
+            if (!doc.fields || !doc.fields.value) return;
+            var d; try { d = JSON.parse(doc.fields.value.stringValue); } catch(e) { return; }
+            if (!d || !d.signed || d.uid !== uid) return;
+            noTok.forEach(function(devis) {
+              if (!(devis.signature && devis.signature.accepte) && d.devisNumero === devis.numero) {
+                hits.push({ token: null, sigData: d });
+              }
+            });
+          });
+          return hits;
+        })
+        .catch(function() { return []; })
+    );
+  }
+
   Promise.all(promises).then(function(results) {
-    var list2    = getAllDevis();
-    var updated  = 0;
+    var list2   = getAllDevis();
+    var updated = 0;
     results.forEach(function(result) {
       if (!result) return;
-      list2.forEach(function(d) {
-        if (d.signature_token === result.token && !(d.signature && d.signature.accepte)) {
-          d.signature = {
-            accepte:        true,
-            signataire:     result.sigData.signataire || '',
-            date_signature: result.sigData.signedAt   || new Date().toISOString(),
-            signature_img:  result.sigData.signature_img || '',
-            type:           'remote'
-          };
-          d.statut        = 'Accept\u00e9';
-          d.signature_new = true; // non lu \u2014 d\u00e9clenche la pastille
-          updated++;
-        }
+      var items = Array.isArray(result) ? result : [result];
+      items.forEach(function(item) {
+        if (!item || !item.sigData) return;
+        updated += _applyToList(list2, item.sigData, item.token);
       });
     });
     if (updated > 0) {
       saveAllDevis(list2);
       updateDevisBadge();
+      var scr = document.getElementById('devis-screen');
+      if (scr && scr.classList.contains('open') && _devisView === 'list') renderDevisScreen('list');
     }
   });
 }
-
 // \u2500\u2500\u2500 MISE \u00c0 JOUR DE LA PASTILLE DEVIS \u2500\u2500\u2500
 function updateDevisBadge() {
   var list  = getAllDevis();
