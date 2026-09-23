@@ -214,7 +214,7 @@ function renderFactureForm(body) {
         </div>
         <div style="margin-top:14px;padding:14px;background:#F0FDF4;border-radius:10px;border:1px solid #BBF7D0;display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:14px;font-weight:700;color:#065F46">Total HT</span>
-          <span id="fc-total-display" style="font-size:18px;font-weight:800;color:#1B4332">${parseFloat(src.total_ht||0).toFixed(2)} €</span>
+          <span id="fc-total-display" style="font-size:18px;font-weight:800;color:#1B4332">${parseFloat(src.prix_final && parseFloat(src.prix_final) > 0 ? src.prix_final : (src.total_ht||0)).toFixed(2)} €</span>
         </div>
       `}
 
