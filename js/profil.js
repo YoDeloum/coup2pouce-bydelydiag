@@ -275,6 +275,29 @@ function renderProfilScreen() {
       <button onclick="ouvrirGestionPrescripteurs()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #E8650A;background:#fff;color:#E8650A;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">⚙️ Gérer les prescripteurs</button>
     </div>
 
+    <div class="profil-section" style="border:2px solid #059669;background:#F0FDF4">
+      <div class="profil-section-title" style="color:#065F46">🔗 Lien demande de devis</div>
+      <p style="font-size:13px;color:#6B7280;margin:0 0 12px">Génère ton lien personnel à coller sur ta page web. Tes clients pourront faire une demande de devis en ligne, directement vers toi.</p>
+      <div id="profil-devis-link-wrap">
+        ${(function() {
+          var existingCode = localStorage.getItem('dd_devis_link_code') || '';
+          if (existingCode) {
+            var lien = window.location.origin + '/devis-demande.html?code=' + existingCode;
+            return '<div style="background:#fff;border:1.5px solid #6EE7B7;border-radius:10px;padding:12px 14px;margin-bottom:10px;word-break:break-all">'
+              + '<div style="font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px">Ton lien personnel</div>'
+              + '<div style="font-size:12px;color:#065F46;font-weight:600;line-height:1.5">' + lien + '</div>'
+              + '</div>'
+              + '<div style="display:flex;gap:8px">'
+              + '<button onclick="_copierLienDevis(\'' + lien.replace(/'/g, "\\'") + '\')" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid #059669;background:#fff;color:#059669;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">📋 Copier le lien</button>'
+              + '<button onclick="genererLienDevis()" style="padding:10px 12px;border-radius:8px;border:1.5px solid #E2E5F0;background:#fff;color:#6B7280;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit" title="Générer un nouveau code">🔄</button>'
+              + '</div>';
+          } else {
+            return '<button onclick="genererLienDevis()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #059669;background:#fff;color:#059669;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">🔗 Générer mon lien de devis</button>';
+          }
+        })()}
+      </div>
+    </div>
+
     <button class="profil-save-btn" onclick="saveProfilForm()">💾 Enregistrer le profil</button>
 
     <button onclick="forcerSyncCloud(this)" style="width:100%;padding:12px;border-radius:10px;border:1.5px solid #0891B2;background:#fff;color:#0891B2;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:10px">☁️ Forcer la synchronisation vers le cloud</button>
@@ -648,5 +671,72 @@ function exporterProfilAgent() {
 
   } catch(err) {
     alert('Erreur lors de l\'export : ' + err.message);
+  }
+}
+
+// ─── Génération du lien demande de devis ───
+function genererLienDevis() {
+  var uid   = localStorage.getItem('fb_uid')   || '';
+  var email = localStorage.getItem('fb_email') || '';
+  if (!uid || !email) { alert('Tu dois être connecté pour générer un lien.'); return; }
+
+  var p       = getCompanyProfile();
+  var nomDiag = ((p.nom_responsable || p.nom_societe || email || 'Diagnostiqueur')).trim();
+
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var code  = '';
+  for (var i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+
+  var FS_PROJECT = 'coup2pouce-by-delydiag';
+  var FS_KEY     = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+  var token      = localStorage.getItem('fb_token') || '';
+  var url        = 'https://firestore.googleapis.com/v1/projects/' + FS_PROJECT + '/databases/(default)/documents/devis_liens/' + code;
+
+  var wrap = document.getElementById('profil-devis-link-wrap');
+  if (wrap) wrap.innerHTML = '<p style="font-size:13px;color:#6B7280;margin:0">⏳ Génération en cours...</p>';
+
+  fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({
+      fields: {
+        uid:        { stringValue: uid },
+        email_diag: { stringValue: email },
+        nom_diag:   { stringValue: nomDiag },
+        actif:      { booleanValue: true }
+      }
+    })
+  }).then(function(res) {
+    if (res.ok) {
+      localStorage.setItem('dd_devis_link_code', code);
+      var lien = window.location.origin + '/devis-demande.html?code=' + code;
+      if (wrap) {
+        wrap.innerHTML =
+          '<div style="background:#fff;border:1.5px solid #6EE7B7;border-radius:10px;padding:12px 14px;margin-bottom:10px;word-break:break-all">'
+          + '<div style="font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px">Ton lien personnel</div>'
+          + '<div style="font-size:12px;color:#065F46;font-weight:600;line-height:1.5">' + lien + '</div>'
+          + '</div>'
+          + '<div style="display:flex;gap:8px">'
+          + '<button onclick="_copierLienDevis(\'' + lien.replace(/'/g, "\\'") + '\')" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid #059669;background:#fff;color:#059669;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">📋 Copier le lien</button>'
+          + '<button onclick="genererLienDevis()" style="padding:10px 12px;border-radius:8px;border:1.5px solid #E2E5F0;background:#fff;color:#6B7280;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit" title="Générer un nouveau code">🔄</button>'
+          + '</div>';
+      }
+    } else {
+      if (wrap) wrap.innerHTML = '<button onclick="genererLienDevis()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #059669;background:#fff;color:#059669;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">🔗 Générer mon lien de devis</button>';
+      alert('Erreur lors de la création du lien. Réessaie.');
+    }
+  }).catch(function() {
+    if (wrap) wrap.innerHTML = '<button onclick="genererLienDevis()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #059669;background:#fff;color:#059669;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">🔗 Générer mon lien de devis</button>';
+    alert('Erreur réseau. Vérifie ta connexion.');
+  });
+}
+
+function _copierLienDevis(lien) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(lien).then(function() {
+      alert('✅ Lien copié !\n\nColle-le sur ta page web :\n' + lien);
+    });
+  } else {
+    prompt('Copie ce lien et colle-le sur ta page web :', lien);
   }
 }
