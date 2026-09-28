@@ -77,8 +77,8 @@ function firebaseLogin() {
             if (typeof _processPendingMissionImport === 'function') {
               _processPendingMissionImport();
             }
-            if (typeof _processPendingOpenMission === 'function') {
-              _processPendingOpenMission();
+            if (typeof _waitAndOpenMission === 'function') {
+              _waitAndOpenMission(0);
             }
           }, 600);
         });
@@ -88,8 +88,8 @@ function firebaseLogin() {
           if (typeof _processPendingMissionImport === 'function') {
             _processPendingMissionImport();
           }
-          if (typeof _processPendingOpenMission === 'function') {
-            _processPendingOpenMission();
+          if (typeof _waitAndOpenMission === 'function') {
+            _waitAndOpenMission(0);
           }
         }, 600);
       }
