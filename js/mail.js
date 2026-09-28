@@ -194,6 +194,7 @@ function envoyerMailFacture(facture) {
 
 /**
  * Mail confirmation RDV — envoi via Netlify avec PDF infos mission en PJ
+ * + génération automatique d'un lien de consentement ADEME
  */
 function envoyerMailRDVConfirme(mission) {
   if (!mission) { alert('Mission introuvable.'); return; }
@@ -215,6 +216,10 @@ function envoyerMailRDVConfirme(mission) {
   var to      = mission.email || mission.client_email || '';
   var subject = 'Confirmation de rendez-vous — ' + societe;
 
+  // ── Génération token consentement ──
+  var consentToken = _genererTokenConsentement();
+  var consentUrl   = window.location.origin + '/consentement.html?token=' + consentToken;
+
   var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto">'
     + '<div style="background:#1B4332;padding:24px 32px;border-radius:8px 8px 0 0">'
     + '<h1 style="color:#fff;margin:0;font-size:20px">' + societe + '</h1>'
@@ -232,6 +237,13 @@ function envoyerMailRDVConfirme(mission) {
     + '<p style="margin:0;font-size:14px;color:#374151">' + diags + '</p>'
     + '</div>'
     + '<p style="color:#374151">Veuillez trouver en pièce jointe la liste des documents et informations à préparer pour le bon déroulement de notre intervention.</p>'
+    // Section consentement ADEME
+    + '<div style="background:#EFF6FF;border:2px solid #BFDBFE;border-radius:10px;padding:18px 20px;margin:20px 0">'
+    + '<p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#1E40AF">📝 Formulaire de consentement ADEME</p>'
+    + '<p style="margin:0 0 12px;font-size:13px;color:#374151;line-height:1.6">Dans le cadre de la réglementation sur les audits énergétiques, nous vous demandons de bien vouloir remplir et signer le formulaire de consentement au traitement de vos données personnelles par l\'Ademe.</p>'
+    + '<p style="margin:0 0 12px;font-size:12px;color:#6B7280">Ce formulaire est obligatoire. Il prend moins d\'une minute à compléter.</p>'
+    + '<a href="' + consentUrl + '" style="display:inline-block;padding:12px 20px;background:#1E40AF;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">✍️ Remplir le formulaire de consentement</a>'
+    + '</div>'
     + '<p style="color:#374151;margin-top:24px">Cordialement,<br><strong>' + (p.nom_responsable || societe) + '</strong><br>'
     + (p.telephone ? p.telephone + '<br>' : '') + (p.email || '') + '</p>'
     + '</div>'
@@ -247,6 +259,45 @@ function envoyerMailRDVConfirme(mission) {
     }
   } catch(e) {}
 
+  // ── Sauvegarder le token en Firestore (signatures/{token}) ──
+  var uid      = localStorage.getItem('fb_uid')   || '';
+  var fbToken  = localStorage.getItem('fb_token') || '';
+  var nomDiag  = (p.nom_responsable || societe) + (p.nom_societe && p.nom_societe !== p.nom_responsable ? ' — ' + p.nom_societe : '');
+  var FS_BASE  = 'https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents';
+
+  var fsBody = {
+    fields: {
+      type:          { stringValue: 'consentement' },
+      uid:           { stringValue: uid },
+      email_diag:    { stringValue: p.email || localStorage.getItem('fb_email') || '' },
+      nom_diag:      { stringValue: nomDiag },
+      email_client:  { stringValue: to },
+      nom_client:    { stringValue: mission.nom  || mission.client_nom  || '' },
+      prenom_client: { stringValue: prenom },
+      tel_client:    { stringValue: mission.tel  || mission.client_tel  || '' },
+      adresse_bien:  { stringValue: adresse },
+      date_rdv:      { stringValue: mission.date || '' },
+      actif:         { booleanValue: true },
+      signe:         { booleanValue: false },
+      created_at:    { stringValue: new Date().toISOString() }
+    }
+  };
+
+  fetch(FS_BASE + '/signatures/' + consentToken, {
+    method:  'PATCH',
+    headers: { 'Authorization': 'Bearer ' + fbToken, 'Content-Type': 'application/json' },
+    body:    JSON.stringify(fsBody)
+  }).then(function() {
+    // Sauvegarder le token dans la mission locale
+    mission.consentement_token = consentToken;
+    if (typeof missions !== 'undefined') {
+      localStorage.setItem('dd_missions', JSON.stringify(missions));
+    }
+  }).catch(function(e) {
+    console.warn('[Consentement] Erreur Firestore :', e);
+  });
+
+  // ── Envoi du mail ──
   fetch('/.netlify/functions/send-email', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -259,13 +310,25 @@ function envoyerMailRDVConfirme(mission) {
   .then(function(res) { return res.json(); })
   .then(function(data) {
     if (btn) { btn.textContent = '✅ RDV Confirmé'; btn.disabled = false; }
-    if (data && data.success) alert('✅ Mail de confirmation envoyé à ' + to + ' !');
+    if (data && data.success) alert('✅ Mail de confirmation envoyé à ' + to + ' !\n📝 Formulaire de consentement ADEME inclus dans le mail.');
     else alert('⚠️ Erreur : ' + (data && data.error ? data.error : JSON.stringify(data)));
   })
   .catch(function(err) {
     if (btn) { btn.textContent = '✅ RDV Confirmé'; btn.disabled = false; }
     alert('❌ Erreur réseau : ' + err.message);
   });
+}
+
+/**
+ * Génère un token unique pour le formulaire de consentement
+ */
+function _genererTokenConsentement() {
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var token = 'C'; // préfixe pour identifier les tokens de consentement
+  for (var i = 0; i < 9; i++) {
+    token += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return token;
 }
 
 /**
