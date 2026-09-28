@@ -294,10 +294,21 @@ function _checkOpenMission() {
     // Persister pour survivre à l'écran de login
     try { sessionStorage.setItem('_pending_open_mission', savedAt); } catch(e) {}
     if (localStorage.getItem('fb_uid')) {
-      setTimeout(function() { _processPendingOpenMission(); }, 900);
+      // Attendre que missions soit chargé (max 5 tentatives, 600ms d'intervalle)
+      _waitAndOpenMission(0);
     }
   } catch(e) {
     console.warn('[open_mission] Erreur :', e);
+  }
+}
+
+function _waitAndOpenMission(attempt) {
+  var ready = typeof missions !== 'undefined' && Array.isArray(missions) && missions.length > 0
+    && typeof openMission === 'function';
+  if (ready || attempt >= 8) {
+    _processPendingOpenMission();
+  } else {
+    setTimeout(function() { _waitAndOpenMission(attempt + 1); }, 600);
   }
 }
 
