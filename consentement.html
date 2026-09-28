@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Formulaire de consentement — Audit énergétique</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#F5F6FA;color:#1A1D2E;min-height:100vh}
+    .container{max-width:600px;margin:0 auto;padding:16px 16px 40px}
+
+    /* Header */
+    .header{background:#fff;border-radius:14px;padding:20px;margin-bottom:16px;border:1.5px solid #E2E5F0;text-align:center}
+    .header-logo{font-size:11px;color:#9CA3AF;letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px}
+    .header h1{font-size:17px;font-weight:800;color:#1A1D2E;line-height:1.4;margin-bottom:6px}
+    .header p{font-size:12px;color:#6B7280;line-height:1.5}
+
+    /* Bloc texte réglementaire */
+    .legal-block{background:#fff;border-radius:14px;padding:18px;margin-bottom:16px;border:1.5px solid #E2E5F0;font-size:13px;color:#374151;line-height:1.7}
+    .legal-block p{margin-bottom:12px}
+    .legal-block p:last-child{margin-bottom:0}
+    .legal-block strong{color:#1A1D2E}
+    .legal-block a{color:#2D6A4F;text-decoration:none}
+    .legal-block a:hover{text-decoration:underline}
+    .legal-note{font-size:11px;color:#9CA3AF;line-height:1.6;border-top:1px solid #F0F0F5;padding-top:12px;margin-top:12px}
+
+    /* Choix OUI/NON */
+    .choices{margin-bottom:16px;display:flex;flex-direction:column;gap:10px}
+    .choice-btn{background:#fff;border:2px solid #E2E5F0;border-radius:14px;padding:16px;cursor:pointer;display:flex;align-items:flex-start;gap:14px;text-align:left;transition:all .18s;width:100%;font-family:inherit}
+    .choice-btn:hover{border-color:#2D6A4F;background:#F0FDF4}
+    .choice-btn.selected-oui{border-color:#059669;background:#F0FDF4}
+    .choice-btn.selected-non{border-color:#E8650A;background:#FFF7ED}
+    .choice-checkbox{width:22px;height:22px;border:2.5px solid #D1D5DB;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px;transition:all .18s;background:#fff}
+    .choice-btn.selected-oui .choice-checkbox{background:#059669;border-color:#059669;color:#fff;font-size:14px}
+    .choice-btn.selected-oui .choice-checkbox::after{content:'✓';color:#fff;font-weight:800}
+    .choice-btn.selected-non .choice-checkbox{background:#E8650A;border-color:#E8650A}
+    .choice-btn.selected-non .choice-checkbox::after{content:'✓';color:#fff;font-weight:800}
+    .choice-text{flex:1}
+    .choice-label{font-size:14px;font-weight:700;color:#1A1D2E;margin-bottom:4px}
+    .choice-label.oui{color:#065F46}
+    .choice-label.non{color:#C2410C}
+    .choice-sublabel{font-size:12px;color:#6B7280;line-height:1.5}
+
+    /* Formulaire infos (section OUI) */
+    .info-section{background:#F0FDF4;border:1.5px solid #A7F3D0;border-radius:14px;padding:18px;margin-bottom:16px;display:none}
+    .info-section.visible{display:block}
+    .info-section h3{font-size:12px;font-weight:800;color:#065F46;text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px}
+    .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+    .field-row.full{grid-template-columns:1fr}
+    .field-group{display:flex;flex-direction:column;gap:5px}
+    .field-label{font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.5px}
+    .field-input{padding:11px 13px;border-radius:8px;border:1.5px solid #D1FAE5;font-size:14px;font-family:inherit;background:#fff;color:#1A1D2E;outline:none;transition:border-color .15s;width:100%}
+    .field-input:focus{border-color:#059669}
+    .field-input.prefilled{background:#F9FAFB;color:#6B7280}
+
+    /* Date + Lieu */
+    .date-lieu{background:#fff;border-radius:14px;padding:16px;margin-bottom:16px;border:1.5px solid #E2E5F0}
+    .date-lieu h3{font-size:12px;font-weight:800;color:#1A1D2E;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px}
+
+    /* Signature */
+    .signature-section{background:#fff;border-radius:14px;padding:16px;margin-bottom:16px;border:1.5px solid #E2E5F0}
+    .signature-section h3{font-size:12px;font-weight:800;color:#1A1D2E;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+    .signature-note{font-size:11px;color:#9CA3AF;margin-bottom:12px}
+    #signature-canvas{border:1.5px dashed #D1D5DB;border-radius:10px;width:100%;cursor:crosshair;touch-action:none;background:#FAFAFA;display:block}
+    .signature-actions{display:flex;gap:8px;margin-top:8px}
+    .btn-clear{padding:8px 14px;border-radius:8px;border:1.5px solid #E2E5F0;background:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;color:#6B7280}
+
+    /* Submit */
+    #btn-submit{width:100%;padding:16px;border-radius:12px;border:none;background:linear-gradient(135deg,#1B4332,#2D6A4F);color:#fff;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:8px;opacity:.45;pointer-events:none;transition:opacity .2s}
+    #btn-submit.active{opacity:1;pointer-events:auto}
+
+    /* Écrans états */
+    #screen-loading, #screen-success, #screen-error{display:none;text-align:center;padding:40px 20px}
+    .state-icon{font-size:64px;margin-bottom:16px}
+    .state-title{font-size:20px;font-weight:800;margin-bottom:8px}
+    .state-body{font-size:14px;color:#6B7280;line-height:1.6}
+
+    /* Loader */
+    .spinner{width:40px;height:40px;border:4px solid #E2E5F0;border-top-color:#2D6A4F;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Footnotes */
+    .footnotes{font-size:10px;color:#9CA3AF;line-height:1.7;background:#fff;border-radius:14px;padding:14px;border:1px solid #E2E5F0;margin-top:16px}
+    .footnotes p{margin-bottom:6px}
+    .footnotes p:last-child{margin-bottom:0}
+  </style>
+</head>
+<body>
+
+<div id="screen-main" class="container">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-logo" id="hdr-diag-name">Chargement...</div>
+    <h1>Formulaire de consentement<br>traitement de données personnelles</h1>
+    <p>À l'attention du client commanditaire de l'audit énergétique,<br><strong>avant sa réalisation</strong></p>
+  </div>
+
+  <!-- TEXTE RÉGLEMENTAIRE -->
+  <div class="legal-block">
+    <p>En application de la réglementation<sup>2</sup>, <strong>le diagnostiqueur réalisant l'audit énergétique pour votre compte est soumis à des contrôles</strong> ayant pour objet de vérifier sa capacité à réaliser un audit dans le respect des exigences réglementaires. <strong>Ces contrôles participent à l'amélioration de la qualité de la réalisation des audits énergétiques.</strong></p>
+
+    <p><strong>Afin de pouvoir organiser les modalités pratiques de ces contrôles, l'organisme<sup>3</sup> chargé de contrôler votre diagnostiqueur peut être amené à vous contacter.</strong> Pour cela, et sous réserve de votre consentement, vos données personnelles (nom, prénom, adresse mail et/ou numéro de téléphone) sont collectées et traitées par l'Ademe lors de la transmission du rapport d'audit et transmises à l'organisme de contrôle.</p>
+
+    <p>Ces données seront stockées pour une durée de 1 an, et vous disposez d'un droit d'accès, de rectification, de portabilité, d'effacement ou de limitation du traitement de ces données. Plus d'informations sont disponibles dans la notice relative au traitement de ces données accessible à <a href="https://observatoire-dpe-audit.ademe.fr/ressources" target="_blank">https://observatoire-dpe-audit.ademe.fr/ressources</a> dans l'onglet « Traitement de vos données ».</p>
+
+    <p>Il est à noter que le consentement au traitement de vos données n'équivaut pas au consentement pour réaliser le contrôle dans le bien concerné&nbsp;; votre accord pour l'organisation de ce contrôle vous sera demandé séparément.</p>
+
+    <div class="legal-note">
+      <sup>1</sup> Si ce client est mandaté par un tiers, ce sont les données de ce tiers qui sont traitées, dès lors que le mandat l'autorise.<br>
+      <sup>2</sup> Décret n° 2023-1219 du 20 décembre 2023 définissant le référentiel de compétences et les modalités de contrôle de ces compétences pour les diagnostiqueurs immobiliers en vue de la réalisation de l'audit énergétique mentionné à l'article L. 126-28-1 du code de la construction et de l'habitation, notamment le paragraphe B.2 de son annexe III.<br>
+      <sup>3</sup> Il s'agit d'un organisme de certification, dont le nom est mentionné en première page de l'audit énergétique.
+    </div>
+  </div>
+
+  <!-- CHOIX -->
+  <div class="choices">
+    <button class="choice-btn" id="btn-oui" onclick="choisir('oui')">
+      <div class="choice-checkbox" id="cb-oui"></div>
+      <div class="choice-text">
+        <div class="choice-label oui">Oui, je consens</div>
+        <div class="choice-sublabel">Je consens à ce que mes données personnelles soient traitées par l'Ademe et l'organisme de certification dans le cadre des missions de contrôle des compétences des diagnostiqueurs.</div>
+      </div>
+    </button>
+
+    <button class="choice-btn" id="btn-non" onclick="choisir('non')">
+      <div class="choice-checkbox" id="cb-non"></div>
+      <div class="choice-text">
+        <div class="choice-label non">Non, je refuse</div>
+        <div class="choice-sublabel">Je refuse que mes données soient collectées par l'Ademe et l'organisme de certification.</div>
+      </div>
+    </button>
+  </div>
+
+  <!-- INFOS À REMPLIR (si OUI) -->
+  <div class="info-section" id="info-section">
+    <h3>Vos informations [A REMPLIR si vous consentez]</h3>
+    <div class="field-row">
+      <div class="field-group">
+        <label class="field-label" for="f-nom">NOM *</label>
+        <input class="field-input" type="text" id="f-nom" placeholder="DUPONT" oninput="checkForm()"/>
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="f-prenom">PRÉNOM *</label>
+        <input class="field-input" type="text" id="f-prenom" placeholder="Jean" oninput="checkForm()"/>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-group">
+        <label class="field-label" for="f-email">ADRESSE MAIL *</label>
+        <input class="field-input" type="email" id="f-email" placeholder="votre@email.fr" oninput="checkForm()"/>
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="f-tel">N° TÉLÉPHONE *</label>
+        <input class="field-input" type="tel" id="f-tel" placeholder="06 00 00 00 00" oninput="checkForm()"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- DATE ET LIEU -->
+  <div class="date-lieu">
+    <h3>Date et lieu</h3>
+    <div class="field-row">
+      <div class="field-group">
+        <label class="field-label" for="f-date">Fait le *</label>
+        <input class="field-input" type="date" id="f-date" oninput="checkForm()"/>
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="f-lieu">À *</label>
+        <input class="field-input" type="text" id="f-lieu" placeholder="Paris" oninput="checkForm()"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIGNATURE -->
+  <div class="signature-section">
+    <h3>Signature</h3>
+    <p class="signature-note">Signez dans le cadre ci-dessous avec votre doigt ou votre souris</p>
+    <canvas id="signature-canvas" height="150"></canvas>
+    <div class="signature-actions">
+      <button class="btn-clear" onclick="clearSignature()">✕ Effacer</button>
+      <span id="sig-status" style="font-size:12px;color:#9CA3AF;padding:8px 0;flex:1;text-align:right"></span>
+    </div>
+  </div>
+
+  <!-- BOUTON VALIDER -->
+  <button id="btn-submit" onclick="soumettre()">✅ Valider et signer ce formulaire</button>
+
+  <!-- Note RGPD -->
+  <div class="footnotes">
+    <p><strong>Nota :</strong> par ailleurs, pour les propriétaires du bien au moment de la réalisation de l'audit énergétique, dans le cadre du Règlement général sur la protection des données (RGPD), l'Ademe vous informe que vos données personnelles (Nom-Prénom-Adresse) sont stockées dans la base de données de l'observatoire DPE-Audit à des fins de contrôles ou en cas de contestations ou de procédures judiciaires. Ces données sont stockées jusqu'à la date de fin de validité de l'audit. Vous disposez d'un droit d'accès, de rectification, de portabilité, d'effacement ou une limitation du traitement de ces données. Si vous souhaitez faire valoir votre droit, veuillez nous contacter à l'adresse mail indiquée à la page «Contacts» de l'Observatoire DPE-Audit (<a href="https://observatoire-dpe-audit.ademe.fr/accueil" target="_blank">https://observatoire-dpe-audit.ademe.fr/accueil</a>).</p>
+  </div>
+
+</div><!-- fin screen-main -->
+
+<!-- LOADING -->
+<div id="screen-loading" class="container">
+  <div style="padding:80px 20px;text-align:center">
+    <div class="spinner"></div>
+    <div style="font-size:16px;font-weight:700;color:#1A1D2E;margin-bottom:8px">Chargement...</div>
+    <div style="font-size:13px;color:#9CA3AF">Récupération des informations</div>
+  </div>
+</div>
+
+<!-- ENVOI -->
+<div id="screen-sending" class="container" style="display:none">
+  <div style="padding:80px 20px;text-align:center">
+    <div class="spinner"></div>
+    <div style="font-size:16px;font-weight:700;color:#1A1D2E;margin-bottom:8px">Envoi en cours...</div>
+    <div style="font-size:13px;color:#9CA3AF">Votre formulaire est en cours d'enregistrement</div>
+  </div>
+</div>
+
+<!-- SUCCÈS -->
+<div id="screen-success" class="container" style="display:none">
+  <div style="padding:60px 20px;text-align:center">
+    <div class="state-icon">✅</div>
+    <div class="state-title" style="color:#065F46">Formulaire enregistré !</div>
+    <div class="state-body">
+      Votre formulaire de consentement a bien été enregistré.<br>
+      <span id="success-detail"></span>
+    </div>
+    <div style="margin-top:24px;padding:16px;background:#F0FDF4;border-radius:12px;font-size:13px;color:#374151;line-height:1.6">
+      Vous pouvez fermer cette page.
+    </div>
+  </div>
+</div>
+
+<!-- ERREUR -->
+<div id="screen-error" class="container" style="display:none">
+  <div style="padding:60px 20px;text-align:center">
+    <div class="state-icon">❌</div>
+    <div class="state-title" style="color:#B91C1C">Lien invalide</div>
+    <div class="state-body" id="error-msg">
+      Ce lien de formulaire est invalide ou a déjà été utilisé.<br>Veuillez contacter votre diagnostiqueur.
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Variables globales ──
+var _token     = '';
+var _reponse   = '';      // 'oui' | 'non'
+var _sigCanvas = null;
+var _sigCtx    = null;
+var _drawing   = false;
+var _hasSig    = false;
+var _tokenData = {};      // Infos retournées par GET
+
+// ── Init ──
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  _token = params.get('token') || '';
+  if (!_token) { showScreen('screen-error'); return; }
+
+  showScreen('screen-loading');
+
+  fetch('/.netlify/functions/handle-consentement?token=' + _token)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.valid) {
+        document.getElementById('error-msg').textContent = data.error || 'Lien invalide.';
+        showScreen('screen-error');
+        return;
+      }
+
+      // Déjà signé ?
+      if (data.signe) {
+        document.getElementById('success-detail').innerHTML = 'Ce formulaire a déjà été signé le ' + (data.signed_at ? new Date(data.signed_at).toLocaleDateString('fr-FR') : '') + '.';
+        showScreen('screen-success');
+        return;
+      }
+
+      _tokenData = data;
+
+      // Pré-remplir
+      document.getElementById('hdr-diag-name').textContent = data.nom_diag || 'Diagnostiqueur';
+      if (data.nom_client)    document.getElementById('f-nom').value    = data.nom_client;
+      if (data.prenom_client) document.getElementById('f-prenom').value = data.prenom_client;
+      if (data.email_client)  { document.getElementById('f-email').value = data.email_client; document.getElementById('f-email').classList.add('prefilled'); }
+      if (data.tel_client)    document.getElementById('f-tel').value    = data.tel_client;
+
+      // Date = aujourd'hui
+      var today = new Date();
+      document.getElementById('f-date').value = today.toISOString().split('T')[0];
+
+      // Lieu = ville depuis adresse du bien
+      if (data.adresse_bien) {
+        var parts = data.adresse_bien.split(',');
+        var lastPart = parts[parts.length - 1].trim();
+        // Enlever code postal si présent
+        var ville = lastPart.replace(/^\d{5}\s*/, '').trim();
+        document.getElementById('f-lieu').value = ville || data.adresse_bien;
+      }
+
+      showScreen('screen-main');
+      initCanvas();
+      checkForm();
+    })
+    .catch(function(err) {
+      document.getElementById('error-msg').textContent = 'Erreur réseau. Veuillez réessayer.';
+      showScreen('screen-error');
+    });
+})();
+
+// ── Affichage écran ──
+function showScreen(id) {
+  ['screen-main','screen-loading','screen-sending','screen-success','screen-error'].forEach(function(s) {
+    document.getElementById(s).style.display = s === id ? '' : 'none';
+  });
+}
+
+// ── Choix OUI / NON ──
+function choisir(val) {
+  _reponse = val;
+  document.getElementById('btn-oui').className = 'choice-btn' + (val === 'oui' ? ' selected-oui' : '');
+  document.getElementById('btn-non').className = 'choice-btn' + (val === 'non' ? ' selected-non' : '');
+  document.getElementById('info-section').className = 'info-section' + (val === 'oui' ? ' visible' : '');
+  checkForm();
+}
+
+// ── Validation du formulaire ──
+function checkForm() {
+  if (!_reponse) { deactivateSubmit(); return; }
+
+  var dateFilled = document.getElementById('f-date').value;
+  var lieuFilled = document.getElementById('f-lieu').value.trim();
+  if (!dateFilled || !lieuFilled) { deactivateSubmit(); return; }
+
+  if (!_hasSig) { deactivateSubmit(); return; }
+
+  if (_reponse === 'oui') {
+    var nom    = document.getElementById('f-nom').value.trim();
+    var prenom = document.getElementById('f-prenom').value.trim();
+    var email  = document.getElementById('f-email').value.trim();
+    var tel    = document.getElementById('f-tel').value.trim();
+    if (!nom || !prenom || !email || !tel) { deactivateSubmit(); return; }
+  }
+
+  activateSubmit();
+}
+
+function activateSubmit()   { document.getElementById('btn-submit').classList.add('active'); }
+function deactivateSubmit() { document.getElementById('btn-submit').classList.remove('active'); }
+
+// ── Signature canvas ──
+function initCanvas() {
+  _sigCanvas = document.getElementById('signature-canvas');
+  _sigCtx    = _sigCanvas.getContext('2d');
+  _sigCanvas.width  = _sigCanvas.offsetWidth;
+  _sigCanvas.height = 150;
+
+  _sigCtx.strokeStyle = '#1B4332';
+  _sigCtx.lineWidth   = 2.5;
+  _sigCtx.lineCap     = 'round';
+  _sigCtx.lineJoin    = 'round';
+
+  // Mouse
+  _sigCanvas.addEventListener('mousedown',  onStart);
+  _sigCanvas.addEventListener('mousemove',  onMove);
+  _sigCanvas.addEventListener('mouseup',    onEnd);
+  _sigCanvas.addEventListener('mouseleave', onEnd);
+  // Touch
+  _sigCanvas.addEventListener('touchstart', onTouchStart, {passive: false});
+  _sigCanvas.addEventListener('touchmove',  onTouchMove,  {passive: false});
+  _sigCanvas.addEventListener('touchend',   onEnd);
+}
+
+function getPos(e) {
+  var rect = _sigCanvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) * (_sigCanvas.width  / rect.width),
+    y: (e.clientY - rect.top)  * (_sigCanvas.height / rect.height)
+  };
+}
+function onStart(e) { _drawing = true; var p = getPos(e); _sigCtx.beginPath(); _sigCtx.moveTo(p.x, p.y); }
+function onMove(e)  { if (!_drawing) return; var p = getPos(e); _sigCtx.lineTo(p.x, p.y); _sigCtx.stroke(); _hasSig = true; document.getElementById('sig-status').textContent = '✓ Signature saisie'; checkForm(); }
+function onEnd()    { _drawing = false; }
+function onTouchStart(e) { e.preventDefault(); _drawing = true; var t = e.touches[0]; var p = getPos(t); _sigCtx.beginPath(); _sigCtx.moveTo(p.x, p.y); }
+function onTouchMove(e)  { e.preventDefault(); if (!_drawing) return; var t = e.touches[0]; var p = getPos(t); _sigCtx.lineTo(p.x, p.y); _sigCtx.stroke(); _hasSig = true; document.getElementById('sig-status').textContent = '✓ Signature saisie'; checkForm(); }
+
+function clearSignature() {
+  if (!_sigCtx) return;
+  _sigCtx.clearRect(0, 0, _sigCanvas.width, _sigCanvas.height);
+  _hasSig = false;
+  document.getElementById('sig-status').textContent = '';
+  checkForm();
+}
+
+// ── Soumission ──
+function soumettre() {
+  var btn = document.getElementById('btn-submit');
+  btn.textContent = '⏳ Envoi...';
+  btn.classList.remove('active');
+
+  var sigImg = _sigCanvas ? _sigCanvas.toDataURL('image/png') : '';
+
+  var payload = {
+    token:          _token,
+    reponse:        _reponse,
+    nom:            document.getElementById('f-nom').value.trim(),
+    prenom:         document.getElementById('f-prenom').value.trim(),
+    email:          document.getElementById('f-email').value.trim(),
+    tel:            document.getElementById('f-tel').value.trim(),
+    date_signature: document.getElementById('f-date').value,
+    lieu_signature: document.getElementById('f-lieu').value.trim(),
+    signature_img:  sigImg
+  };
+
+  showScreen('screen-sending');
+
+  fetch('/.netlify/functions/handle-consentement', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data && data.success) {
+      var detail = _reponse === 'oui'
+        ? 'Vous avez consenti au traitement de vos données par l\'Ademe.'
+        : 'Vous avez refusé le traitement de vos données par l\'Ademe.';
+      document.getElementById('success-detail').textContent = detail;
+      showScreen('screen-success');
+    } else {
+      alert('❌ Erreur : ' + (data && data.error ? data.error : 'Veuillez réessayer.'));
+      showScreen('screen-main');
+      document.getElementById('btn-submit').classList.add('active');
+      document.getElementById('btn-submit').textContent = '✅ Valider et signer ce formulaire';
+    }
+  })
+  .catch(function(err) {
+    alert('❌ Erreur réseau. Veuillez réessayer.');
+    showScreen('screen-main');
+    document.getElementById('btn-submit').classList.add('active');
+    document.getElementById('btn-submit').textContent = '✅ Valider et signer ce formulaire';
+  });
+}
+</script>
+</body>
+</html>
