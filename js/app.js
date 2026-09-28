@@ -280,6 +280,40 @@ function handleCameraPhoto(input) {
   }
 }
 
+// ─── DEEP LINK : ?open_mission=savedAt ───────────────────────────────────────
+// Déclenché depuis un lien dans Google Agenda ou .ics exporté.
+// Ouvre directement la fiche mission correspondante (identifiée par savedAt).
+function _checkOpenMission() {
+  try {
+    var params   = new URLSearchParams(window.location.search);
+    var savedAt  = params.get('open_mission');
+    if (!savedAt) return;
+    // Nettoyer l'URL immédiatement
+    var cleanUrl = window.location.pathname + window.location.hash;
+    history.replaceState({}, '', cleanUrl);
+    // Persister pour survivre à l'écran de login
+    try { sessionStorage.setItem('_pending_open_mission', savedAt); } catch(e) {}
+    if (localStorage.getItem('fb_uid')) {
+      setTimeout(function() { _processPendingOpenMission(); }, 900);
+    }
+  } catch(e) {
+    console.warn('[open_mission] Erreur :', e);
+  }
+}
+
+function _processPendingOpenMission() {
+  try {
+    var savedAt = sessionStorage.getItem('_pending_open_mission');
+    if (!savedAt) return;
+    sessionStorage.removeItem('_pending_open_mission');
+    if (typeof _ouvrirMissionDepuisDeepLink === 'function') {
+      _ouvrirMissionDepuisDeepLink(savedAt);
+    }
+  } catch(e) {
+    console.warn('[processPendingOpenMission] Erreur :', e);
+  }
+}
+
 // ─── DEEP LINK : ?import_mission=BASE64 ─────────────────────────────────────
 // Déclenché depuis l'email "Intégrer la mission" envoyé par l'agent commercial.
 // Ouvre automatiquement le formulaire mission pré-rempli avec les infos du client.
@@ -352,6 +386,7 @@ function initApp() {
   checkCertifRappels();
   renderHome();
   _checkImportMission();
+  _checkOpenMission();
   _checkAgentRole();
 
   // Relances automatiques — après 8s (laisse le temps au login + sync Firestore)
