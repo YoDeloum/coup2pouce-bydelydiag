@@ -223,6 +223,7 @@ function renderMissionForm(body) {
     <button onclick="openAvisGoogle()" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">⭐ Demander un avis Google</button>
     ${currentMissionIdx !== null ? '<button onclick="openTerrain(currentMissionIdx)" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#0F172A,#1E293B);color:#86EFAC;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px;border:1.5px solid #334155">🎙️ Notes Terrain</button>' : ''}
     ${currentMissionIdx !== null ? '<button onclick="convertirMissionEnFacture()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#1B4332,#2D6A4F);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">🧾 Convertir en facture</button>' : ''}
+    ${currentMissionIdx !== null ? _renderConsentBlock(m) : ''}
     ${currentMissionIdx !== null ? '<button onclick="deleteMission()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #EF4444;background:#fff;color:#EF4444;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">🗑️ Supprimer cette mission</button>' : ''}`;
   // Calculer automatiquement le total depuis les tarifs au chargement
   setTimeout(function() {
@@ -232,6 +233,13 @@ function renderMissionForm(body) {
     var totalEl = document.getElementById('m-total');
     if (calcEl && totalEl && totalEl.value && parseFloat(totalEl.value) > 0) {
       calcEl.textContent = parseFloat(totalEl.value).toFixed(2) + ' €';
+    }
+    // Charger le statut du consentement ADEME si applicable
+    if (currentMissionIdx !== null) {
+      var currentM = missions[currentMissionIdx];
+      if (currentM && currentM.consentement_token) {
+        _loadConsentStatus(currentM.consentement_token);
+      }
     }
     // Autocomplétion clients
     if (typeof clientsAutocomplete === 'function') {
@@ -359,10 +367,13 @@ function addToCalendar() {
   var typeBien= document.getElementById('m-typeBien')?.value|| '';
   if (!date) { alert('Saisis d\'abord une date de mission !'); return; }
   var dateStr = date.replace(/-/g,'');
+  var icsSavedAt = (currentMissionIdx !== null && missions[currentMissionIdx]) ? (missions[currentMissionIdx].savedAt || '') : '';
+  var icsFicheUrl = icsSavedAt ? (window.location.origin + '/?open_mission=' + encodeURIComponent(icsSavedAt)) : '';
+  var icsDescription = 'Diagnostic '+typeBien+' — '+adresse + (icsFicheUrl ? '\\n📋 Fiche mission : ' + icsFicheUrl : '');
   var icsContent = ['BEGIN:VCALENDAR','VERSION:2.0','BEGIN:VEVENT',
     'DTSTART:'+dateStr+'T090000','DTEND:'+dateStr+'T110000',
     'SUMMARY:Mission DELY DIAG — '+nom+' '+prenom,
-    'DESCRIPTION:Diagnostic '+typeBien+' — '+adresse,
+    'DESCRIPTION:'+icsDescription,
     'LOCATION:'+adresse,'END:VEVENT','END:VCALENDAR'].join('\n');
   var blob = new Blob([icsContent], {type:'text/calendar'});
   var url  = URL.createObjectURL(blob);
@@ -390,7 +401,11 @@ function addToGoogleCalendar() {
   var startStr   = dateBase + 'T' + pad(startH) + pad(startM) + '00';
   var endStr     = dateBase + 'T' + pad(endH)   + pad(startM) + '00';
   var title      = encodeURIComponent('Mission DELY DIAG — ' + nom + ' ' + prenom);
-  var details    = encodeURIComponent('Diagnostics : ' + (diags||typeBien) + '\nBien : ' + typeBien + '\nAdresse : ' + adresse);
+  // Lien fiche mission dans l'app
+  var missionSavedAt = (currentMissionIdx !== null && missions[currentMissionIdx]) ? (missions[currentMissionIdx].savedAt || '') : '';
+  var ficheUrl = missionSavedAt ? (window.location.origin + '/?open_mission=' + encodeURIComponent(missionSavedAt)) : '';
+  var detailsText = 'Diagnostics : ' + (diags||typeBien) + '\nBien : ' + typeBien + '\nAdresse : ' + adresse + (ficheUrl ? '\n\n📋 Fiche mission : ' + ficheUrl : '');
+  var details    = encodeURIComponent(detailsText);
   var location   = encodeURIComponent(adresse);
   var url = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
     + '&text='    + title
@@ -788,7 +803,7 @@ function _showDayMissions(dateStr) {
     + '</div>'
     + list.map(function(item) {
         var m = item.m;
-        return '<div onclick="document.getElementById(\'day-missions-modal\').remove();editMission(' + item.idx + ')" style="background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:10px;padding:12px 14px;margin-bottom:10px;cursor:pointer">'
+        return '<div style="background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:10px;padding:12px 14px;margin-bottom:10px">'
           + '<div style="font-weight:700;font-size:14px;color:#1A1D2E">' + (m.societe ? m.societe + ' — ' : '') + (m.nom || '') + ' ' + (m.prenom || '') + '</div>'
           + '<div style="font-size:12px;color:#6B7280;margin-top:3px">📍 ' + (m.adresse || 'Adresse non renseignée') + '</div>'
           + (m.heure ? '<div style="font-size:12px;color:#E8650A;font-weight:600;margin-top:3px">🕐 ' + m.heure + '</div>' : '')
@@ -796,7 +811,9 @@ function _showDayMissions(dateStr) {
           + (m.diags || []).slice(0,4).map(function(d) {
               return '<span style="font-size:10px;padding:2px 8px;border-radius:999px;background:#2D6A4F18;color:#2D6A4F;font-weight:600">' + d + '</span>';
             }).join('')
-          + '</div></div>';
+          + '</div>'
+          + '<button onclick="document.getElementById(\'day-missions-modal\').remove();editMission(' + item.idx + ')" style="margin-top:10px;width:100%;padding:9px 14px;border-radius:8px;border:none;background:linear-gradient(135deg,#E8650A,#F4A261);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">📋 Ouvrir la fiche mission</button>'
+          + '</div>';
       }).join('')
     + '</div>';
 
@@ -868,4 +885,254 @@ function preRemplirMissionFromAgent(data) {
   currentMissionIdx = null;
   missionView = 'form';
   openMission();
+}
+
+// ─── Consentement ADEME ────────────────────────────────────────────────────
+
+/**
+ * Génère le bloc HTML affichant le statut du consentement ADEME
+ * dans la fiche mission. Appelé de manière synchrone (rendu HTML),
+ * puis _loadConsentStatus() rafraîchit asynchronement via Firestore.
+ */
+function _renderConsentBlock(m) {
+  var token = m && m.consentement_token;
+  if (!token) {
+    // Pas encore de lien consentement envoyé
+    return '<div style="background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:12px;padding:14px 16px;margin-bottom:10px">'
+      + '<div style="font-size:12px;font-weight:800;color:#1E40AF;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📝 Consentement ADEME</div>'
+      + '<div style="font-size:12px;color:#6B7280;margin-bottom:10px">Envoyez d\'abord le mail de confirmation RDV (bouton ci-dessus) pour générer automatiquement le lien de consentement.</div>'
+      + '</div>';
+  }
+
+  var consentUrl = window.location.origin + '/consentement.html?token=' + token;
+  return '<div id="consent-block" style="background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:12px;padding:14px 16px;margin-bottom:10px">'
+    + '<div style="font-size:12px;font-weight:800;color:#1E40AF;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">📝 Consentement ADEME</div>'
+    + '<div id="consent-status" style="font-size:13px;color:#6B7280;margin-bottom:10px">⏳ Vérification...</div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    + '<button onclick="_copierLienConsentement(\'' + consentUrl + '\')" style="padding:8px 12px;border-radius:8px;border:1.5px solid #BFDBFE;background:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;color:#1E40AF">📋 Copier le lien</button>'
+    + '<button id="consent-pdf-btn" onclick="_voirConsentement(\'' + token + '\')" style="display:none;padding:8px 12px;border-radius:8px;border:none;background:#1E40AF;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">⬇️ Télécharger PDF</button>'
+    + '</div>'
+    + '</div>';
+}
+
+/**
+ * Charge depuis Firestore le statut du consentement et met à jour le bloc HTML
+ */
+function _loadConsentStatus(token) {
+  if (!token) return;
+  var fbToken = localStorage.getItem('fb_token') || '';
+  var FS_BASE = 'https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents';
+  var FS_KEY  = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+
+  fetch(FS_BASE + '/signatures/' + token + '?key=' + FS_KEY)
+    .then(function(r) { return r.json(); })
+    .then(function(doc) {
+      var statusEl  = document.getElementById('consent-status');
+      var pdfBtn    = document.getElementById('consent-pdf-btn');
+      if (!statusEl) return;
+
+      if (!doc.fields) {
+        statusEl.textContent = '⚠️ Lien introuvable en base';
+        return;
+      }
+      var signe    = doc.fields.signe    && doc.fields.signe.booleanValue;
+      var reponse  = doc.fields.reponse  && doc.fields.reponse.stringValue;
+      var signedAt = doc.fields.signed_at && doc.fields.signed_at.stringValue;
+
+      if (signe) {
+        var dateStr = signedAt ? new Date(signedAt).toLocaleDateString('fr-FR') : '';
+        var repLabel = reponse === 'oui' ? '✅ Consenti' : '🚫 Refusé';
+        statusEl.innerHTML = '<strong style="color:' + (reponse === 'oui' ? '#059669' : '#C2410C') + '">' + repLabel + '</strong>'
+          + (dateStr ? '<span style="color:#9CA3AF;font-size:11px;margin-left:8px">le ' + dateStr + '</span>' : '');
+        if (pdfBtn) pdfBtn.style.display = 'inline-block';
+      } else {
+        statusEl.innerHTML = '⏳ <span style="color:#F59E0B;font-weight:600">En attente de signature client</span>';
+      }
+    })
+    .catch(function() {
+      var statusEl = document.getElementById('consent-status');
+      if (statusEl) statusEl.textContent = '⚠️ Impossible de vérifier le statut';
+    });
+}
+
+/**
+ * Copie le lien de consentement dans le presse-papier
+ */
+function _copierLienConsentement(lien) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(lien).then(function() {
+      alert('✅ Lien copié !\n' + lien);
+    });
+  } else {
+    prompt('Copiez ce lien :', lien);
+  }
+}
+
+/**
+ * Génère et télécharge le PDF du formulaire de consentement signé
+ */
+function _voirConsentement(token) {
+  var FS_KEY  = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+  var FS_BASE = 'https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents';
+
+  fetch(FS_BASE + '/signatures/' + token + '?key=' + FS_KEY)
+    .then(function(r) { return r.json(); })
+    .then(function(doc) {
+      if (!doc.fields || !(doc.fields.signe && doc.fields.signe.booleanValue)) {
+        alert('Le formulaire n\'a pas encore été signé.');
+        return;
+      }
+      var f = doc.fields;
+      var g = function(k) { return (f[k] && f[k].stringValue) || ''; };
+      _genererPDFConsentement({
+        reponse:        g('reponse'),
+        nom:            g('nom'),
+        prenom:         g('prenom'),
+        email:          g('email'),
+        tel:            g('tel'),
+        date_signature: g('date_signature'),
+        lieu_signature: g('lieu_signature'),
+        signature_img:  g('signature_img'),
+        signed_at:      g('signed_at'),
+        nom_diag:       g('nom_diag') || g('nomDiag'),
+        adresse_bien:   g('adresse_bien') || g('adresseBien')
+      });
+    })
+    .catch(function() {
+      alert('❌ Impossible de récupérer le formulaire.');
+    });
+}
+
+/**
+ * Génère le PDF du formulaire de consentement via jsPDF (CDN)
+ */
+function _genererPDFConsentement(data) {
+  // Charger jsPDF si pas encore disponible
+  if (typeof window.jspdf === 'undefined' && typeof jsPDF === 'undefined') {
+    var script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    script.onload = function() { _doPDFConsentement(data); };
+    document.head.appendChild(script);
+  } else {
+    _doPDFConsentement(data);
+  }
+}
+
+function _doPDFConsentement(data) {
+  var jsPDF_   = (typeof window.jspdf !== 'undefined') ? window.jspdf.jsPDF : jsPDF;
+  var doc      = new jsPDF_({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  var W = 210, ml = 18, mr = 18, y = 20;
+  var maxW = W - ml - mr;
+
+  function addText(text, x, yPos, opts) {
+    opts = opts || {};
+    doc.setFontSize(opts.size || 10);
+    doc.setFont('helvetica', opts.bold ? 'bold' : 'normal');
+    doc.setTextColor(opts.color || '#1A1D2E');
+    if (opts.align === 'center') doc.text(text, W / 2, yPos, { align: 'center' });
+    else doc.text(text, x, yPos, { maxWidth: opts.maxW || maxW });
+    return yPos;
+  }
+
+  function addLine(yPos) { doc.setDrawColor('#E2E5F0'); doc.line(ml, yPos, W - mr, yPos); return yPos; }
+
+  // Titre
+  doc.setFillColor('#1B4332');
+  doc.rect(0, 0, W, 32, 'F');
+  addText('Formulaire de consentement traitement données personnelles', W/2, 14, { bold: true, size: 13, color: '#FFFFFF', align: 'center' });
+  addText('Audit énergétique — ' + (data.nom_diag || ''), W/2, 22, { size: 10, color: '#A7F3D0', align: 'center' });
+  y = 42;
+
+  // Texte réglementaire (extrait)
+  var texteReg = 'En application de la réglementation (Décret n° 2023-1219 du 20 décembre 2023), le diagnostiqueur réalisant l\'audit énergétique pour votre compte est soumis à des contrôles ayant pour objet de vérifier sa capacité à réaliser un audit dans le respect des exigences réglementaires. Afin de pouvoir organiser les modalités pratiques de ces contrôles, l\'organisme chargé de contrôler votre diagnostiqueur peut être amené à vous contacter. Pour cela, et sous réserve de votre consentement, vos données personnelles sont collectées et traitées par l\'Ademe lors de la transmission du rapport d\'audit et transmises à l\'organisme de contrôle.';
+  var lines = doc.splitTextToSize(texteReg, maxW);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor('#374151');
+  doc.text(lines, ml, y);
+  y += lines.length * 4.5 + 8;
+
+  // Réponse encadrée
+  var repColor = data.reponse === 'oui' ? '#059669' : '#C2410C';
+  var repBg    = data.reponse === 'oui' ? '#F0FDF4' : '#FFF5F5';
+  var repText  = data.reponse === 'oui'
+    ? '☑  OUI — Je consens à ce que mes données personnelles soient traitées par l\'Ademe et l\'organisme de certification dans le cadre des missions de contrôle des compétences des diagnostiqueurs.'
+    : '☑  NON — Je refuse que mes données soient collectées.';
+
+  doc.setFillColor(repBg);
+  doc.setDrawColor(repColor);
+  doc.setLineWidth(0.6);
+  doc.rect(ml, y, maxW, 18, 'FD');
+  var repLines = doc.splitTextToSize(repText, maxW - 6);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(repColor);
+  doc.text(repLines, ml + 3, y + 6);
+  y += 26;
+
+  // Si OUI : infos client
+  if (data.reponse === 'oui' && (data.nom || data.prenom || data.email || data.tel)) {
+    addText('[Si oui] A REMPLIR :', ml, y, { bold: true, size: 10 }); y += 6;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor('#1A1D2E');
+    doc.text('NOM : ' + (data.nom || '— '),   ml,       y);
+    doc.text('PRÉNOM : ' + (data.prenom || ''), ml + 75, y);
+    y += 7;
+    doc.text('ADRESSE MAIL : ' + (data.email || '—'),  ml,       y);
+    doc.text('N° TÉLÉPHONE : ' + (data.tel || '—'),    ml + 90,  y);
+    y += 10;
+  }
+
+  // Date, lieu
+  addLine(y); y += 5;
+  var dateLabel = data.date_signature ? new Date(data.date_signature + 'T12:00:00').toLocaleDateString('fr-FR') : (data.signed_at ? new Date(data.signed_at).toLocaleDateString('fr-FR') : '');
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor('#1A1D2E');
+  doc.text('Fait le ' + dateLabel + ', à ' + (data.lieu_signature || ''), ml, y);
+  y += 4;
+
+  // Signature
+  if (data.signature_img && data.signature_img.startsWith('data:image')) {
+    y += 5;
+    addText('Signature :', ml, y, { bold: true, size: 10 }); y += 4;
+    try {
+      doc.addImage(data.signature_img, 'PNG', ml, y, 70, 28);
+    } catch(e) {}
+    y += 32;
+  }
+
+  // Note RGPD bas de page
+  y = Math.max(y, 240);
+  addLine(y); y += 4;
+  var nota = 'Nota : par ailleurs, pour les propriétaires du bien au moment de la réalisation de l\'audit énergétique, dans le cadre du RGPD, l\'Ademe vous informe que vos données personnelles (Nom-Prénom-Adresse) sont stockées dans la base de données de l\'observatoire DPE-Audit à des fins de contrôles. Ces données sont stockées jusqu\'à la date de fin de validité de l\'audit.';
+  var notaLines = doc.splitTextToSize(nota, maxW);
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor('#9CA3AF');
+  doc.text(notaLines, ml, y);
+
+  doc.save('Consentement_ADEME_' + (data.nom || 'client') + '.pdf');
+}
+
+// ─── Deep link fiche mission depuis l'agenda ──────────────────────────────
+/**
+ * Navigue vers la fiche mission correspondant au savedAt passé en paramètre
+ * Appelé depuis un lien ?open_mission=<savedAt_encoded>
+ */
+function _ouvrirMissionDepuisDeepLink(savedAt) {
+  if (!savedAt || typeof missions === 'undefined') return;
+  var idx = missions.findIndex(function(m) { return m.savedAt === savedAt; });
+  if (idx === -1) {
+    // Essayer avec décodage URL
+    var decoded = decodeURIComponent(savedAt);
+    idx = missions.findIndex(function(m) { return m.savedAt === decoded; });
+  }
+  if (idx !== -1) {
+    currentMissionIdx = idx;
+    missionView = 'form';
+    openMission();
+  }
 }
