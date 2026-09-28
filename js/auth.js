@@ -72,10 +72,13 @@ function firebaseLogin() {
             missions = JSON.parse(localStorage.getItem('dd_missions') || '[]');
           }
           document.getElementById('login-screen').classList.add('hidden');
-          // Traiter une mission en attente transmise via deep link agent
+          // Traiter une mission en attente transmise via deep link agent ou agenda
           setTimeout(function() {
             if (typeof _processPendingMissionImport === 'function') {
               _processPendingMissionImport();
+            }
+            if (typeof _processPendingOpenMission === 'function') {
+              _processPendingOpenMission();
             }
           }, 600);
         });
@@ -84,6 +87,9 @@ function firebaseLogin() {
         setTimeout(function() {
           if (typeof _processPendingMissionImport === 'function') {
             _processPendingMissionImport();
+          }
+          if (typeof _processPendingOpenMission === 'function') {
+            _processPendingOpenMission();
           }
         }, 600);
       }
