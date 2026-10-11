@@ -54,6 +54,7 @@ function renderMissionList(body) {
 
 function newMission() {
   currentMissionIdx = null;
+  window._missionLocked = false; // Mode édition direct pour une nouvelle mission
   missionView = 'form';
   renderMissionScreen();
 }
@@ -61,7 +62,13 @@ function newMission() {
 function editMission(idx) {
   currentMissionIdx = idx;
   window._devisToMission = null; // On édite une mission existante, pas de pré-remplissage
+  window._missionLocked = true;  // Mode lecture seule par défaut — clic cadenas pour modifier
   missionView = 'form';
+  renderMissionScreen();
+}
+
+function _toggleMissionLock() {
+  window._missionLocked = false;
   renderMissionScreen();
 }
 
@@ -251,6 +258,32 @@ function renderMissionForm(body) {
         nomEl.addEventListener('input', function() {
           clientsAutocomplete(nomEl, telEl, prenomEl, emailEl);
         });
+      }
+    }
+    // ─── Mode lecture (cadenas) — missions existantes ───
+    if (window._missionLocked && currentMissionIdx !== null) {
+      var mBody = document.getElementById('mission-body');
+      if (mBody) {
+        // Verrouiller tous les champs de saisie
+        mBody.querySelectorAll('.mission-input, .mission-select, .mission-textarea').forEach(function(el) {
+          el.disabled = true;
+          el.style.background = '#F3F4F6';
+          el.style.cursor = 'not-allowed';
+        });
+        // Désactiver les cases diagnostics
+        mBody.querySelectorAll('.diag-item').forEach(function(el) {
+          el.style.pointerEvents = 'none';
+          el.style.opacity = '0.75';
+        });
+        // Masquer les boutons de dictée vocale
+        mBody.querySelectorAll('.vocal-btn').forEach(function(el) { el.style.display = 'none'; });
+        // Masquer le bouton Enregistrer
+        mBody.querySelectorAll('[onclick*="saveMissionForm"]').forEach(function(el) { el.style.display = 'none'; });
+        // Insérer le bandeau cadenas tout en haut
+        var lockDiv = document.createElement('div');
+        lockDiv.style.cssText = 'background:#FEF9C3;border:1.5px solid #FDE047;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px';
+        lockDiv.innerHTML = '<div style="font-size:13px;color:#713F12;font-weight:600">🔒 Fiche en lecture seule</div><button onclick="_toggleMissionLock()" style="padding:8px 14px;border-radius:8px;border:none;background:#EAB308;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✏️ Modifier</button>';
+        mBody.insertBefore(lockDiv, mBody.firstChild);
       }
     }
   }, 50);
@@ -1124,11 +1157,11 @@ function _doPDFConsentement(data) {
  */
 function _ouvrirMissionDepuisDeepLink(savedAt) {
   if (!savedAt || typeof missions === 'undefined') return;
-  var idx = missions.findIndex(function(m) { return m.savedAt === savedAt; });
+  var idx = missions.findIndex(function(m) { return String(m.savedAt) === String(savedAt); });
   if (idx === -1) {
     // Essayer avec décodage URL
     var decoded = decodeURIComponent(savedAt);
-    idx = missions.findIndex(function(m) { return m.savedAt === decoded; });
+    idx = missions.findIndex(function(m) { return String(m.savedAt) === String(decoded); });
   }
   if (idx !== -1) {
     currentMissionIdx = idx;
