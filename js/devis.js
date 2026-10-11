@@ -177,7 +177,7 @@ function renderDevisList(body) {
       var statutClass = 'statut-' + (d.statut||'devis').toLowerCase()
         .replace(/é/g,'e').replace(/è/g,'e').replace(/ê/g,'e')
         .replace(/\s+/g,'_');
-      return '<div class="devis-card" onclick="_devisEdit='+realIdx+';renderDevisScreen(\'form\')">'
+      return '<div class="devis-card" style="'+(d.signature && d.signature.accepte ? 'background:#F0FDF4;border:1.5px solid #6EE7B7;' : '')+'" onclick="_devisEdit='+realIdx+';renderDevisScreen(\'form\')">'
         + '<div class="devis-card-accent" style="background:#059669"></div>'
         + '<div style="padding-left:12px">'
         + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
@@ -187,7 +187,7 @@ function renderDevisList(body) {
         + '<div class="devis-card-sub">👤 '+(d.client_societe ? d.client_societe+' — ' : '')+(d.client_prenom||'')+' '+(d.client_nom||'')+''+(d.client_tel ? ' — <a href="tel:'+d.client_tel+'" onclick="event.stopPropagation()" style="color:#059669;font-weight:600;text-decoration:none">📞 '+d.client_tel+'</a>' : '')+'</div>'
         + '<div class="devis-card-sub">📍 '+(d.bien_adresse||'')+'</div>'
         + (d.mission_creee ? '<div class="devis-card-sub" style="color:#2D6A4F;font-weight:600">🏠 Mission créée</div>' : '')
-        + (d.signature && d.signature.accepte ? '<div class="devis-card-sub" style="color:#1B4332;font-weight:600">✍️ Signé par '+d.signature.signataire+'</div>' : '')
+        + (d.signature && d.signature.accepte ? '<div style="display:inline-block;margin-top:5px;background:#059669;color:#fff;font-size:11px;font-weight:700;border-radius:20px;padding:3px 10px;letter-spacing:.3px">✅ SIGNÉ — ' + d.signature.signataire + '</div>' : '')
         + '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">'
         + '<div style="font-size:11px;color:#9ca3af">'+(d.date ? new Date(d.date).toLocaleDateString('fr-FR') : '')+'</div>'
         + '<div class="devis-card-amount">'+(function(){ var m = (d.prix_final && parseFloat(d.prix_final) > 0) ? parseFloat(d.prix_final) : (d.total_ht ? parseFloat(d.total_ht) : 0); return m > 0 ? m.toFixed(2)+' € HT' : ''; })()+'</div>'
@@ -438,7 +438,6 @@ function renderDevisForm(body) {
     </div>
     ${!(devis.signature && devis.signature.accepte) ? '<button id="btn-verif-sig" onclick="verifierSignatureDistante()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #059669;background:#F0FDF4;color:#059669;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:pointer">🔄 Vérifier si le client a signé</button>' : ''}
     ${devis.signature && devis.signature.accepte && devis.signature.signature_img ? '<button onclick="genererPDFSigne(getAllDevis()[_devisEdit])" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#059669,#2D6A4F);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">📄 Télécharger le devis signé</button>' : ''}
-    <button onclick="if(_devisEdit!==null) openSignature(_devisEdit)" style="width:100%;padding:12px;border-radius:10px;border:2px solid #1B4332;background:#fff;color:#1B4332;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>✍️ Signature / Acceptation client</button>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
       <button onclick="convertirEnFacture()" style="padding:12px;border-radius:10px;border:2px solid #5B21B6;background:#fff;color:#5B21B6;font-size:13px;font-weight:700;font-family:inherit;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>📋 Convertir facture</button>
       <button onclick="convertirEnMission()" style="padding:12px;border-radius:10px;border:2px solid #E8650A;background:#fff;color:#E8650A;font-size:13px;font-weight:700;font-family:inherit;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>🏠 Créer mission</button>
@@ -1321,7 +1320,6 @@ function renderDevisSpecialForm(body) {
     +'</div>'
     +(_devisEdit !== null && getAllDevis()[_devisEdit] && !(getAllDevis()[_devisEdit].signature && getAllDevis()[_devisEdit].signature.accepte) ? '<button id="btn-verif-sig" onclick="verifierSignatureDistante()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #059669;background:#F0FDF4;color:#059669;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:pointer">🔄 Vérifier si le client a signé</button>' : '')
     +(_devisEdit !== null && getAllDevis()[_devisEdit] && getAllDevis()[_devisEdit].signature && getAllDevis()[_devisEdit].signature.accepte && getAllDevis()[_devisEdit].signature.signature_img ? '<button onclick="genererPDFSigne(getAllDevis()[_devisEdit])" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#059669,#2D6A4F);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">📄 Télécharger le devis signé</button>' : '')
-    +'<button onclick="if(_devisEdit!==null) openSignature(_devisEdit)" style="width:100%;padding:12px;border-radius:10px;border:2px solid #1B4332;background:#fff;color:#1B4332;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:'+(_devisEdit===null?'not-allowed':'pointer')+';opacity:'+(_devisEdit===null?.4:1)+'" '+(_devisEdit===null?'disabled':'')+'>✍️ Signature / Acceptation client</button>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
     +'<button onclick="convertirEnFacture()" style="padding:12px;border-radius:10px;border:2px solid #5B21B6;background:#fff;color:#5B21B6;font-size:13px;font-weight:700;font-family:inherit;cursor:'+(_devisEdit===null?'not-allowed':'pointer')+';opacity:'+(_devisEdit===null?.4:1)+'" '+(_devisEdit===null?'disabled':'')+'>📋 Convertir facture</button>'
     +'<button onclick="convertirEnMission()" style="padding:12px;border-radius:10px;border:2px solid #E8650A;background:#fff;color:#E8650A;font-size:13px;font-weight:700;font-family:inherit;cursor:'+(_devisEdit===null?'not-allowed':'pointer')+';opacity:'+(_devisEdit===null?.4:1)+'" '+(_devisEdit===null?'disabled':'')+'>🏠 Créer mission</button>'
