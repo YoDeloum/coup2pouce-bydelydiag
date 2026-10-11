@@ -22,7 +22,7 @@ function ouvrirRelance() {
     ' établi le ' + (devis.date ? new Date(devis.date).toLocaleDateString('fr-FR') : '') +
     ' pour le bien situé au ' + (devis.bien_adresse || '') + '.',
     '',
-    'Ce devis d\'un montant de ' + parseFloat(devis.total_ht || 0).toFixed(2) + ' € HT' +
+    'Ce devis d\'un montant de ' + parseFloat(devis.prix_final && parseFloat(devis.prix_final) > 0 ? devis.prix_final : (devis.total_ht || 0)).toFixed(2) + ' € HT' +
     ' est toujours disponible et je reste à votre disposition pour toute question.',
     '',
     'Dans l\'attente de votre retour,',
@@ -32,7 +32,7 @@ function ouvrirRelance() {
   ].join('\n');
 
   var msgWA = 'Bonjour ' + (devis.client_prenom || '') + ' ' + (devis.client_nom || '') + ' 👋\n\n' +
-    'Je me permets de vous relancer concernant le devis N° ' + (devis.numero || '') + ' (' + parseFloat(devis.total_ht || 0).toFixed(2) + ' € HT) pour le bien au ' + (devis.bien_adresse || '') + '.\n\n' +
+    'Je me permets de vous relancer concernant le devis N° ' + (devis.numero || '') + ' (' + parseFloat(devis.prix_final && parseFloat(devis.prix_final) > 0 ? devis.prix_final : (devis.total_ht || 0)).toFixed(2) + ' € HT) pour le bien au ' + (devis.bien_adresse || '') + '.\n\n' +
     'Avez-vous eu le temps d\'en prendre connaissance ? Je reste disponible pour toute question. 😊\n\n' +
     '— ' + (p.nom_societe || p.nom || 'Dely Diag');
 
@@ -227,7 +227,7 @@ function _autoEnvoyerEmail(doc, p, type, niveau) {
   var subject, html;
 
   if (type === 'devis') {
-    var montant = parseFloat(doc.total_ht || 0).toFixed(2) + ' € HT';
+    var montant = parseFloat(doc.prix_final && parseFloat(doc.prix_final) > 0 ? doc.prix_final : (doc.total_ht || 0)).toFixed(2) + ' € HT';
     subject = nLabel + ' — Devis N°' + (doc.numero || '') + ' — ' + societe;
     html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto">'
       + '<div style="background:#1B4332;padding:24px 32px;border-radius:8px 8px 0 0"><h1 style="color:#fff;margin:0;font-size:20px">' + societe + '</h1>'
