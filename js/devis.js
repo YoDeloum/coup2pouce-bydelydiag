@@ -214,7 +214,7 @@ function renderDevisForm(body) {
   var statuts = ['Devis','Accepté','Refusé','Intervention réalisée','Facturé','Payé','Annulé'];
 
   body.innerHTML = `
-    <button onclick="renderDevisScreen('list')" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:#059669;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:16px;font-family:inherit">← Retour</button>
+    <button onclick="typeof _devisBackCallback==='function'?_devisBackCallback():renderDevisScreen('list')" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:#059669;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:16px;font-family:inherit">← Retour</button>
 
     ${devis.signature && devis.signature.accepte ? '<div style="background:#D1FAE5;border:1px solid #6EE7B7;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#065F46">✍️ <strong>Accepté</strong> par ' + devis.signature.signataire + ' le ' + new Date(devis.signature.date_signature).toLocaleString('fr-FR') + '</div>' : ''}
 
@@ -1262,7 +1262,7 @@ function renderDevisSpecialForm(body) {
   var gtInit = _dsLots.reduce(function(s,l){return s+(l.sous_total||0);},0);
 
   body.innerHTML =
-    '<button onclick="renderDevisScreen(\'list\')" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:#059669;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:16px;font-family:inherit">← Retour</button>'
+    '<button onclick="typeof _devisBackCallback===\'function\'?_devisBackCallback():renderDevisScreen(\'list\')" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:#059669;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:16px;font-family:inherit">← Retour</button>'
     +'<div style="background:linear-gradient(135deg,#92400E,#D97706);border-radius:12px;padding:14px 16px;margin-bottom:16px;color:#fff">'
     +'<div style="font-size:15px;font-weight:800">⭐ Devis spécial multi-biens</div>'
     +'<div style="font-size:11px;opacity:0.85;margin-top:3px">Plusieurs biens pour le même propriétaire — un seul devis</div>'
