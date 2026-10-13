@@ -38,21 +38,21 @@ function renderProfilScreen() {
           </select>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
-        <div class="profil-field" style="margin:0">
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:10px">
+        <div class="profil-field" style="margin:0;min-width:0">
           <label class="profil-label">Logo de la société</label>
-          <div style="background:#F9FAFB;border:1.5px dashed #D1D5DB;border-radius:10px;padding:10px;display:flex;flex-direction:column;align-items:center;gap:6px;min-height:90px;justify-content:center">
-            <img id="profil-logo-preview" class="profil-logo-preview" src="${p.logo||''}" style="${p.logo?'display:block;max-width:80px;max-height:50px;object-fit:contain':'display:none'}"/>
-            <input type="file" accept="image/*" onchange="loadProfilLogo(this)" style="font-size:11px;max-width:100%"/>
-            ${p.logo ? '<button onclick="removeLogo()" style="padding:4px 10px;border-radius:6px;border:1px solid #EF4444;background:#fff;color:#EF4444;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">🗑️ Supprimer</button>' : ''}
+          <div style="background:#F9FAFB;border:1.5px dashed #D1D5DB;border-radius:10px;padding:10px;display:flex;flex-direction:column;align-items:center;gap:6px;min-height:90px;justify-content:center;overflow:hidden">
+            <img id="profil-logo-preview" class="profil-logo-preview" src="${p.logo||''}" style="${p.logo?'display:block;max-width:100%;max-height:50px;object-fit:contain':'display:none'}"/>
+            <input type="file" accept="image/*" onchange="loadProfilLogo(this)" style="font-size:10px;width:100%;max-width:100%;box-sizing:border-box"/>
+            ${p.logo ? '<button onclick="removeLogo()" style="padding:4px 8px;border-radius:6px;border:1px solid #EF4444;background:#fff;color:#EF4444;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit">🗑️ Suppr.</button>' : ''}
           </div>
         </div>
-        <div class="profil-field" style="margin:0">
-          <label class="profil-label">👤 Photo de profil</label>
-          <div style="background:#F9FAFB;border:1.5px dashed #D1D5DB;border-radius:10px;padding:10px;display:flex;flex-direction:column;align-items:center;gap:6px;min-height:90px;justify-content:center">
-            ${p.avatar_photo ? '<img src="'+p.avatar_photo+'" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid #2D6A4F"/>' : '<p style="font-size:10px;color:#9ca3af;margin:0;text-align:center">S\'affiche en haut à droite</p>'}
-            <input type="file" accept="image/*" onchange="loadProfilAvatar(this)" style="font-size:11px;max-width:100%"/>
-            ${p.avatar_photo ? '<button onclick="removeProfilAvatar()" style="padding:4px 10px;border-radius:6px;border:1px solid #EF4444;background:#fff;color:#EF4444;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">🗑️ Supprimer</button>' : ''}
+        <div class="profil-field" style="margin:0;min-width:0">
+          <label class="profil-label">👤 Photo profil</label>
+          <div style="background:#F9FAFB;border:1.5px dashed #D1D5DB;border-radius:10px;padding:10px;display:flex;flex-direction:column;align-items:center;gap:6px;min-height:90px;justify-content:center;overflow:hidden">
+            ${p.avatar_photo ? '<img src="'+p.avatar_photo+'" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid #2D6A4F"/>' : '<p style="font-size:10px;color:#9ca3af;margin:0;text-align:center">En haut à droite</p>'}
+            <input type="file" accept="image/*" onchange="loadProfilAvatar(this)" style="font-size:10px;width:100%;max-width:100%;box-sizing:border-box"/>
+            ${p.avatar_photo ? '<button onclick="removeProfilAvatar()" style="padding:4px 8px;border-radius:6px;border:1px solid #EF4444;background:#fff;color:#EF4444;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit">🗑️ Suppr.</button>' : ''}
           </div>
         </div>
       </div>
