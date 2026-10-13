@@ -86,7 +86,7 @@ function renderFactureForm(body) {
   var totalLotsHT = lots.reduce(function(s, l) { return s + parseFloat(l.sous_total||0); }, 0);
 
   body.innerHTML = `
-    <button onclick="renderFactureScreen('list');_factureFromDevis=null;" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:#1B4332;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:16px;font-family:inherit">← Retour</button>
+    <button onclick="typeof _factureBackCallback==='function'?_factureBackCallback():(renderFactureScreen('list'),_factureFromDevis=null)" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:#1B4332;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:16px;font-family:inherit">← Retour</button>
 
     ${_factureFromDevis ? '<div style="background:#D1FAE5;border:1px solid #6EE7B7;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#065F46;font-weight:600">✅ Conversion depuis le devis N° ' + (_factureFromDevis.numero||'') + '</div>' : ''}
 
