@@ -3,6 +3,10 @@
 // Identifiant unique : Nom + Téléphone
 // ─────────────────────────────────────────────
 
+// Callbacks de navigation retour (utilisés par devis.js et facture.js)
+var _devisBackCallback   = null;
+var _factureBackCallback = null;
+
 function openClients() {
   _clientsView   = 'list';
   _currentClient = null;
@@ -118,11 +122,12 @@ function clientsAutocomplete(nomInput, telInput, prenomInput, emailInput) {
 }
 
 // ─── État de la vue ───
-var _clientsFilter = '';
-var _clientsSort   = 'ca';
-var _clientsView   = 'list'; // 'list' | 'fiche'
-var _currentClient = null;
-var _clientsDB     = [];     // snapshot après filtre+tri pour navigation par index
+var _clientsFilter  = '';
+var _clientsSort    = 'ca';
+var _clientsView    = 'list'; // 'list' | 'fiche'
+var _currentClient  = null;
+var _clientsDB      = [];     // snapshot après filtre+tri (navigation par index)
+var _clientsImpayes = false;  // filtre impayés actif
 
 // ─── Rendu principal ───
 function renderClients() {
@@ -137,6 +142,7 @@ function _renderClientsList() {
   var body = document.getElementById('clients-body');
   var db   = buildClientsDB();
 
+  // Filtre texte
   if (_clientsFilter) {
     var f = _clientsFilter.toUpperCase();
     db = db.filter(function(c) {
@@ -146,34 +152,49 @@ function _renderClientsList() {
     });
   }
 
+  // Filtre impayés
+  if (_clientsImpayes) {
+    db = db.filter(function(c) {
+      return c.factures.some(function(f) { return f.statut === 'Facturé'; });
+    });
+  }
+
+  // Tri
   if (_clientsSort === 'ca')       db.sort(function(a, b) { return b.ca - a.ca; });
   else if (_clientsSort === 'nb')  db.sort(function(a, b) { return b.missions.length - a.missions.length; });
   else if (_clientsSort === 'nom') db.sort(function(a, b) { return a.nom.localeCompare(b.nom); });
 
   _clientsDB = db; // mémoriser pour _openClientFiche(idx)
 
-  var nbImpayes = db.filter(function(c) {
+  // Calcul nbImpayes sur la base complète (pas filtrée)
+  var allDb = buildClientsDB();
+  var nbImpayes = allDb.filter(function(c) {
     return c.factures.some(function(f) { return f.statut === 'Facturé'; });
   }).length;
 
   var COLORS = ['#E8650A','#1B4332','#6366F1','#0891B2','#D97706','#059669','#7C3AED'];
 
   body.innerHTML = ''
+
+    // ── KPIs
     + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">'
     +   '<div style="background:#fff;border-radius:12px;padding:12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.08)">'
-    +     '<div style="font-size:22px;font-weight:800;color:#2D6A4F">' + db.length + '</div>'
+    +     '<div style="font-size:22px;font-weight:800;color:#2D6A4F">' + allDb.length + '</div>'
     +     '<div style="font-size:10px;color:#6B7280;font-weight:600">Clients</div>'
     +   '</div>'
     +   '<div style="background:#fff;border-radius:12px;padding:12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.08)">'
-    +     '<div style="font-size:15px;font-weight:800;color:#1B4332">' + db.reduce(function(s, c) { return s + c.ca; }, 0).toFixed(0) + ' €</div>'
+    +     '<div style="font-size:15px;font-weight:800;color:#1B4332">' + allDb.reduce(function(s, c) { return s + c.ca; }, 0).toFixed(0) + ' €</div>'
     +     '<div style="font-size:10px;color:#6B7280;font-weight:600">CA total</div>'
     +   '</div>'
-    +   '<div style="background:#fff;border-radius:12px;padding:12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.08)">'
+    +   '<div onclick="' + (nbImpayes > 0 ? '_clientsImpayes=!_clientsImpayes;renderClients()' : '') + '" '
+    +     'style="background:' + (_clientsImpayes ? '#FEE2E2' : '#fff') + ';border-radius:12px;padding:12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.08);'
+    +     (nbImpayes > 0 ? 'cursor:pointer;border:1.5px solid ' + (_clientsImpayes ? '#EF4444' : '#FCA5A5') + ';' : '') + '">'
     +     '<div style="font-size:22px;font-weight:800;color:' + (nbImpayes > 0 ? '#EF4444' : '#2D6A4F') + '">' + nbImpayes + '</div>'
-    +     '<div style="font-size:10px;color:#6B7280;font-weight:600">Impayé(s)</div>'
+    +     '<div style="font-size:10px;color:#6B7280;font-weight:600">' + (_clientsImpayes ? '✕ Impayés' : 'Impayé(s)') + '</div>'
     +   '</div>'
     + '</div>'
 
+    // ── Barre filtre + tri
     + '<div style="display:flex;gap:8px;margin-bottom:12px">'
     +   '<input type="text" placeholder="🔍 Rechercher..." value="' + _clientsFilter + '"'
     +   ' oninput="_clientsFilter=this.value;renderClients()"'
@@ -185,6 +206,8 @@ function _renderClientsList() {
     +   '<option value="nom"' + (_clientsSort === 'nom' ? ' selected' : '') + '>Nom A→Z</option>'
     +   '</select>'
     + '</div>'
+
+    + (_clientsImpayes ? '<div style="background:#FEE2E2;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#991B1B;font-weight:600">⚠️ Filtre actif : clients avec factures impayées</div>' : '')
 
     + (db.length === 0 ? '<div style="text-align:center;padding:40px;color:#9ca3af;font-size:14px">Aucun client trouvé</div>' : '')
 
@@ -231,8 +254,8 @@ function _renderClientFiche() {
   var c    = _currentClient;
   var body = document.getElementById('clients-body');
 
-  var COLORS   = ['#E8650A','#1B4332','#6366F1','#0891B2','#D97706','#059669','#7C3AED'];
-  var color    = COLORS[(c.nom.charCodeAt(0) || 0) % COLORS.length];
+  var COLORS    = ['#E8650A','#1B4332','#6366F1','#0891B2','#D97706','#059669','#7C3AED'];
+  var color     = COLORS[(c.nom.charCodeAt(0) || 0) % COLORS.length];
   var initiales = ((c.nom[0] || '') + (c.prenom[0] || '')).toUpperCase() || '?';
   var nbImpayes = c.factures.filter(function(f) { return f.statut === 'Facturé'; }).length;
 
@@ -255,6 +278,7 @@ function _renderClientFiche() {
       + '</div>'
       + sortDesc(c.devis).map(function(d) {
           var st = d.statut || '';
+          var isPending = st !== 'Accepté' && st !== 'Signé' && st !== 'Refusé' && st !== 'Facturé' && st !== 'Payé' && st !== 'Annulé';
           var badgeStyle = (st === 'Accepté' || st === 'Signé')
             ? 'background:#D1FAE5;color:#065F46'
             : st === 'Refusé'
@@ -262,13 +286,17 @@ function _renderClientFiche() {
               : 'background:#FEF3C7;color:#92400E';
           var badgeLabel = (st === 'Accepté' || st === 'Signé') ? '✅ Signé'
             : st === 'Refusé' ? '❌ Refusé' : '⏳ En attente';
-          return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #F5F5F5">'
+          // Devis cliquable si on a un ref valide
+          var onclick = d.ref ? ' onclick="_openDevisFromClientFiche(\'' + String(d.ref).replace(/'/g, "\\'") + '\')"' : '';
+          var isClickable = !!d.ref;
+          return '<div' + onclick + ' style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #F5F5F5;' + (isClickable ? 'cursor:pointer;' : '') + '">'
             + '<div style="font-size:11px;color:#9ca3af;width:55px;flex-shrink:0">' + fmtDate(d.date) + '</div>'
             + '<div style="flex:1;min-width:0">'
             +   '<div style="font-size:12px;font-weight:600;color:#1B4332">' + (d.ref || '—') + '</div>'
             +   '<div style="font-size:10px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (d.adresse || '') + '</div>'
             + '</div>'
             + '<span style="padding:3px 8px;border-radius:10px;font-size:10px;font-weight:700;' + badgeStyle + '">' + badgeLabel + '</span>'
+            + (isClickable ? '<span style="color:#6B7280;font-size:16px;margin-left:4px">›</span>' : '')
             + '</div>';
         }).join('')
       + '</div>';
@@ -318,13 +346,16 @@ function _renderClientFiche() {
                          : isAnnule ? 'background:#F3F4F6;color:#6B7280'
                                     : 'background:#FEE2E2;color:#991B1B';
           var badgeLabel = isPaye ? '✅ Payée' : isAnnule ? '🚫 Annulée' : '⚠️ Impayée';
-          return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #F5F5F5">'
+          var onclick = f.numero ? ' onclick="_openFactureFromClientFiche(\'' + String(f.numero).replace(/'/g, "\\'") + '\')"' : '';
+          var isClickable = !!f.numero;
+          return '<div' + onclick + ' style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #F5F5F5;' + (isClickable ? 'cursor:pointer;' : '') + '">'
             + '<div style="font-size:11px;color:#9ca3af;width:55px;flex-shrink:0">' + fmtDate(f.date) + '</div>'
             + '<div style="flex:1;min-width:0">'
             +   '<div style="font-size:12px;font-weight:600;color:#1B4332">' + (f.numero || f.ref || '—') + '</div>'
             +   (f.montant ? '<div style="font-size:11px;color:#6B7280">' + parseFloat(f.montant).toFixed(0) + ' €</div>' : '')
             + '</div>'
             + '<span style="padding:3px 8px;border-radius:10px;font-size:10px;font-weight:700;' + badgeStyle + '">' + badgeLabel + '</span>'
+            + (isClickable ? '<span style="color:#6B7280;font-size:16px;margin-left:4px">›</span>' : '')
             + '</div>';
         }).join('')
       + '</div>';
@@ -332,7 +363,7 @@ function _renderClientFiche() {
 
   body.innerHTML = '<div style="max-width:560px;margin:0 auto">'
 
-    // ── Bouton retour
+    // ── Bouton retour liste
     + '<button onclick="_clientsView=\'list\';_currentClient=null;renderClients()" '
     +   'style="display:flex;align-items:center;gap:6px;background:transparent;border:none;color:#6B7280;'
     +   'font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;padding:4px 0;margin-bottom:12px">'
@@ -396,11 +427,63 @@ function _openMissionFromClient(savedAt) {
   openMission();
 }
 
+// ─── Ouvrir un devis existant depuis la fiche client ───
+function _openDevisFromClientFiche(ref) {
+  var list = typeof getAllDevis === 'function' ? getAllDevis() : [];
+  var idx  = list.findIndex(function(d) { return d.numero === ref; });
+  if (idx === -1) { alert('Devis introuvable.'); return; }
+  closeClients();
+  // Callback retour → fiche client
+  _devisBackCallback = function() {
+    _devisBackCallback = null;
+    closeDevis();
+    openClients();
+    _clientsView = 'fiche';
+    renderClients();
+  };
+  _devisEdit      = idx;
+  _isSpecialMode  = !!(list[idx].type === 'special');
+  openDevis();
+  renderDevisScreen('form');
+}
+
+// ─── Ouvrir une facture existante depuis la fiche client ───
+function _openFactureFromClientFiche(numero) {
+  var list = typeof getAllFactures === 'function' ? getAllFactures() : [];
+  var idx  = list.findIndex(function(f) { return f.numero_facture === numero; });
+  if (idx === -1) { alert('Facture introuvable.'); return; }
+  closeClients();
+  // Callback retour → fiche client
+  _factureBackCallback = function() {
+    _factureBackCallback = null;
+    closeFacture();
+    openClients();
+    _clientsView = 'fiche';
+    renderClients();
+  };
+  _factureEdit      = idx;
+  _factureFromDevis = null;
+  openFacture();
+  renderFactureScreen('form');
+}
+
 // ─── Nouveau devis pré-rempli depuis fiche client ───
 function _openDevisFromClient(client) {
   closeClients();
+  // Callback retour → fiche client
+  _devisBackCallback = function() {
+    _devisBackCallback = null;
+    closeDevis();
+    openClients();
+    _clientsView = 'fiche';
+    renderClients();
+  };
+  // Ouvrir l'écran devis directement sur le formulaire vierge
+  _devisEdit     = null;
+  _isSpecialMode = false;
   openDevis();
-  newDevis();
+  renderDevisScreen('form');
+  // Injecter les coordonnées client après le rendu du formulaire
   setTimeout(function() {
     var fields = {
       'dv-client_nom':    client.nom,
@@ -412,13 +495,21 @@ function _openDevisFromClient(client) {
       var el = document.getElementById(id);
       if (el && fields[id]) el.value = fields[id];
     });
-  }, 200);
+  }, 100);
 }
 
 // ─── Facture directe (sans devis préalable) depuis fiche client ───
 function _openFactureDirecteClient(client) {
   closeClients();
-  // Utiliser _factureFromDevis avec les infos client uniquement (pas de diagnostics)
+  // Callback retour → fiche client
+  _factureBackCallback = function() {
+    _factureBackCallback = null;
+    closeFacture();
+    openClients();
+    _clientsView = 'fiche';
+    renderClients();
+  };
+  // Utiliser _factureFromDevis avec les infos client uniquement
   // → openFacture() ira directement au formulaire car _factureFromDevis est truthy
   _factureFromDevis = {
     client_nom:     client.nom,
