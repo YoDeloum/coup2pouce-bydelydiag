@@ -16,14 +16,16 @@ function renderProfilScreen() {
   var body = document.getElementById('profil-body');
 
   body.innerHTML = `
+  <div style="max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:12px">
+
     <!-- Identité -->
     <div class="profil-section">
       <div class="profil-section-title">🏢 Société</div>
+      <div class="profil-field">
+        <label class="profil-label">Nom de la société</label>
+        <input class="profil-input" id="p-nom_societe" type="text" value="${p.nom_societe||''}" placeholder="DELY DIAG SARL"/>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="profil-field" style="grid-column:1/-1">
-          <label class="profil-label">Nom de la société</label>
-          <input class="profil-input" id="p-nom_societe" type="text" value="${p.nom_societe||''}" placeholder="DELY DIAG SARL"/>
-        </div>
         <div class="profil-field">
           <label class="profil-label">Nom du responsable</label>
           <input class="profil-input" id="p-nom_responsable" type="text" value="${p.nom_responsable||''}" placeholder="Jean Dupont"/>
@@ -36,18 +38,23 @@ function renderProfilScreen() {
           </select>
         </div>
       </div>
-      <div class="profil-field">
-        <label class="profil-label">Logo de la société</label>
-        <img id="profil-logo-preview" class="profil-logo-preview" src="${p.logo||''}" style="${p.logo?'display:block':'display:none'}"/>
-        <input type="file" accept="image/*" onchange="loadProfilLogo(this)" style="font-size:13px"/>
-        ${p.logo ? '<button onclick="removeLogo()" style="margin-top:6px;padding:6px 12px;border-radius:7px;border:1px solid #EF4444;background:#fff;color:#EF4444;font-size:12px;font-weight:600;cursor:pointer">🗑️ Supprimer le logo</button>' : ''}
-      </div>
-      <div class="profil-field" style="margin-top:14px;padding-top:14px;border-top:1px dashed #E2E5F0">
-        <label class="profil-label">👤 Photo de profil / Avatar</label>
-        <p style="font-size:11px;color:#9ca3af;margin-bottom:8px">Ta photo ou image s'affichera en haut à droite de l'application à la place de l'icône.</p>
-        ${p.avatar_photo ? '<img src="'+p.avatar_photo+'" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-bottom:8px;display:block;border:3px solid #2D6A4F"/>' : ''}
-        <input type="file" accept="image/*" onchange="loadProfilAvatar(this)" style="font-size:13px"/>
-        ${p.avatar_photo ? '<button onclick="removeProfilAvatar()" style="margin-top:6px;padding:6px 12px;border-radius:7px;border:1px solid #EF4444;background:#fff;color:#EF4444;font-size:12px;font-weight:600;cursor:pointer">🗑️ Supprimer la photo</button>' : ''}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+        <div class="profil-field" style="margin:0">
+          <label class="profil-label">Logo de la société</label>
+          <div style="background:#F9FAFB;border:1.5px dashed #D1D5DB;border-radius:10px;padding:10px;display:flex;flex-direction:column;align-items:center;gap:6px;min-height:90px;justify-content:center">
+            <img id="profil-logo-preview" class="profil-logo-preview" src="${p.logo||''}" style="${p.logo?'display:block;max-width:80px;max-height:50px;object-fit:contain':'display:none'}"/>
+            <input type="file" accept="image/*" onchange="loadProfilLogo(this)" style="font-size:11px;max-width:100%"/>
+            ${p.logo ? '<button onclick="removeLogo()" style="padding:4px 10px;border-radius:6px;border:1px solid #EF4444;background:#fff;color:#EF4444;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">🗑️ Supprimer</button>' : ''}
+          </div>
+        </div>
+        <div class="profil-field" style="margin:0">
+          <label class="profil-label">👤 Photo de profil</label>
+          <div style="background:#F9FAFB;border:1.5px dashed #D1D5DB;border-radius:10px;padding:10px;display:flex;flex-direction:column;align-items:center;gap:6px;min-height:90px;justify-content:center">
+            ${p.avatar_photo ? '<img src="'+p.avatar_photo+'" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid #2D6A4F"/>' : '<p style="font-size:10px;color:#9ca3af;margin:0;text-align:center">S\'affiche en haut à droite</p>'}
+            <input type="file" accept="image/*" onchange="loadProfilAvatar(this)" style="font-size:11px;max-width:100%"/>
+            ${p.avatar_photo ? '<button onclick="removeProfilAvatar()" style="padding:4px 10px;border-radius:6px;border:1px solid #EF4444;background:#fff;color:#EF4444;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">🗑️ Supprimer</button>' : ''}
+          </div>
+        </div>
       </div>
     </div>
 
@@ -58,7 +65,7 @@ function renderProfilScreen() {
         <label class="profil-label">Adresse</label>
         <input class="profil-input" id="p-adresse" type="text" value="${p.adresse||''}" placeholder="12 rue des Acacias"/>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px">
+      <div style="display:grid;grid-template-columns:110px 1fr;gap:10px">
         <div class="profil-field">
           <label class="profil-label">Code postal</label>
           <input class="profil-input" id="p-code_postal" type="text" value="${p.code_postal||''}" placeholder="75001"/>
@@ -104,22 +111,22 @@ function renderProfilScreen() {
           <label class="profil-label">Organisme certificateur</label>
           <input class="profil-input" id="p-organisme_certif" type="text" value="${p.organisme_certif||''}" placeholder="Certicer, Qualibat..."/>
         </div>
-        <div class="profil-field" style="grid-column:1/-1">
-          <label class="profil-label">Numéro de certification</label>
-          <input class="profil-input" id="p-num_certif" type="text" value="${p.num_certif||''}" placeholder="DPE-XXXX-XXXX"/>
-        </div>
+      </div>
+      <div class="profil-field">
+        <label class="profil-label">Numéro de certification</label>
+        <input class="profil-input" id="p-num_certif" type="text" value="${p.num_certif||''}" placeholder="DPE-XXXX-XXXX"/>
       </div>
     </div>
 
     <!-- Facturation -->
     <div class="profil-section">
       <div class="profil-section-title">💶 Facturation</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div class="profil-field">
           <label class="profil-label">Statut fiscal</label>
           <select class="profil-select" id="p-statut_fiscal">
             <option ${p.statut_fiscal==='HT'?'selected':''} value="HT">Hors Taxe (HT)</option>
-            <option ${p.statut_fiscal==='TTC'?'selected':''} value="TTC">Toutes Taxes Comprises (TTC)</option>
+            <option ${p.statut_fiscal==='TTC'?'selected':''} value="TTC">Toutes Taxes (TTC)</option>
           </select>
         </div>
         <div class="profil-field">
@@ -134,7 +141,7 @@ function renderProfilScreen() {
       <div class="profil-field">
         <label class="profil-label">💳 Lien de paiement en ligne</label>
         <input class="profil-input" id="p-lien_paiement" type="url" value="${p.lien_paiement||''}" placeholder="https://buy.stripe.com/..."/>
-        <p style="font-size:11px;color:#9ca3af;margin:4px 0 0">Colle ton lien Stripe, SumUp, PayPal ou Revolut — il apparaîtra dans les devis et factures.</p>
+        <p style="font-size:11px;color:#9ca3af;margin:4px 0 0">Stripe, SumUp, PayPal ou Revolut — apparaîtra dans les devis et factures.</p>
       </div>
       <div class="profil-field">
         <label class="profil-label">🎨 Modèle de PDF (devis &amp; facture)</label>
@@ -151,7 +158,6 @@ function renderProfilScreen() {
           ].map(function(t) {
             var sel = (p.pdf_template||'standard') === t.k;
             return '<div onclick="selectPdfTemplate(this,\''+t.k+'\')" style="cursor:pointer;border-radius:10px;overflow:hidden;border:2.5px solid '+(sel?'#1B4332':'#E2E5F0')+';box-shadow:'+(sel?'0 0 0 3px rgba(27,67,50,.18)':'none')+';transition:border .15s">'
-              + '<!-- mini-aperçu -->'
               + '<div style="background:'+(t.bg)+';padding:8px 10px;border-bottom:1px solid rgba(0,0,0,.08)">'
               + '<div style="font-size:9px;font-weight:800;color:'+(t.fg)+';letter-spacing:.5px">'+(t.label.toUpperCase())+'</div>'
               + '<div style="font-size:7px;color:'+(t.sub)+';margin-top:1px">DELY DIAG • SIRET 000 000</div>'
@@ -176,108 +182,99 @@ function renderProfilScreen() {
     <!-- Coordonnées bancaires -->
     <div class="profil-section">
       <div class="profil-section-title">🏦 Coordonnées bancaires (optionnel)</div>
-      <div class="profil-field">
-        <label class="profil-label">Banque</label>
-        <input class="profil-input" id="p-rib_banque" type="text" value="${p.rib_banque||''}" placeholder="Crédit Agricole, BNP..."/>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="profil-field">
+          <label class="profil-label">Banque</label>
+          <input class="profil-input" id="p-rib_banque" type="text" value="${p.rib_banque||''}" placeholder="Crédit Agricole, BNP..."/>
+        </div>
+        <div class="profil-field">
+          <label class="profil-label">BIC</label>
+          <input class="profil-input" id="p-rib_bic" type="text" value="${p.rib_bic||''}" placeholder="AGRIFRPP"/>
+        </div>
       </div>
       <div class="profil-field">
         <label class="profil-label">IBAN</label>
         <input class="profil-input" id="p-rib_iban" type="text" value="${p.rib_iban||''}" placeholder="FR76 XXXX XXXX XXXX XXXX XXXX XXX"/>
       </div>
-      <div class="profil-field">
-        <label class="profil-label">BIC</label>
-        <input class="profil-input" id="p-rib_bic" type="text" value="${p.rib_bic||''}" placeholder="AGRIFRPP"/>
-      </div>
     </div>
 
-    <!-- Documents réglementaires -->
+    <!-- Documents réglementaires — grille 2×2 -->
     <div class="profil-section">
       <div class="profil-section-title">📄 Documents réglementaires</div>
-      <p style="font-size:12px;color:#6B7280;margin-bottom:14px">Uploadez tes PDF une fois — ils seront stockés dans l'application et disponibles depuis chaque devis.</p>
-      ${['consentement','cgv','cgi'].map(function(id) {
-        var labels = { consentement:'Feuille de consentement', cgv:'Conditions Générales de Vente (CGV)', cgi:"Conditions Générales d'Intervention (CGI)" };
-        var storedDocs = (function() { try { return JSON.parse(localStorage.getItem('dd_docs_reglementaires') || '{}'); } catch(e) { return {}; } })();
-        var stored = storedDocs[id];
-        return '<div style="padding:12px;border:1.5px solid '+(stored?'#BBF7D0':'#E2E5F0')+';border-radius:10px;margin-bottom:10px;background:'+(stored?'#F0FDF4':'#FAFAFA')+'">'
-          + '<div style="font-size:13px;font-weight:700;color:#1B4332;margin-bottom:8px">'
-          + (stored ? '✅ ' : '📎 ') + labels[id] + '</div>'
-          + (stored ? '<div style="font-size:11px;color:#065F46;margin-bottom:8px">📄 '+stored.name+'</div>' : '')
-          + '<div style="display:flex;gap:8px;align-items:center">'
-          + '<label style="flex:1;padding:8px 12px;border-radius:8px;border:1.5px dashed #BBF7D0;background:#fff;font-size:12px;color:#2D6A4F;font-weight:600;cursor:pointer;text-align:center">'
-          + (stored ? '🔄 Remplacer le PDF' : '⬆️ Choisir le PDF')
-          + '<input type="file" accept=".pdf,application/pdf" style="display:none" onchange="uploadDocReglementaire(this,\''+id+'\')" />'
-          + '</label>'
-          + (stored ? '<button onclick="supprimerDocReglementaire(\''+id+'\')" style="padding:8px 12px;border-radius:8px;border:1.5px solid #FCA5A5;background:#FFF;color:#EF4444;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🗑️</button>' : '')
-          + '</div>'
-          + '</div>';
-      }).join('')}
-      <p style="font-size:11px;color:#9ca3af;margin-top:4px">⚠️ Les PDF sont stockés localement dans le navigateur. Taille max recommandée : 2 Mo par fichier.</p>
+      <p style="font-size:12px;color:#6B7280;margin-bottom:10px">Uploadez tes PDF une fois — disponibles depuis chaque devis. Le doc mission est joint automatiquement aux mails de RDV.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        ${(function() {
+          var storedDocs = (function() { try { return JSON.parse(localStorage.getItem('dd_docs_reglementaires') || '{}'); } catch(e) { return {}; } })();
+          var docs = [
+            {id:'consentement', label:'Consentement', fn:'uploadDocReglementaire(this,\'consentement\')', del:'supprimerDocReglementaire(\'consentement\')'},
+            {id:'cgv',          label:'CGV',           fn:'uploadDocReglementaire(this,\'cgv\')',          del:'supprimerDocReglementaire(\'cgv\')'},
+            {id:'cgi',          label:'CGI',           fn:'uploadDocReglementaire(this,\'cgi\')',          del:'supprimerDocReglementaire(\'cgi\')'},
+            {id:'doc_mission',  label:'Doc mission',   fn:'uploadDocMission(this)',                        del:'supprimerDocMission()'}
+          ];
+          return docs.map(function(doc) {
+            var stored = storedDocs[doc.id];
+            return '<div style="background:'+(stored?'#F0FDF4':'#FAFAFA')+';border:1.5px solid '+(stored?'#BBF7D0':'#E2E5F0')+';border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px">'
+              + '<div style="font-size:12px;font-weight:700;color:#1B4332">'+(stored ? '✅ ' : '📎 ')+doc.label+'</div>'
+              + (stored ? '<div style="font-size:10px;color:#065F46;word-break:break-all;line-height:1.3">'+stored.name+'</div>' : '')
+              + '<label style="display:block;padding:6px 8px;border-radius:7px;border:1.5px dashed #BBF7D0;background:#fff;font-size:11px;color:#2D6A4F;font-weight:600;cursor:pointer;text-align:center">'
+              + (stored ? '🔄 Remplacer' : '⬆️ Choisir')
+              + '<input type="file" accept=".pdf,application/pdf" style="display:none" onchange="'+doc.fn+'" />'
+              + '</label>'
+              + (stored ? '<button onclick="'+doc.del+'" style="padding:5px;border-radius:7px;border:1.5px solid #FCA5A5;background:#FFF;color:#EF4444;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🗑️ Supprimer</button>' : '')
+              + '</div>';
+          }).join('');
+        })()}
+      </div>
+      <p style="font-size:11px;color:#9ca3af;margin-top:8px">⚠️ PDF stockés localement dans le navigateur. Taille max : 2 Mo par fichier.</p>
     </div>
 
-    <!-- ── Changement d'email de connexion ── -->
-    <div class="profil-section" style="border:2px solid #6366F1;background:#EEF2FF">
+    <!-- Email de connexion -->
+    <div class="profil-section" style="border-left:4px solid #6366F1">
       <div class="profil-section-title" style="color:#3730A3">🔐 Email de connexion</div>
-      <p style="font-size:12px;color:#4338CA;margin-bottom:12px">Email actuel : <strong>${localStorage.getItem('fb_email') || '—'}</strong></p>
-      <input id="profil-new-email" type="email" placeholder="Nouvel email de connexion"
-        style="width:100%;padding:10px 14px;border-radius:10px;border:1.5px solid #A5B4FC;font-size:14px;font-family:inherit;box-sizing:border-box;margin-bottom:8px;outline:none"/>
-      <button onclick="changerEmailConnexion()" style="width:100%;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,#6366F1,#818CF8);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">
-        Changer mon email de connexion
-      </button>
+      <p style="font-size:12px;color:#4338CA;margin-bottom:10px">Email actuel : <strong>${localStorage.getItem('fb_email') || '—'}</strong></p>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start">
+        <input id="profil-new-email" type="email" placeholder="Nouvel email de connexion"
+          style="padding:10px 12px;border-radius:10px;border:1.5px solid #A5B4FC;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;width:100%"/>
+        <button onclick="changerEmailConnexion()" style="padding:10px 14px;border-radius:10px;border:none;background:#6366F1;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">Changer</button>
+      </div>
       <div id="profil-email-msg" style="display:none;margin-top:8px;font-size:12px;text-align:center;font-weight:600;padding:8px;border-radius:8px"></div>
     </div>
 
-    <!-- ── Sauvegarde / Restauration ── -->
-    <div class="profil-section" style="border:2px solid #FCD34D;background:#FFFBEB">
+    <!-- Sauvegarde -->
+    <div class="profil-section" style="border-left:4px solid #FCD34D">
       <div class="profil-section-title" style="color:#92400E">💾 Sauvegarde des données</div>
-      <p style="font-size:12px;color:#78350F;margin-bottom:14px">Exporte toutes tes données (profil, devis, missions, factures, tarifs) dans un fichier JSON. Conserve ce fichier précieusement — il permet de tout restaurer en cas de perte.</p>
-      <button onclick="exporterDonnees()" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#059669,#10B981);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">
-        ⬇️ Exporter mes données (JSON)
-      </button>
-      <label style="display:block;width:100%;box-sizing:border-box;padding:12px;border-radius:10px;border:2px solid #059669;background:#fff;color:#059669;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;margin-bottom:4px">
-        ⬆️ Importer / Restaurer mes données
-        <input type="file" accept=".json,application/json" style="display:none" onchange="importerDonnees(event)"/>
-      </label>
-      <p style="font-size:10px;color:#9ca3af;text-align:center">L'import restaure toutes les données après confirmation. Les données actuelles seront remplacées.</p>
+      <p style="font-size:12px;color:#78350F;margin-bottom:10px">Exporte toutes tes données (profil, devis, missions, factures, tarifs) dans un fichier JSON. Conserve ce fichier précieusement.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button onclick="exporterDonnees()" style="padding:10px;border-radius:10px;border:none;background:#059669;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">⬇️ Exporter</button>
+        <label style="display:block;padding:10px;border-radius:10px;border:2px solid #059669;background:#fff;color:#059669;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;box-sizing:border-box">
+          ⬆️ Importer
+          <input type="file" accept=".json,application/json" style="display:none" onchange="importerDonnees(event)"/>
+        </label>
+      </div>
+      <p style="font-size:10px;color:#9ca3af;text-align:center;margin-top:6px">L'import remplace toutes les données après confirmation.</p>
     </div>
 
-    <!-- ── Export Profil Agent Commercial ── -->
-    <div class="profil-section" style="border:2px solid #6366F1;background:#EEF2FF">
+    <!-- Agent commercial -->
+    <div class="profil-section" style="border-left:4px solid #6366F1">
       <div class="profil-section-title" style="color:#3730A3">🤝 Agent commercial</div>
-      <p style="font-size:12px;color:#4338CA;margin-bottom:14px">Génère un fichier de profil à partager avec ton agent commercial. Il lui permettra de créer des devis à ton nom et aux couleurs de ta société — sans accès à ton compte.</p>
-      <button onclick="exporterProfilAgent()" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">
+      <p style="font-size:12px;color:#4338CA;margin-bottom:10px">Génère un fichier de profil à partager avec ton agent — sans accès à ton compte.</p>
+      <button onclick="exporterProfilAgent()" style="width:100%;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">
         📤 Exporter mon profil pour l'agent
       </button>
-      <p style="font-size:10px;color:#6366F1;text-align:center;margin-top:6px">Fichier .c2p — contient profil, tarifs, logo, RIB et mentions légales</p>
+      <p style="font-size:10px;color:#6366F1;text-align:center;margin-top:6px">Fichier .c2p — profil, tarifs, logo, RIB et mentions légales</p>
     </div>
 
-    <!-- Document infos mission -->
-    <div class="profil-section">
-      <div class="profil-section-title">📋 Document infos mission</div>
-      <p style="font-size:12px;color:#6B7280;margin-bottom:14px">Ce PDF sera automatiquement joint au mail de confirmation de RDV envoyé au client (liste des pièces à préparer, informations obligatoires, etc.).</p>
-      ${(function() {
-        var storedDocs = (function() { try { return JSON.parse(localStorage.getItem('dd_docs_reglementaires') || '{}'); } catch(e) { return {}; } })();
-        var stored = storedDocs['doc_mission'];
-        return '<div style="padding:12px;border:1.5px solid '+(stored?'#BBF7D0':'#E2E5F0')+';border-radius:10px;background:'+(stored?'#F0FDF4':'#FAFAFA')+'">'
-          + (stored ? '<div style="font-size:12px;font-weight:700;color:#065F46;margin-bottom:8px">✅ '+stored.name+'</div>' : '<div style="font-size:13px;color:#6B7280;margin-bottom:8px">📎 Aucun document chargé</div>')
-          + '<div style="display:flex;gap:8px">'
-          + '<label style="flex:1;padding:8px 12px;border-radius:8px;border:1.5px dashed #BBF7D0;background:#fff;font-size:12px;color:#2D6A4F;font-weight:600;cursor:pointer;text-align:center">'
-          + (stored ? '🔄 Remplacer' : '⬆️ Choisir le PDF')
-          + '<input type="file" accept=".pdf,application/pdf" style="display:none" onchange="uploadDocMission(this)"/>'
-          + '</label>'
-          + (stored ? '<button onclick="supprimerDocMission()" style="padding:8px 12px;border-radius:8px;border:1.5px solid #FCA5A5;background:#FFF;color:#EF4444;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🗑️</button>' : '')
-          + '</div></div>';
-      })()}
-    </div>
-
-    <div class="profil-section" style="border:2px solid #E8650A;background:#FFF7ED">
+    <!-- Espace prescripteurs -->
+    <div class="profil-section" style="border-left:4px solid #E8650A">
       <div class="profil-section-title" style="color:#C2410C">🏢 Espace prescripteurs</div>
-      <p style="font-size:13px;color:#6B7280;margin:0 0 12px">Gérez vos agences et notaires partenaires. Chacun reçoit un lien unique pour consulter vos disponibilités et réserver un créneau.</p>
-      <button onclick="ouvrirGestionPrescripteurs()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #E8650A;background:#fff;color:#E8650A;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">⚙️ Gérer les prescripteurs</button>
+      <p style="font-size:12px;color:#6B7280;margin:0 0 10px">Gérez vos agences et notaires partenaires. Chacun reçoit un lien unique pour réserver un créneau.</p>
+      <button onclick="ouvrirGestionPrescripteurs()" style="width:100%;padding:11px;border-radius:10px;border:2px solid #E8650A;background:#fff;color:#E8650A;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">⚙️ Gérer les prescripteurs</button>
     </div>
 
-    <div class="profil-section" style="border:2px solid #059669;background:#F0FDF4">
+    <!-- Lien demande de devis -->
+    <div class="profil-section" style="border-left:4px solid #059669">
       <div class="profil-section-title" style="color:#065F46">🔗 Lien demande de devis</div>
-      <p style="font-size:13px;color:#6B7280;margin:0 0 12px">Génère ton lien personnel à coller sur ta page web. Tes clients pourront faire une demande de devis en ligne, directement vers toi.</p>
+      <p style="font-size:12px;color:#6B7280;margin:0 0 10px">Génère ton lien personnel à coller sur ta page web pour les demandes de devis en ligne.</p>
       <div id="profil-devis-link-wrap">
         ${(function() {
           var existingCode = localStorage.getItem('dd_devis_link_code') || '';
@@ -292,16 +289,17 @@ function renderProfilScreen() {
               + '<button onclick="genererLienDevis()" style="padding:10px 12px;border-radius:8px;border:1.5px solid #E2E5F0;background:#fff;color:#6B7280;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit" title="Générer un nouveau code">🔄</button>'
               + '</div>';
           } else {
-            return '<button onclick="genererLienDevis()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #059669;background:#fff;color:#059669;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">🔗 Générer mon lien de devis</button>';
+            return '<button onclick="genererLienDevis()" style="width:100%;padding:11px;border-radius:10px;border:2px solid #059669;background:#fff;color:#059669;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🔗 Générer mon lien de devis</button>';
           }
         })()}
       </div>
     </div>
 
     <button class="profil-save-btn" onclick="saveProfilForm()">💾 Enregistrer le profil</button>
+    <div id="profil-success" style="display:none;text-align:center;padding:12px;background:#D1FAE5;border-radius:10px;color:#065F46;font-weight:700;margin-bottom:4px">✅ Profil sauvegardé !</div>
+    <button onclick="forcerSyncCloud(this)" style="width:100%;padding:12px;border-radius:10px;border:1.5px solid #0891B2;background:#fff;color:#0891B2;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px">☁️ Forcer la synchronisation vers le cloud</button>
 
-    <button onclick="forcerSyncCloud(this)" style="width:100%;padding:12px;border-radius:10px;border:1.5px solid #0891B2;background:#fff;color:#0891B2;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:10px">☁️ Forcer la synchronisation vers le cloud</button>
-    <div id="profil-success" style="display:none;text-align:center;padding:12px;background:#D1FAE5;border-radius:10px;color:#065F46;font-weight:700;margin-bottom:16px">✅ Profil sauvegardé !</div>`;
+  </div>`;
 }
 
 function selectPdfTemplate(card, key) {
