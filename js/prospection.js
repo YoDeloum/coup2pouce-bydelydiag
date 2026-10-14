@@ -164,11 +164,27 @@ function _renderPipeline() {
 function _renderImport() {
   var html = '';
 
+  // Guide d'utilisation
+  html += '<div style="background:#fff;border-radius:14px;border:1.5px solid #DBEAFE;padding:16px;margin-bottom:14px">'
+    + '<div style="font-size:14px;font-weight:800;color:#1E40AF;margin-bottom:10px">📖 Comment utiliser la Prospection ?</div>'
+    + '<div style="font-size:12px;color:#374151;line-height:1.9">'
+    + '<b>1.</b> Connectez-vous sur <b>Scrap.io</b> avec les identifiants fournis par votre responsable<br>'
+    + '<b>2.</b> Recherchez vos cibles par <b>ville ou département</b> (agences immo, mandataires, syndics…)<br>'
+    + '<b>3.</b> Exportez les résultats en <b>fichier CSV</b><br>'
+    + '<b>4.</b> Importez ce fichier ici → vos prospects apparaissent dans le <b>Pipeline</b><br>'
+    + '<b>5.</b> Cliquez sur un prospect pour <b>gérer votre suivi</b> : statut, historique, relance, notes'
+    + '</div>'
+    + '</div>';
+
   // Bloc Scrap.io
   html += '<div style="background:linear-gradient(135deg,#1E40AF,#2563EB);border-radius:16px;padding:18px;margin-bottom:16px;color:#fff">'
-    + '<div style="font-size:16px;font-weight:800;margin-bottom:4px">🔍 Trouver des prospects</div>'
-    + '<div style="font-size:12px;opacity:.85;margin-bottom:12px;line-height:1.5">Recherchez des agences immobilières, mandataires, syndics par ville ou département sur Scrap.io, exportez en CSV, puis importez ici.</div>'
-    + '<a href="https://scrap.io" target="_blank" style="display:inline-block;background:#fff;color:#1E40AF;font-size:13px;font-weight:700;padding:10px 18px;border-radius:10px;text-decoration:none">🌐 Ouvrir Scrap.io</a>'
+    + '<div style="font-size:16px;font-weight:800;margin-bottom:4px">🔍 Accéder à Scrap.io</div>'
+    + '<div style="font-size:12px;opacity:.85;margin-bottom:6px;line-height:1.5">Identifiants fournis par votre responsable. En cas de doute, contactez-le directement.</div>'
+    + '<div style="background:rgba(255,255,255,.15);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;line-height:1.8">'
+    + '🔑 <b>Identifiants :</b> à demander à votre responsable<br>'
+    + '<span style="opacity:.8;font-size:11px">Ne partagez pas ces accès en dehors de l\'équipe</span>'
+    + '</div>'
+    + '<a href="https://app.scrap.io/login" target="_blank" style="display:inline-block;background:#fff;color:#1E40AF;font-size:13px;font-weight:700;padding:10px 18px;border-radius:10px;text-decoration:none">🌐 Se connecter à Scrap.io</a>'
     + '</div>';
 
   // Zone import CSV
