@@ -154,11 +154,166 @@ var MIIA_SYSTEM = `Tu es Miia, l'assistante experte officielle de DELY DIAG, cab
 - Si question hors périmètre → redirige poliment
 - Si tu ne sais vraiment pas → oriente vers la communauté WhatsApp DELY DIAG ou les organismes officiels (COFRAC, INRS, ADEME, Légifrance)`;
 
+// ─────────────────────────────────────────────
+// VOIX MIIA — SpeechSynthesis
+// ─────────────────────────────────────────────
+var _miiaVoiceEnabled = localStorage.getItem('dd_miia_voice') !== 'off';
+
+// Précharger les voix dès que possible
+if (window.speechSynthesis) {
+  window.speechSynthesis.getVoices();
+  window.speechSynthesis.onvoiceschanged = function() { window.speechSynthesis.getVoices(); };
+}
+
+function _speakMiia(text) {
+  if (!_miiaVoiceEnabled || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  // Nettoyer le markdown et les symboles non parlables
+  var clean = text
+    .replace(/[═─✅❌⚠️🔬🔴⚡🔥🌡️🐜☢️📋⏱️⚖️🏗️🔧🌬️🧱💶📄#*_`>]/g, '')
+    .replace(/\n{2,}/g, '. ')
+    .replace(/\n/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    .substring(0, 650); // ~50 secondes max
+  if (!clean) return;
+  var u = new SpeechSynthesisUtterance(clean);
+  u.lang = 'fr-FR';
+  u.rate = 1.05;
+  u.pitch = 1.1;
+  // Chercher une voix française (préférence féminine)
+  var voices = window.speechSynthesis.getVoices();
+  var frVoice = voices.find(function(v) { return v.lang === 'fr-FR' && /amelie|julie|thomas|marie|léa|lea/i.test(v.name); })
+             || voices.find(function(v) { return v.lang === 'fr-FR'; })
+             || voices.find(function(v) { return v.lang.startsWith('fr'); });
+  if (frVoice) u.voice = frVoice;
+  window.speechSynthesis.speak(u);
+}
+
+function toggleMiiaVoice() {
+  _miiaVoiceEnabled = !_miiaVoiceEnabled;
+  localStorage.setItem('dd_miia_voice', _miiaVoiceEnabled ? 'on' : 'off');
+  var btn = document.getElementById('miia-voice-toggle');
+  if (btn) btn.textContent = _miiaVoiceEnabled ? '🔊' : '🔇';
+  if (!_miiaVoiceEnabled && window.speechSynthesis) window.speechSynthesis.cancel();
+}
+
+// ─────────────────────────────────────────────
+// CONTEXTE DONNÉES TEMPS RÉEL
+// ─────────────────────────────────────────────
+
+// Détecte si la question concerne les données de l'app
+function _isDataQuestion(text) {
+  var t = text.toLowerCase();
+  var keywords = [
+    'rdv', 'rendez-vous', 'rendez vous', 'mission', 'planning', 'semaine', 'agenda',
+    'ca ', ' ca', 'chiffre', 'argent', 'facture', 'impayé', 'impayée', 'encaiss',
+    'devis', 'objectif', 'stats', 'statistique', 'mois', "aujourd", 'activité',
+    'résultat', 'combien', 'client', 'prochain', 'prochaine', 'relance', 'signé',
+    'en attente', 'payé', 'annulé', 'clôturé', 'total'
+  ];
+  return keywords.some(function(kw) { return t.indexOf(kw) !== -1; });
+}
+
+// Construit un bloc de contexte avec les données réelles de l'app
+function _gatherAppContext() {
+  var now = new Date();
+  var today = now.toISOString().substring(0, 10);
+  var currentMonth = today.substring(0, 7);
+
+  // Semaine en cours (lun → dim)
+  var dow = now.getDay() === 0 ? 6 : now.getDay() - 1;
+  var weekStart = new Date(now); weekStart.setDate(now.getDate() - dow);
+  var weekEnd   = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+  var wsStr = weekStart.toISOString().substring(0, 10);
+  var weStr = weekEnd.toISOString().substring(0, 10);
+
+  var allMissions = (typeof missions !== 'undefined' ? missions : []) || [];
+  var tarifs = Object.assign({}, typeof TARIFS_DEFAULT !== 'undefined' ? TARIFS_DEFAULT : {},
+                               JSON.parse(localStorage.getItem('dd_tarifs') || '{}'));
+
+  function missionCA(m) {
+    if (m.total && parseFloat(m.total) > 0) return parseFloat(m.total);
+    return (m.diags || []).reduce(function(s, d) { return s + (parseFloat(tarifs[d]) || 0); }, 0);
+  }
+
+  // Missions semaine
+  var weekMissions = allMissions.filter(function(m) { return m.date && m.date >= wsStr && m.date <= weStr; });
+  // Missions mois
+  var monthMissions = allMissions.filter(function(m) { return (m.date || '').substring(0, 7) === currentMonth; });
+  var caMonth  = monthMissions.reduce(function(s, m) { return s + missionCA(m); }, 0);
+  var caTotal  = allMissions.reduce(function(s, m) { return s + missionCA(m); }, 0);
+
+  // Devis
+  var allDevis        = typeof getAllDevis === 'function' ? getAllDevis() : [];
+  var devisEnAttente  = allDevis.filter(function(d) { return !d.statut || d.statut === 'Devis'; });
+  var devisAcceptes   = allDevis.filter(function(d) { return d.statut === 'Accepté'; });
+  var devisMonthCA    = allDevis.filter(function(d) { return (d.date||'').substring(0,7) === currentMonth; })
+                                .reduce(function(s, d) { return s + parseFloat(d.total_ht || d.prix_final || 0); }, 0);
+
+  // Factures
+  var allFactures    = typeof getAllFactures === 'function' ? getAllFactures() : [];
+  var factImpayees   = allFactures.filter(function(f) { return f.statut !== 'Payé' && f.statut !== 'Annulé'; });
+  var totalImpaye    = factImpayees.reduce(function(s, f) { return s + parseFloat(f.total_ht || f.prix_final || 0); }, 0);
+  var totalEncaisse  = allFactures.filter(function(f) { return f.statut === 'Payé'; })
+                                  .reduce(function(s, f) { return s + parseFloat(f.total_ht || f.prix_final || 0); }, 0);
+
+  // Objectif
+  var objectif = parseFloat(localStorage.getItem('dd_stats_objectif') || '0');
+  var pctObj   = objectif > 0 ? Math.round(caMonth / objectif * 100) : null;
+
+  // Détail RDV semaine
+  var rdvLines = weekMissions.map(function(m) {
+    var nom   = ((m.nom || m.client_nom || '') + ' ' + (m.prenom || m.client_prenom || '')).trim() || 'Client inconnu';
+    var ville = m.bien_ville || m.ville || '';
+    var diags = (m.diags || []).join(', ') || 'diagnostic';
+    return '• ' + m.date + ' : ' + nom + (ville ? ' (' + ville + ')' : '') + ' — ' + diags;
+  }).join('\n') || '• Aucun RDV trouvé pour cette semaine';
+
+  // Détail factures impayées (max 5)
+  var impLines = factImpayees.slice(0, 5).map(function(f) {
+    var nom = (f.client_nom || f.nom || 'Client').trim();
+    var mt  = parseFloat(f.total_ht || f.prix_final || 0).toFixed(0);
+    return '• ' + nom + ' — ' + mt + ' € (' + (f.statut || 'En attente') + ')';
+  }).join('\n') || '• Aucune facture impayée';
+
+  var ctx = '\n\n══════════ DONNÉES TEMPS RÉEL DE TON APPLICATION ══════════\n';
+  ctx += 'Date du jour : ' + today + '\n';
+  ctx += 'Semaine en cours : ' + wsStr + ' → ' + weStr + '\n\n';
+  ctx += '📅 RDV / MISSIONS CETTE SEMAINE (' + weekMissions.length + ') :\n' + rdvLines + '\n\n';
+  ctx += '📊 CA DU MOIS EN COURS (' + currentMonth + ') :\n';
+  ctx += '• CA estimé (missions) : ' + caMonth.toFixed(0) + ' €\n';
+  ctx += '• Missions ce mois : ' + monthMissions.length + '\n';
+  if (objectif > 0) ctx += '• Objectif mensuel : ' + objectif.toFixed(0) + ' € → ' + (pctObj || 0) + '% atteint\n';
+  ctx += '• CA total tous mois : ' + caTotal.toFixed(0) + ' €\n\n';
+  ctx += '💶 FACTURES :\n';
+  ctx += '• Factures impayées : ' + factImpayees.length + ' — total ' + totalImpaye.toFixed(0) + ' €\n';
+  ctx += impLines + '\n';
+  ctx += '• Total encaissé (Payé) : ' + totalEncaisse.toFixed(0) + ' €\n\n';
+  ctx += '📄 DEVIS :\n';
+  ctx += '• En attente de signature : ' + devisEnAttente.length + '\n';
+  ctx += '• Acceptés : ' + devisAcceptes.length + '\n';
+  ctx += '• Total devis ce mois (HT) : ' + devisMonthCA.toFixed(0) + ' €\n\n';
+  ctx += '📋 ACTIVITÉ GLOBALE :\n';
+  ctx += '• Total missions (toutes périodes) : ' + allMissions.length + '\n';
+  ctx += '• Total devis créés : ' + allDevis.length + '\n';
+  ctx += '• Total factures émises : ' + allFactures.length + '\n';
+  ctx += '══════════════════════════════════════════════════════\n';
+  ctx += 'Utilise ces données pour répondre précisément à la question. Si les données sont à 0 c\'est que l\'utilisateur n\'a pas encore enregistré d\'activité.';
+  return ctx;
+}
+
+// ─────────────────────────────────────────────
+
 function toggleChat() {
   chatOpen = !chatOpen;
   var panel = document.getElementById('chat-panel');
   panel.classList.toggle('open', chatOpen);
-  if (chatOpen) document.getElementById('chat-input').focus();
+  if (chatOpen) {
+    document.getElementById('chat-input').focus();
+    var btn = document.getElementById('miia-voice-toggle');
+    if (btn) btn.textContent = _miiaVoiceEnabled ? '🔊' : '🔇';
+  }
 }
 
 function addMsg(text, type) {
@@ -183,13 +338,18 @@ async function sendMsg() {
   var loading = addMsg('⏳ Recherche en cours...', 'loading');
 
   try {
+    // Injection dynamique du contexte données si la question porte sur l'activité
+    var systemPrompt = MIIA_SYSTEM;
+    if (_isDataQuestion(text)) {
+      systemPrompt = MIIA_SYSTEM + _gatherAppContext();
+    }
     var response = await fetch('/.netlify/functions/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 2048,
-        system: MIIA_SYSTEM,
+        system: systemPrompt,
         tools: [{type: 'web_search_20250305', name: 'web_search', max_uses: 1}],
         messages: chatHistory
       })
@@ -206,6 +366,7 @@ async function sendMsg() {
       }
       if (!replyText) replyText = "Je n'ai pas pu générer une réponse. Réessaie !";
       addMsg(replyText, 'bot');
+      _speakMiia(replyText); // Miia répond à voix haute si activé
       chatHistory.push({role: 'assistant', content: data.content});
     }
   } catch (err) {
