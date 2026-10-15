@@ -138,8 +138,8 @@
 /* BOUTON MICRO VOCAL */
 .voice-nav-mic{background:none;border:none;cursor:pointer;font-size:16px;padding:4px 6px;border-radius:8px;line-height:1;color:#6B7280;transition:color .2s}
 .voice-nav-mic:hover{color:#2D6A4F}
-#voice-jeffrey-btn{background:none;border:none;cursor:pointer;font-size:15px;padding:4px 6px;color:#6B7280;border-radius:8px;transition:color .2s;line-height:1}
-#voice-jeffrey-btn:hover{color:#2D6A4F}
+#voice-miia-btn{background:none;border:none;cursor:pointer;font-size:15px;padding:4px 6px;color:#6B7280;border-radius:8px;transition:color .2s;line-height:1}
+#voice-miia-btn:hover{color:#2D6A4F}
 @keyframes mic-pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
 /* PRÉNOM MODAL */
