@@ -309,11 +309,12 @@ function openChatAndSend(text) {
   if (!chatOpen) toggleChat();
   setTimeout(function() {
     var input = document.getElementById('chat-input');
-    if (input) {
+    if (input && text) {
       input.value = text;
-      if (typeof sendMsg === 'function') sendMsg();
+      input.dispatchEvent(new Event('input'));
     }
-  }, 250);
+    if (typeof sendMsg === 'function') sendMsg();
+  }, 500);
 }
 
 // ─────────────────────────────────────────────
