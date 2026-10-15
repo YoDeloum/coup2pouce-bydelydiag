@@ -175,7 +175,7 @@ function _speakMiia(text) {
     .replace(/\n/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .trim()
-    .substring(0, 650); // ~50 secondes max
+    .substring(0, 380); // ~25 secondes max
   if (!clean) return;
   var u = new SpeechSynthesisUtterance(clean);
   u.lang = 'fr-FR';
@@ -299,8 +299,21 @@ function _gatherAppContext() {
   ctx += '• Total devis créés : ' + allDevis.length + '\n';
   ctx += '• Total factures émises : ' + allFactures.length + '\n';
   ctx += '══════════════════════════════════════════════════════\n';
-  ctx += 'Utilise ces données pour répondre précisément à la question. Si les données sont à 0 c\'est que l\'utilisateur n\'a pas encore enregistré d\'activité.';
+  ctx += 'Utilise ces données pour répondre. Si données à 0 = pas encore enregistré.\n';
+  ctx += '⚡ RÈGLE ABSOLUE : Réponds en MAXIMUM 2 phrases courtes. Donne le chiffre clé + une phrase de contexte. PAS de liste, PAS d\'explication longue. L\'utilisateur t\'écoute à voix haute.';
   return ctx;
+}
+
+// Ouvre le chat et envoie un message automatiquement (depuis commande vocale externe)
+function openChatAndSend(text) {
+  if (!chatOpen) toggleChat();
+  setTimeout(function() {
+    var input = document.getElementById('chat-input');
+    if (input) {
+      input.value = text;
+      if (typeof sendMsg === 'function') sendMsg();
+    }
+  }, 250);
 }
 
 // ─────────────────────────────────────────────
@@ -339,16 +352,14 @@ async function sendMsg() {
 
   try {
     // Injection dynamique du contexte données si la question porte sur l'activité
-    var systemPrompt = MIIA_SYSTEM;
-    if (_isDataQuestion(text)) {
-      systemPrompt = MIIA_SYSTEM + _gatherAppContext();
-    }
+    var isData = _isDataQuestion(text);
+    var systemPrompt = isData ? MIIA_SYSTEM + _gatherAppContext() : MIIA_SYSTEM;
     var response = await fetch('/.netlify/functions/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 2048,
+        max_tokens: isData ? 400 : 2048,
         system: systemPrompt,
         tools: [{type: 'web_search_20250305', name: 'web_search', max_uses: 1}],
         messages: chatHistory
