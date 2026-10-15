@@ -6,7 +6,7 @@ function initPrenom() {
   var saved = localStorage.getItem('dd_prenom');
   if (saved) {
     userPrenom = saved;
-    window.jeffreyPrenom = saved;
+    window.miiaPrenom = saved;
     updateBonjourMessage();
   } else {
     setTimeout(function() {
@@ -22,7 +22,7 @@ function savePrenom() {
   var val   = input.value.trim();
   if (!val) return;
   userPrenom = val;
-  window.jeffreyPrenom = val;
+  window.miiaPrenom = val;
   localStorage.setItem('dd_prenom', val);
   document.getElementById('prenom-modal').classList.add('hidden');
   updateBonjourMessage();
