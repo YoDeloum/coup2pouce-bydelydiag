@@ -1,218 +1,174 @@
-// ─────────────────────────────────────────────
-// VOICE.JS — Commandes vocales
-// Dictée Miia + Navigation par la voix
-// ─────────────────────────────────────────────
+// Service Worker — Coup 2 Pouce DELY DIAG
+const CACHE = 'coup2pouce-v56';
 
-var _voiceRecognition = null;
-var _voiceActive      = false;
+// ─── Fichiers à mettre en cache pour le mode hors-ligne ───
+const PRECACHE = [
+  './',
+  './index.html',
+  './sign.html',
+  './prescripteur.html',
+  './devis-demande.html',
+  './consentement.html',
 
-function _getSR() {
-  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
-}
+  // JS principal
+  './js/state.js',
+  './js/app.js',
+  './js/auth.js',
+  './js/profil.js',
+  './js/devis.js',
+  './js/facture.js',
+  './js/mission.js',
+  './js/terrain.js',
+  './js/mail.js',
+  './js/pdf-generator.js',
+  './js/carrez.js',
+  './js/tarifs.js',
+  './js/checklist.js',
+  './js/certif.js',
+  './js/cours.js',
+  './js/glossaire.js',
+  './js/astuces.js',
+  './js/stats.js',
+  './js/relances.js',
+  './js/clients.js',
+  './js/prescripteurs.js',
+  './js/signature.js',
+  './js/chatbot.js',
+  './js/voice.js',
+  './js/avatar.js',
+  './js/dark-mode.js',
+  './js/prenom.js',
+  './js/search.js',
+  './js/ocr-reader.js',
+  './js/document-sender.js',
+  './js/diagnostics-rules.js',
+  './js/address-autocomplete.js',
+  './js/agent.js',
+  './js/agent-devis.js',
+  './js/agent-factures.js',
+  './js/feuille-visite-mission.js',
+  './js/prospection.js',
 
-// ─── Feedback visuel sur les boutons mic ───
-function _setNavMicActive(active) {
-  var btns = document.querySelectorAll('.voice-nav-mic');
-  btns.forEach(function(btn) {
-    btn.style.color     = active ? '#EF4444' : '';
-    btn.style.animation = active ? 'mic-pulse 0.8s ease-in-out infinite' : '';
-  });
-}
-function _setMiiaMicActive(active) {
-  var btn = document.getElementById('voice-miia-btn');
-  if (!btn) return;
-  btn.style.color     = active ? '#EF4444' : '';
-  btn.style.animation = active ? 'mic-pulse 0.8s ease-in-out infinite' : '';
-}
+  // Data
+  './data/modules.js',
+  './data/storage.js',
+  './data/company-profile.js',
+  './data/checklist.js',
+  './data/glossaire.js',
+  './data/astuces.js',
 
-// ─── Arrêt propre de la reconnaissance ───
-function _stopVoice() {
-  if (_voiceRecognition) { try { _voiceRecognition.abort(); } catch(e) {} _voiceRecognition = null; }
-  _voiceActive = false;
-  _setNavMicActive(false);
-  _setMiiaMicActive(false);
-}
-
-// ─── Toast de feedback ───
-function _voiceToast(msg) {
-  var old = document.getElementById('voice-toast');
-  if (old) old.remove();
-  var toast = document.createElement('div');
-  toast.id = 'voice-toast';
-  toast.textContent = msg;
-  toast.style.cssText = [
-    'position:fixed', 'bottom:80px', 'left:50%', 'transform:translateX(-50%)',
-    'background:rgba(0,0,0,0.78)', 'color:#fff', 'padding:10px 18px',
-    'border-radius:20px', 'font-size:13px', 'font-weight:600',
-    'z-index:10000', 'white-space:nowrap', 'max-width:90vw',
-    'text-align:center', 'pointer-events:none', 'font-family:inherit'
-  ].join(';');
-  document.body.appendChild(toast);
-  setTimeout(function() { if (toast.parentNode) toast.remove(); }, 2500);
-}
-
-// ─────────────────────────────────────────────
-// DICTÉE MIIA
-// ─────────────────────────────────────────────
-function startMiiaDictation() {
-  if (!_getSR()) { alert('Commande vocale non supportée. Utilisez Chrome.'); return; }
-  if (_voiceActive) { _stopVoice(); return; }
-
-  var SR = _getSR();
-  var recognition = new SR();
-  recognition.lang            = 'fr-FR';
-  recognition.continuous      = false;
-  recognition.interimResults  = false;
-
-  _voiceActive = true;
-  _setMiiaMicActive(true);
-
-  recognition.onresult = function(event) {
-    var transcript = event.results[0][0].transcript;
-    var input = document.getElementById('chat-input');
-    if (input) input.value = transcript;
-    _stopVoice();
-    // Auto-envoi immédiat à Miia
-    setTimeout(function() { if (typeof sendMsg === 'function') sendMsg(); }, 120);
-  };
-
-  recognition.onerror = function(e) {
-    _stopVoice();
-    if (e.error === 'not-allowed') alert('Autorisation microphone refusée. Vérifiez les permissions du navigateur.');
-  };
-
-  recognition.onend = function() { _stopVoice(); };
-
-  _voiceRecognition = recognition;
-  recognition.start();
-}
-
-// ─────────────────────────────────────────────
-// NAVIGATION VOCALE
-// ─────────────────────────────────────────────
-
-// Correspondances modules
-var _VOICE_MODULES = [
-  { mots: ['dpe', 'énergie', 'energetique', 'energétique', 'thermique', 'performance'], key: 'DPE',      label: 'DPE' },
-  { mots: ['amiante'], key: 'Amiante',  label: 'Amiante' },
-  { mots: ['plomb', 'crep'], key: 'Plomb',    label: 'Plomb' },
-  { mots: ['termite', 'xylophage', 'bois'], key: 'Termites', label: 'Termites' },
-  { mots: ['électricité', 'electricite', 'électrique', 'electrique', 'elec'], key: 'Elec', label: 'Électricité' },
-  { mots: ['gaz'], key: 'Gaz',      label: 'Gaz' },
-  { mots: ['erp', 'risques', 'pollution', 'risque'], key: 'ERP',      label: 'ERP' },
-  { mots: ['certif', 'certification', 'certificat'], key: 'Certif',   label: 'Certification' },
-  { mots: ['matériel', 'materiel', 'équipement', 'equipement', 'outil'], key: 'Materiel', label: 'Matériel' },
-  { mots: ['carrez', 'boutin', 'surface', 'loi carrez'], key: 'Carrez',   label: 'Carrez' },
+  // Icônes
+  './assets/icons/icon-192.png',
+  './assets/icons/icon-512.png',
+  './assets/icons/icon-180.png',
+  './assets/icons/icon-512-maskable.png'
 ];
 
-// Correspondances actions
-var _VOICE_ACTIONS = [
-  { mots: ['mission', 'missions', 'agenda', 'rdv', 'rendez-vous', 'rendez vous'],
-    label: 'Missions', action: function() { if (typeof openMission==='function') openMission(); else alert('Section missions non disponible ici.'); } },
-  { mots: ['devis'],
-    label: 'Devis', action: function() { if (typeof openDevis==='function') openDevis(); } },
-  { mots: ['facture', 'factures'],
-    label: 'Factures', action: function() { if (typeof openFacture==='function') openFacture(); } },
-  { mots: ['profil', 'société', 'societe', 'entreprise'],
-    label: 'Profil', action: function() { if (typeof openProfil==='function') openProfil(); } },
-  { mots: ['accueil', 'retour', 'home', 'retourne'],
-    label: 'Accueil', action: function() { if (typeof showHome==='function') showHome(); } },
-  { mots: ['miia', 'mia', 'mya', 'chat', 'assistant'],
-    label: 'Miia', action: function() { if (typeof toggleChat==='function') toggleChat(); } },
-  { mots: ['tarif', 'tarifs', 'prix'],
-    label: 'Tarifs', action: function() { if (typeof openTarifs==='function') openTarifs(); } },
-  { mots: ['client', 'clients'],
-    label: 'Clients', action: function() { if (typeof openClients==='function') openClients(); } },
-  { mots: ['checklist', 'liste'],
-    label: 'Checklist', action: function() { if (typeof openChecklist==='function') openChecklist(); } },
-];
+// ─── Installation : mise en cache de tous les fichiers ───
+self.addEventListener('install', function(e) {
+  self.skipWaiting();
+  e.waitUntil(
+    caches.open(CACHE).then(function(cache) {
+      return Promise.allSettled(
+        PRECACHE.map(function(url) {
+          return cache.add(url).catch(function() {
+            console.warn('[SW] Impossible de mettre en cache :', url);
+          });
+        })
+      );
+    })
+  );
+});
 
-function _handleVoiceNav(text) {
-  var t = text.toLowerCase().trim();
+// ─── Activation : supprimer les anciens caches et prendre le contrôle ───
+self.addEventListener('activate', function(e) {
+  e.waitUntil(
+    caches.keys().then(function(keys) {
+      return Promise.all(
+        keys.filter(function(k) { return k !== CACHE; })
+            .map(function(k) { return caches.delete(k); })
+      );
+    }).then(function() {
+      return self.clients.claim();
+    })
+  );
+});
 
-  // 0. Commande Miia — "miia [question]" depuis le micro principal
-  // "miia" (double i) est distinctive, pas de risque de confusion avec "amiante"
-  if (t.indexOf('miia') !== -1 || t.indexOf('mya') !== -1) {
-    var _trigger = t.indexOf('miia') !== -1 ? 'miia' : 'mya';
-    var _tidx    = t.indexOf(_trigger);
-    var _question = text.substring(_tidx + _trigger.length).trim().replace(/^[,\s!?:.-]+/, '').trim();
-    if (_question.length > 3 && typeof openChatAndSend === 'function') {
-      // Phrase complète détectée → envoyer directement
-      openChatAndSend(_question);
-      _voiceToast('🎤 Miia : « ' + _question.substring(0, 42) + (_question.length > 42 ? '…' : '') + ' »');
-    } else {
-      // Juste "Miia" → ouvre le chat + active le micro du chat automatiquement
-      if (typeof toggleChat === 'function') toggleChat();
-      setTimeout(function() {
-        if (typeof startMiiaDictation === 'function') startMiiaDictation();
-      }, 450);
-      _voiceToast('🎤 Parlez à Miia...');
-    }
+// ─── Message utilisateur (bouton "Actualiser") ───
+self.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+// ─── Stratégie fetch ─────────────────────────────
+self.addEventListener('fetch', function(e) {
+  var url = e.request.url;
+
+  if (
+    url.indexOf('firestore.googleapis.com') !== -1 ||
+    url.indexOf('googleapis.com') !== -1 ||
+    url.indexOf('anthropic.com') !== -1 ||
+    url.indexOf('resend.com') !== -1 ||
+    url.indexOf('netlify/functions') !== -1 ||
+    url.indexOf('/.netlify/') !== -1 ||
+    e.request.method !== 'GET'
+  ) {
     return;
   }
 
-  // 1. Triangulation — cas spécial : ouvre Carrez puis bascule sur l'onglet tri
-  if (t.indexOf('triangulation') !== -1) {
-    if (typeof openModule === 'function') openModule('Carrez');
-    setTimeout(function() { if (typeof setCarrezTab === 'function') setCarrezTab('tri'); }, 300);
-    _voiceToast('📐 Triangulation ouverte');
-    return;
-  }
+  e.respondWith(
+    caches.match(e.request).then(function(cached) {
+      if (cached) return cached;
+      return fetch(e.request).then(function(response) {
+        if (response && response.status === 200) {
+          var clone = response.clone();
+          caches.open(CACHE).then(function(cache) {
+            cache.put(e.request, clone);
+          });
+        }
+        return response;
+      }).catch(function() {
+        if (e.request.destination === 'document') {
+          return caches.match('./index.html');
+        }
+      });
+    })
+  );
+});
 
-  // 1. Chercher une correspondance de module
-  for (var i = 0; i < _VOICE_MODULES.length; i++) {
-    var m = _VOICE_MODULES[i];
-    for (var j = 0; j < m.mots.length; j++) {
-      if (t.indexOf(m.mots[j]) !== -1) {
-        if (typeof openModule === 'function') openModule(m.key);
-        _voiceToast('📂 Module ' + m.label + ' ouvert');
-        return;
+// ─── Notifications push ───
+self.addEventListener('push', function(e) {
+  var data = { title: '✍️ Coup 2 Pouce', body: 'Nouvelle notification' };
+  try { data = e.data.json(); } catch(err) {}
+  e.waitUntil(
+    self.registration.showNotification(data.title, {
+      body:     data.body,
+      icon:     data.icon  || '/assets/icons/icon-192.png',
+      badge:    data.badge || '/assets/icons/icon-192.png',
+      tag:      data.tag   || 'coup2pouce-notif',
+      renotify: true
+    })
+  );
+});
+
+// ─── Clic notification ───
+self.addEventListener('notificationclick', function(e) {
+  e.notification.close();
+  var notifTag = e.notification.tag || '';
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(cls) {
+      if (cls.length > 0) {
+        return cls[0].focus().then(function(client) {
+          // Si c'est une notif de devis signé, demander à l'app d'ouvrir la section agent
+          if (notifTag === 'coup2pouce-devis' && client && client.postMessage) {
+            client.postMessage({ type: 'NOTIF_DEVIS_SIGNE' });
+          }
+          return client;
+        });
       }
-    }
-  }
-
-  // 2. Chercher une correspondance d'action
-  for (var i = 0; i < _VOICE_ACTIONS.length; i++) {
-    var a = _VOICE_ACTIONS[i];
-    for (var j = 0; j < a.mots.length; j++) {
-      if (t.indexOf(a.mots[j]) !== -1) {
-        a.action();
-        _voiceToast('✅ ' + a.label + ' ouvert');
-        return;
-      }
-    }
-  }
-
-  // 3. Non reconnu
-  _voiceToast('🎤 "' + text + '" — non reconnu');
-}
-
-function startVoiceNav() {
-  if (!_getSR()) { alert('Commande vocale non supportée. Utilisez Chrome.'); return; }
-  if (_voiceActive) { _stopVoice(); return; }
-
-  var SR = _getSR();
-  var recognition = new SR();
-  recognition.lang            = 'fr-FR';
-  recognition.continuous      = false;
-  recognition.interimResults  = false;
-
-  _voiceActive = true;
-  _setNavMicActive(true);
-
-  recognition.onresult = function(event) {
-    var transcript = event.results[0][0].transcript;
-    _stopVoice();
-    _handleVoiceNav(transcript);
-  };
-
-  recognition.onerror = function(e) {
-    _stopVoice();
-    if (e.error === 'not-allowed') alert('Autorisation microphone refusée. Vérifiez les permissions du navigateur.');
-  };
-
-  recognition.onend = function() { _stopVoice(); };
-
-  _voiceRecognition = recognition;
-  recognition.start();
-}
+      // App pas ouverte : l'ouvrir sur la bonne section
+      return clients.openWindow(notifTag === 'coup2pouce-devis' ? '/#agent' : '/');
+    })
+  );
+});
