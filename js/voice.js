@@ -70,13 +70,10 @@ function startMiiaDictation() {
   recognition.onresult = function(event) {
     var transcript = event.results[0][0].transcript;
     var input = document.getElementById('chat-input');
-    if (input) {
-      input.value = transcript;
-      input.focus();
-      // Déclencher automatiquement l'envoi si fin de phrase détectée
-      // (l'utilisateur peut encore modifier le texte avant d'appuyer sur Entrée)
-    }
+    if (input) input.value = transcript;
     _stopVoice();
+    // Auto-envoi immédiat à Miia
+    setTimeout(function() { if (typeof sendMsg === 'function') sendMsg(); }, 120);
   };
 
   recognition.onerror = function(e) {
@@ -133,7 +130,23 @@ var _VOICE_ACTIONS = [
 function _handleVoiceNav(text) {
   var t = text.toLowerCase().trim();
 
-  // 0. Triangulation — cas spécial : ouvre Carrez puis bascule sur l'onglet tri
+  // 0. Commande Miia — "miia [question]" depuis le micro principal
+  // "miia" (double i) est distinctive, pas de risque de confusion avec "amiante"
+  if (t.indexOf('miia') !== -1 || t.indexOf('mya') !== -1) {
+    var _trigger = t.indexOf('miia') !== -1 ? 'miia' : 'mya';
+    var _tidx    = t.indexOf(_trigger);
+    var _question = text.substring(_tidx + _trigger.length).trim().replace(/^[,\s!?:.-]+/, '').trim();
+    if (_question.length > 3 && typeof openChatAndSend === 'function') {
+      openChatAndSend(_question);
+      _voiceToast('🎤 Miia : « ' + _question.substring(0, 42) + (_question.length > 42 ? '…' : '') + ' »');
+    } else {
+      if (typeof toggleChat === 'function') toggleChat();
+      _voiceToast('✅ Miia ouverte');
+    }
+    return;
+  }
+
+  // 1. Triangulation — cas spécial : ouvre Carrez puis bascule sur l'onglet tri
   if (t.indexOf('triangulation') !== -1) {
     if (typeof openModule === 'function') openModule('Carrez');
     setTimeout(function() { if (typeof setCarrezTab === 'function') setCarrezTab('tri'); }, 300);
