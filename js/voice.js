@@ -130,11 +130,30 @@ var _VOICE_ACTIONS = [
 function _handleVoiceNav(text) {
   var t = text.toLowerCase().trim();
 
-  // 0. Commande Miia — "miia [question]" depuis le micro principal
-  // "miia" (double i) est distinctive, pas de risque de confusion avec "amiante"
-  if (t.indexOf('miia') !== -1 || t.indexOf('mya') !== -1) {
-    var _trigger = t.indexOf('miia') !== -1 ? 'miia' : 'mya';
-    var _tidx    = t.indexOf(_trigger);
+  // 0. Commande Miia — "miia/mia/mya [question]" depuis le micro principal
+  // "mia" nécessite une vérification de frontière de mot (éviter confusion avec "amiante")
+  var _miiaCandidates = [
+    { w: 'miia', safe: true },
+    { w: 'mya',  safe: true },
+    { w: 'mia',  safe: false }   // word-boundary check car 'amiante' contient 'mia'
+  ];
+  var _miiaMatch = null;
+  for (var _mi = 0; _mi < _miiaCandidates.length; _mi++) {
+    var _cw = _miiaCandidates[_mi].w;
+    var _ci = t.indexOf(_cw);
+    if (_ci !== -1) {
+      if (_miiaCandidates[_mi].safe) {
+        _miiaMatch = { idx: _ci, w: _cw }; break;
+      } else {
+        var _cb = _ci === 0 || /\W/.test(t[_ci - 1]);
+        var _ca = _ci + _cw.length >= t.length || /\W/.test(t[_ci + _cw.length]);
+        if (_cb && _ca) { _miiaMatch = { idx: _ci, w: _cw }; break; }
+      }
+    }
+  }
+  if (_miiaMatch) {
+    var _tidx    = _miiaMatch.idx;
+    var _trigger = _miiaMatch.w;
     var _question = text.substring(_tidx + _trigger.length).trim().replace(/^[,\s!?:.-]+/, '').trim();
     if (_question.length > 3 && typeof openChatAndSend === 'function') {
       // Phrase complète détectée → envoyer directement
