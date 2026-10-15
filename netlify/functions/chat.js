@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────
 // NETLIFY FUNCTION — chat.js
-// Proxy sécurisé vers l'API Claude (Jeffrey)
+// Proxy sécurisé vers l'API Claude (Miia)
 // Variable requise : CLAUDE_API_KEY (Netlify env)
 // ─────────────────────────────────────────────
 
