@@ -184,7 +184,7 @@ function _renderImport() {
     + '🔑 <b>Identifiants :</b> à demander à votre responsable<br>'
     + '<span style="opacity:.8;font-size:11px">Ne partagez pas ces accès en dehors de l\'équipe</span>'
     + '</div>'
-    + '<a href="https://app.scrap.io/login" target="_blank" style="display:inline-block;background:#fff;color:#1E40AF;font-size:13px;font-weight:700;padding:10px 18px;border-radius:10px;text-decoration:none">🌐 Se connecter à Scrap.io</a>'
+    + '<a href="https://scrap.io/app/login" target="_blank" style="display:inline-block;background:#fff;color:#1E40AF;font-size:13px;font-weight:700;padding:10px 18px;border-radius:10px;text-decoration:none">🌐 Se connecter à Scrap.io</a>'
     + '</div>';
 
   // Zone import CSV
