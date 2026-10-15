@@ -137,11 +137,16 @@ function _handleVoiceNav(text) {
     var _tidx    = t.indexOf(_trigger);
     var _question = text.substring(_tidx + _trigger.length).trim().replace(/^[,\s!?:.-]+/, '').trim();
     if (_question.length > 3 && typeof openChatAndSend === 'function') {
+      // Phrase complète détectée → envoyer directement
       openChatAndSend(_question);
       _voiceToast('🎤 Miia : « ' + _question.substring(0, 42) + (_question.length > 42 ? '…' : '') + ' »');
     } else {
+      // Juste "Miia" → ouvre le chat + active le micro du chat automatiquement
       if (typeof toggleChat === 'function') toggleChat();
-      _voiceToast('✅ Miia ouverte');
+      setTimeout(function() {
+        if (typeof startMiiaDictation === 'function') startMiiaDictation();
+      }, 450);
+      _voiceToast('🎤 Parlez à Miia...');
     }
     return;
   }
