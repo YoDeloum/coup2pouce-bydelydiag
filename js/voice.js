@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────
 // VOICE.JS — Commandes vocales
-// Dictée Jeffrey + Navigation par la voix
+// Dictée Miia + Navigation par la voix
 // ─────────────────────────────────────────────
 
 var _voiceRecognition = null;
@@ -18,8 +18,8 @@ function _setNavMicActive(active) {
     btn.style.animation = active ? 'mic-pulse 0.8s ease-in-out infinite' : '';
   });
 }
-function _setJeffreyMicActive(active) {
-  var btn = document.getElementById('voice-jeffrey-btn');
+function _setMiiaMicActive(active) {
+  var btn = document.getElementById('voice-miia-btn');
   if (!btn) return;
   btn.style.color     = active ? '#EF4444' : '';
   btn.style.animation = active ? 'mic-pulse 0.8s ease-in-out infinite' : '';
@@ -30,7 +30,7 @@ function _stopVoice() {
   if (_voiceRecognition) { try { _voiceRecognition.abort(); } catch(e) {} _voiceRecognition = null; }
   _voiceActive = false;
   _setNavMicActive(false);
-  _setJeffreyMicActive(false);
+  _setMiiaMicActive(false);
 }
 
 // ─── Toast de feedback ───
@@ -52,9 +52,9 @@ function _voiceToast(msg) {
 }
 
 // ─────────────────────────────────────────────
-// DICTÉE JEFFREY
+// DICTÉE MIIA
 // ─────────────────────────────────────────────
-function startJeffreyDictation() {
+function startMiiaDictation() {
   if (!_getSR()) { alert('Commande vocale non supportée. Utilisez Chrome.'); return; }
   if (_voiceActive) { _stopVoice(); return; }
 
@@ -65,7 +65,7 @@ function startJeffreyDictation() {
   recognition.interimResults  = false;
 
   _voiceActive = true;
-  _setJeffreyMicActive(true);
+  _setMiiaMicActive(true);
 
   recognition.onresult = function(event) {
     var transcript = event.results[0][0].transcript;
@@ -120,8 +120,8 @@ var _VOICE_ACTIONS = [
     label: 'Profil', action: function() { if (typeof openProfil==='function') openProfil(); } },
   { mots: ['accueil', 'retour', 'home', 'retourne'],
     label: 'Accueil', action: function() { if (typeof showHome==='function') showHome(); } },
-  { mots: ['jeffrey', 'jeffery', 'jeffry', 'chat', 'assistant'],
-    label: 'Jeffrey', action: function() { if (typeof toggleChat==='function') toggleChat(); } },
+  { mots: ['miia', 'mia', 'mya', 'chat', 'assistant'],
+    label: 'Miia', action: function() { if (typeof toggleChat==='function') toggleChat(); } },
   { mots: ['tarif', 'tarifs', 'prix'],
     label: 'Tarifs', action: function() { if (typeof openTarifs==='function') openTarifs(); } },
   { mots: ['client', 'clients'],
