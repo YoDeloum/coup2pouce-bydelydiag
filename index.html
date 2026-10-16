@@ -107,6 +107,7 @@
       <button onclick="openProfil();toggleHomeMenu()" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;background:none;border:none;border-bottom:1px solid #F3F4F6;text-align:left;cursor:pointer;font-size:14px;font-weight:600;color:#374151;font-family:inherit">🏢 Mon Profil Société</button>
       <button onclick="openTarif();toggleHomeMenu()" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;background:none;border:none;border-bottom:1px solid #F3F4F6;text-align:left;cursor:pointer;font-size:14px;font-weight:600;color:#374151;font-family:inherit">⚙️ Mes Tarifs</button>
       <button onclick="if(typeof openAgentScreen==='function')openAgentScreen();toggleHomeMenu()" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;background:none;border:none;border-bottom:1px solid #F3F4F6;text-align:left;cursor:pointer;font-size:14px;font-weight:600;color:#6366F1;font-family:inherit">🤝 Agent Commercial</button>
+      <button onclick="openGuide()" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;background:none;border:none;border-bottom:1px solid #F3F4F6;text-align:left;cursor:pointer;font-size:14px;font-weight:600;color:#0F172A;font-family:inherit">📖 Guide Miia &amp; Voix</button>
       <button onclick="deconnexion()" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;background:none;border:none;text-align:left;cursor:pointer;font-size:14px;font-weight:600;color:#EF4444;font-family:inherit">🚪 Déconnexion</button>
     </div>
   </div>
@@ -422,6 +423,103 @@
   <div id="prospection-body" style="flex:1;display:flex;flex-direction:column;overflow:hidden"></div>
 </div>
 
+<!-- ══════════════════════════════════════════
+     GUIDE MIIA & COMMANDES VOCALES
+════════════════════════════════════════ -->
+<div id="guide-screen" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#F5F6FA;z-index:500;flex-direction:column">
+  <div style="background:linear-gradient(135deg,#0F172A,#1E293B);padding:16px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0">
+    <span style="font-size:22px">📖</span>
+    <h2 style="color:#fff;font-size:18px;font-weight:800;flex:1;margin:0">Guide — Miia &amp; Commandes Vocales</h2>
+    <button style="background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;line-height:1" onclick="closeGuide()" aria-label="Fermer">✕</button>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px">
+
+    <!-- MIIA -->
+    <div style="font-size:11px;font-weight:800;color:#0F172A;letter-spacing:1px;text-transform:uppercase;margin-top:4px">🤖 Miia — Votre assistante IA</div>
+
+    <div style="background:#fff;border-radius:14px;border:1.5px solid #E2E8F0;padding:14px 16px">
+      <div style="font-size:13px;font-weight:700;color:#111827;margin-bottom:4px">💬 Comment l'ouvrir</div>
+      <div style="font-size:12px;color:#374151;line-height:1.8">Appuyez sur le bouton <b>MIIA</b> en bas à droite de l'écran d'accueil. Le chat s'ouvre.</div>
+    </div>
+
+    <div style="background:#fff;border-radius:14px;border:1.5px solid #E2E8F0;padding:14px 16px">
+      <div style="font-size:13px;font-weight:700;color:#111827;margin-bottom:6px">🎙️ Lui parler depuis l'accueil</div>
+      <div style="font-size:12px;color:#374151;line-height:1.8">Appuyez sur le <b>micro 🎤</b> de l'accueil et dites directement :<br>
+      <span style="display:inline-block;margin-top:4px;background:#F1F5F9;border-radius:6px;padding:3px 10px;font-family:monospace;font-size:11px">"Mia quels sont mes RDV cette semaine ?"</span><br>
+      <span style="display:inline-block;margin-top:4px;background:#F1F5F9;border-radius:6px;padding:3px 10px;font-family:monospace;font-size:11px">"Mia quel est mon CA ce mois ?"</span><br>
+      <span style="display:inline-block;margin-top:4px;background:#F1F5F9;border-radius:6px;padding:3px 10px;font-family:monospace;font-size:11px">"Mia j'ai combien de factures impayées ?"</span><br>
+      Le chat s'ouvre et la réponse part automatiquement.</div>
+    </div>
+
+    <div style="background:#fff;border-radius:14px;border:1.5px solid #E2E8F0;padding:14px 16px">
+      <div style="font-size:13px;font-weight:700;color:#111827;margin-bottom:4px">🎤 Lui parler dans le chat</div>
+      <div style="font-size:12px;color:#374151;line-height:1.8">Dans le chat, appuyez sur le <b>micro</b> à gauche du bouton envoyer — dictez votre question, elle part automatiquement.</div>
+    </div>
+
+    <div style="background:#fff;border-radius:14px;border:1.5px solid #DBEAFE;padding:14px 16px">
+      <div style="font-size:13px;font-weight:700;color:#1E40AF;margin-bottom:8px">🧠 Ce que Miia sait faire</div>
+      <div style="font-size:12px;color:#374151;line-height:1.9">
+        <b>📋 Réglementation</b> — DPE, amiante, plomb, électricité, gaz, termites, durées de validité, obligations légales…<br>
+        <b>📊 Votre activité</b> — RDV de la semaine, CA du mois, factures impayées, devis en attente, objectif mensuel…
+      </div>
+    </div>
+
+    <div style="background:#fff;border-radius:14px;border:1.5px solid #E2E8F0;padding:14px 16px">
+      <div style="font-size:13px;font-weight:700;color:#111827;margin-bottom:4px">🔊 Voix de Miia</div>
+      <div style="font-size:12px;color:#374151;line-height:1.8">Dans le chat, le bouton <b>🔊 / 🔇</b> en haut à droite active ou désactive la réponse vocale de Miia.</div>
+    </div>
+
+    <!-- COMMANDES VOCALES -->
+    <div style="font-size:11px;font-weight:800;color:#0F172A;letter-spacing:1px;text-transform:uppercase;margin-top:8px">🎤 Commandes vocales — micro de l'accueil</div>
+
+    <div style="background:#fff;border-radius:14px;border:1.5px solid #E2E8F0;padding:14px 16px">
+      <div style="font-size:13px;font-weight:700;color:#111827;margin-bottom:4px">Comment ça marche</div>
+      <div style="font-size:12px;color:#374151;line-height:1.8">Appuyez sur l'icône <b>🎤</b> de l'accueil, dites votre commande à voix haute. L'action se déclenche instantanément.</div>
+    </div>
+
+    <div style="background:#fff;border-radius:14px;border:1.5px solid #E2E8F0;padding:14px 16px">
+      <div style="font-size:13px;font-weight:700;color:#111827;margin-bottom:8px">📂 Ouvrir un module</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <span style="background:#F1F5F9;border-radius:6px;padding:4px 10px;font-size:11px;font-family:monospace;color:#1E293B">"ouvre le DPE"</span>
+        <span style="background:#F1F5F9;border-radius:6px;padding:4px 10px;font-size:11px;font-family:monospace;color:#1E293B">"ouvre l'amiante"</span>
+        <span style="background:#F1F5F9;border-radius:6px;padding:4px 10px;font-size:11px;font-family:monospace;color:#1E293B">"ouvre le plomb"</span>
+        <span style="background:#F1F5F9;border-radius:6px;padding:4px 10px;font-size:11px;font-family:monospace;color:#1E293B">"ouvre le gaz"</span>
+        <span style="background:#F1F5F9;border-radius:6px;padding:4px 10px;font-size:11px;font-family:monospace;color:#1E293B">"ouvre l'électricité"</span>
+        <span style="background:#F1F5F9;border-radius:6px;padding:4px 10px;font-size:11px;font-family:monospace;color:#1E293B">"ouvre les termites"</span>
+        <span style="background:#F1F5F9;border-radius:6px;padding:4px 10px;font-size:11px;font-family:monospace;color:#1E293B">"ouvre l'ERP"</span>
+        <span style="background:#F1F5F9;border-radius:6px;padding:4px 10px;font-size:11px;font-family:monospace;color:#1E293B">"ouvre le carrez"</span>
+      </div>
+    </div>
+
+    <div style="background:#fff;border-radius:14px;border:1.5px solid #E2E8F0;padding:14px 16px">
+      <div style="font-size:13px;font-weight:700;color:#111827;margin-bottom:8px">🗂️ Naviguer dans l'app</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <span style="background:#F1F5F9;border-radius:6px;padding:4px 10px;font-size:11px;font-family:monospace;color:#1E293B">"ouvre les missions"</span>
+        <span style="background:#F1F5F9;border-radius:6px;padding:4px 10px;font-size:11px;font-family:monospace;color:#1E293B">"ouvre les devis"</span>
+        <span style="background:#F1F5F9;border-radius:6px;padding:4px 10px;font-size:11px;font-family:monospace;color:#1E293B">"ouvre les factures"</span>
+        <span style="background:#F1F5F9;border-radius:6px;padding:4px 10px;font-size:11px;font-family:monospace;color:#1E293B">"ouvre les clients"</span>
+        <span style="background:#F1F5F9;border-radius:6px;padding:4px 10px;font-size:11px;font-family:monospace;color:#1E293B">"ouvre le profil"</span>
+        <span style="background:#F1F5F9;border-radius:6px;padding:4px 10px;font-size:11px;font-family:monospace;color:#1E293B">"ouvre les tarifs"</span>
+        <span style="background:#F1F5F9;border-radius:6px;padding:4px 10px;font-size:11px;font-family:monospace;color:#1E293B">"ouvre la checklist"</span>
+        <span style="background:#F1F5F9;border-radius:6px;padding:4px 10px;font-size:11px;font-family:monospace;color:#1E293B">"retour accueil"</span>
+      </div>
+    </div>
+
+    <div style="background:#fff;border-radius:14px;border:1.5px solid #E2E8F0;padding:14px 16px">
+      <div style="font-size:13px;font-weight:700;color:#111827;margin-bottom:6px">📐 Commande spéciale</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+        <span style="background:#F1F5F9;border-radius:6px;padding:4px 10px;font-size:11px;font-family:monospace;color:#1E293B">"ouvre la triangulation"</span>
+      </div>
+      <div style="font-size:12px;color:#6B7280;line-height:1.7">Ouvre directement le calculateur de triangulation dans le module Carrez.</div>
+    </div>
+
+    <div style="background:#F0FDF4;border-radius:12px;border:1.5px solid #BBF7D0;padding:12px 14px;margin-bottom:16px">
+      <div style="font-size:12px;color:#166534;line-height:1.8">💡 <b>Conseil :</b> La reconnaissance vocale fonctionne en français. Parlez naturellement, pas besoin de formulation exacte.</div>
+    </div>
+
+  </div>
+</div>
+
 <div id="search-results">
   <div style="background:linear-gradient(135deg,#2D6A4F,#1B4332);padding:14px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10">
     <button onclick="closeSearch()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;flex-shrink:0" aria-label="Fermer la recherche">←</button>
@@ -560,6 +658,17 @@ function openCours() {
 }
 function closeCours() {
   document.getElementById('cours-screen').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+// ── Guide Miia & Commandes Vocales ──
+function openGuide() {
+  toggleHomeMenu();
+  document.getElementById('guide-screen').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeGuide() {
+  document.getElementById('guide-screen').style.display = 'none';
   document.body.style.overflow = '';
 }
 
