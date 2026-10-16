@@ -456,6 +456,36 @@ var MIIA_SYSTEM = `Tu es Miia, l'assistante experte officielle de DELY DIAG, cab
 - Radon : Guadeloupe et Martinique (roches volcaniques) — zones à surveiller
 - Plomb : même réglementation que métropole
 
+══════════ MODE CRÉATION DE DEVIS ══════════
+Quand l'utilisateur demande de créer un devis, faire un devis, nouveau devis, une offre de prix :
+1. Réponds d'abord : "Parfait, je te guide étape par étape !"
+2. Pose les questions UNE PAR UNE dans cet ordre — attends la réponse avant de passer à la suivante :
+   Q1 : "Prénom et nom du client ? (ou nom de la société / agence si professionnel)"
+   Q2 : "Téléphone ? (et email si tu l'as)"
+   Q3 : "Adresse complète du bien à diagnostiquer ?"
+   Q4 : "Type de bien ? Maison / Appartement / Local commercial / Immeuble"
+   Q5 : "Surface en m² et nombre de pièces ?"
+   Q6 : "Période de construction ? Avant 1949 / 1949-1997 / 1997-2011 / après 2011"
+   Q7 : "Vente ou location ?"
+   Q8 : "Il y a une installation gaz ? (oui / non)"
+   Q9 : "Quels diagnostics tu veux inclure ? (je peux te proposer les obligatoires si tu veux)"
+3. Pour Q9 : si l'utilisateur demande les diagnostics obligatoires, propose-les selon les règles réglementaires en vigueur (période de construction + type de transaction + présence gaz + zone termites si connue).
+4. Fais un récapitulatif complet et demande : "C'est bon ? Je lance la création du devis ?"
+5. Quand l'utilisateur confirme (oui / ok / c'est bon / lance / go), génère IMMÉDIATEMENT ce bloc EXACTEMENT (JSON valide, aucun espace avant <<<) :
+<<<DEVIS_DATA>>>
+{"client_societe":"","client_nom":"","client_prenom":"","client_tel":"","client_email":"","bien_adresse":"","bien_type":"Appartement","surface":0,"nb_pieces":0,"periode_construction":"1949-1997","type_transaction":"Vente","gaz":"non","diagnostics":["DPE"]}
+<<<END_DEVIS>>>
+6. Après le bloc, ajoute : "✅ Le formulaire s'ouvre pré-rempli — tu peux vérifier et corriger avant de sauvegarder !"
+
+VALEURS EXACTES DU JSON (respecter la casse) :
+- bien_type : "Maison", "Appartement", "Local commercial", "Immeuble", "Partie commune", "Cave / Box", "Dépendance"
+- periode_construction : "Avant 1949", "1949-1997", "1997-2011", "Après 2011"
+- type_transaction : "Vente", "Location"
+- gaz : "oui", "non"
+- diagnostics — noms EXACTS parmi : DPE, DPE Projeté, DPE Immeuble, Amiante, Prélèvement Amiante, Plomb, Prélèvement Plomb, Électricité, Gaz, Termites, ERP, Carrez, Boutin, Avant travaux, Avant démolition, Audit énergétique, Frais déplacement
+- surface et nb_pieces : entiers (0 si non renseigné)
+- N'inclus JAMAIS de commentaires dans le JSON, uniquement les valeurs
+
 ══════════ RÈGLES MIIA ══════════
 - Réponds TOUJOURS en français
 - Sois précis, cite les textes de référence quand pertinent
@@ -478,6 +508,8 @@ if (window.speechSynthesis) {
 function _speakMiia(text) {
   if (!_miiaVoiceEnabled || !window.speechSynthesis) return;
   window.speechSynthesis.cancel();
+  // Supprimer le bloc JSON devis avant de parler
+  text = text.replace(/<<<DEVIS_DATA>>>[\s\S]*?<<<END_DEVIS>>>/g, 'Formulaire de devis en cours d\'ouverture.');
   // Nettoyer le markdown et les symboles non parlables
   var clean = text
     .replace(/[═─✅❌⚠️🔬🔴⚡🔥🌡️🐜☢️📋⏱️⚖️🏗️🔧🌬️🧱💶📄#*_`>]/g, '')
@@ -644,7 +676,10 @@ function addMsg(text, type) {
   var msgs = document.getElementById('chat-messages');
   var div  = document.createElement('div');
   div.className = 'msg ' + type;
-  div.innerHTML = text.replace(/\n/g, '<br>');
+  // Remplacer le bloc JSON devis par un message visuel propre
+  var displayText = text.replace(/<<<DEVIS_DATA>>>[\s\S]*?<<<END_DEVIS>>>/g,
+    '<span style="display:inline-block;background:#F0FDF4;border:1.5px solid #6EE7B7;border-radius:10px;padding:8px 14px;margin-top:6px;font-size:13px;color:#065F46;font-weight:600">📋 Ouverture du formulaire devis...</span>');
+  div.innerHTML = displayText.replace(/\n/g, '<br>');
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
   return div;
@@ -690,6 +725,14 @@ async function sendMsg() {
       addMsg(replyText, 'bot');
       _speakMiia(replyText); // Miia répond à voix haute si activé
       chatHistory.push({role: 'assistant', content: data.content});
+      // ── Détection bloc création devis ──
+      var _dvBlock = replyText.match(/<<<DEVIS_DATA>>>([\s\S]*?)<<<END_DEVIS>>>/);
+      if (_dvBlock) {
+        try {
+          var _dvJson = JSON.parse(_dvBlock[1].trim());
+          setTimeout(function() { _prefillDevisFromMiia(_dvJson); }, 900);
+        } catch(e) { console.warn('[Miia] Parsing JSON devis échoué:', e); }
+      }
     }
   } catch (err) {
     loading.remove();
@@ -698,4 +741,75 @@ async function sendMsg() {
   }
   btn.disabled = false;
   document.getElementById('chat-input').focus();
+}
+
+// ─────────────────────────────────────────────
+// MIIA — PRÉ-REMPLISSAGE FORMULAIRE DEVIS
+// ─────────────────────────────────────────────
+function _prefillDevisFromMiia(data) {
+  // 1. Fermer le chat
+  if (chatOpen) toggleChat();
+
+  // 2. Ouvrir l'écran devis (affiche la liste)
+  if (typeof openDevis === 'function') openDevis();
+
+  setTimeout(function() {
+    // 3. Passer en mode nouveau devis (formulaire vierge)
+    if (typeof _devisEdit !== 'undefined') window._devisEdit = null;
+    if (typeof _isSpecialMode !== 'undefined') window._isSpecialMode = false;
+    if (typeof renderDevisScreen === 'function') renderDevisScreen('form');
+
+    setTimeout(function() {
+      // 4. Remplir les champs texte
+      var textFields = {
+        'dv-client_societe': data.client_societe || '',
+        'dv-client_nom':     data.client_nom     || '',
+        'dv-client_prenom':  data.client_prenom  || '',
+        'dv-client_tel':     data.client_tel     || '',
+        'dv-client_email':   data.client_email   || '',
+        'dv-bien_adresse':   data.bien_adresse   || '',
+        'dv-nb_pieces':      data.nb_pieces      || '',
+        'dv-surface':        data.surface        || ''
+      };
+      Object.keys(textFields).forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el && textFields[id]) el.value = textFields[id];
+      });
+
+      // 5. Remplir les selects
+      var selectFields = {
+        'dv-bien_type':            data.bien_type,
+        'dv-periode_construction': data.periode_construction,
+        'dv-type_transaction':     data.type_transaction,
+        'dv-gaz':                  data.gaz
+      };
+      Object.keys(selectFields).forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el && selectFields[id]) el.value = selectFields[id];
+      });
+
+      // 6. Sélectionner les diagnostics
+      if (data.diagnostics && data.diagnostics.length) {
+        document.querySelectorAll('#dv-diags-grid .diag-item').forEach(function(el) {
+          // Le nom du diagnostic est dans le 1er span avec du texte (pas le span tarif)
+          var spans = el.querySelectorAll('span');
+          var name = '';
+          for (var i = 0; i < spans.length; i++) {
+            var t = spans[i].textContent.trim();
+            if (t && isNaN(t)) { name = t; break; }
+          }
+          var shouldBeSelected = data.diagnostics.indexOf(name) !== -1;
+          var isSelected       = el.classList.contains('selected');
+          if (shouldBeSelected && !isSelected) el.click();
+          else if (!shouldBeSelected && isSelected) el.click();
+        });
+      }
+
+      // 7. Recalculer le total
+      if (typeof updateDevisTotal === 'function') updateDevisTotal();
+
+      // 8. Toast de confirmation
+      if (typeof _devisToast === 'function') _devisToast('✅ Devis pré-rempli par Miia !');
+    }, 450);
+  }, 350);
 }
