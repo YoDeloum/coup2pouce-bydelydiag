@@ -1102,7 +1102,7 @@ function updateDevisBadge() {
 var _dsLots = [];
 
 function _dsNewLot() {
-  return { label: '', meme_adresse: true, adresse: '', type_bien: 'Appartement', diagnostics: ['Frais déplacement'], tarifs_manuels: {}, sous_total: 0 };
+  return { label: '', meme_adresse: true, adresse: '', type_bien: 'Appartement', quantite: 1, diagnostics: ['Frais déplacement'], tarifs_manuels: {}, sous_total: 0 };
 }
 
 function _initDsLots(lots) {
@@ -1130,10 +1130,12 @@ function _syncLotsFromDOM() {
     var adresseEl = document.getElementById('ds-lot-'+idx+'-adresse');
     var typeEl    = document.getElementById('ds-lot-'+idx+'-type');
     var memeEl    = document.getElementById('ds-lot-'+idx+'-meme');
+    var qteEl     = document.getElementById('ds-lot-'+idx+'-qte');
     if (labelEl)   lot.label        = labelEl.value;
     if (adresseEl) lot.adresse      = adresseEl.value;
     if (typeEl)    lot.type_bien    = typeEl.value;
     if (memeEl)    lot.meme_adresse = memeEl.checked;
+    if (qteEl)     lot.quantite     = Math.max(1, parseInt(qteEl.value)||1);
     var diagEls = document.querySelectorAll('#ds-lot-'+idx+'-diags .diag-item.selected');
     lot.diagnostics = []; lot.tarifs_manuels = {}; var sub = 0;
     diagEls.forEach(function(el) {
@@ -1181,6 +1183,8 @@ function _renderLotCard(lot, idx, tarifs) {
     +'<input class="devis-input" id="ds-lot-'+idx+'-adresse" type="text" value="'+(lot.adresse||'')+'" placeholder="Adresse spécifique..." style="margin-top:6px;'+(lot.meme_adresse?'display:none':'')+'" /></div>'
     +'<div class="devis-field"><label class="devis-label">Type de bien</label>'
     +'<select class="devis-select" id="ds-lot-'+idx+'-type">'+typeOpts+'</select></div>'
+    +'<div class="devis-field"><label class="devis-label">Quantité</label>'
+    +'<input class="devis-input" id="ds-lot-'+idx+'-qte" type="number" min="1" step="1" value="'+(lot.quantite||1)+'" onchange="updateSpecialTotal()" style="text-align:center"/></div>'
     +'</div>'
     +'<div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px;letter-spacing:1px;text-transform:uppercase;font-family:monospace">🔬 Diagnostics</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="ds-lot-'+idx+'-diags">'+diagsHtml+'</div>'
@@ -1218,20 +1222,25 @@ function updateSpecialTotal() {
       var inp = el.querySelector('.dv-tarif-input');
       sub += parseFloat(inp ? inp.value : 0) || 0;
     });
-    lot.sous_total = sub;
+    var qteEl = document.getElementById('ds-lot-'+idx+'-qte');
+    var qte = Math.max(1, parseInt(qteEl ? qteEl.value : 1)||1);
+    lot.sous_total = sub * qte;
     var subEl = document.getElementById('ds-lot-'+idx+'-subtotal');
-    if (subEl) subEl.textContent = sub.toFixed(2);
-    grandTotal += sub;
+    if (subEl) subEl.textContent = (sub * qte).toFixed(2);
+    grandTotal += sub * qte;
   });
   var stEl = document.getElementById('ds-grand-subtotal');
   if (stEl) stEl.textContent = grandTotal.toFixed(2) + ' €';
-  var remisePct = parseFloat(document.getElementById('ds-remise-pct')?.value) || 0;
-  var remiseEur = parseFloat(document.getElementById('ds-remise-eur')?.value) || 0;
-  var total = Math.max(0, grandTotal - remiseEur);
+  var remisePct   = parseFloat(document.getElementById('ds-remise-pct')?.value) || 0;
+  var remiseEur   = parseFloat(document.getElementById('ds-remise-eur')?.value) || 0;
+  var manuelInp   = document.getElementById('ds-total-manuel');
+  var totalManuel = parseFloat(manuelInp ? manuelInp.value : 0) || 0;
+  var calcTotal   = Math.max(0, grandTotal - remiseEur);
+  var total       = totalManuel > 0 ? totalManuel : calcTotal;
   var tEl  = document.getElementById('ds-grand-total');
   var rEl  = document.getElementById('ds-remise-display');
   var rlEl = document.getElementById('ds-remise-line');
-  if (tEl)  tEl.textContent  = total.toFixed(2) + ' €';
+  if (tEl)  { tEl.textContent = total.toFixed(2) + ' €'; tEl.style.color = totalManuel > 0 ? '#2563EB' : '#059669'; }
   if (rEl)  rEl.textContent  = remiseEur.toFixed(2);
   if (rlEl) rlEl.style.display = remiseEur > 0 ? '' : 'none';
 }
@@ -1309,6 +1318,13 @@ function renderDevisSpecialForm(body) {
     +'<input id="ds-remise-eur" type="number" min="0" step="0.01" value="'+parseFloat(devis.remise_eur||0).toFixed(2)+'" onchange="updateSpecialRemiseEur()" style="width:70px;padding:5px 7px;border-radius:6px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;text-align:center;outline:none"/>'
     +'<span style="font-size:12px;color:#6B7280">€</span></div>'
     +'<div id="ds-remise-line" style="'+((devis.remise_eur||0)>0?'':'display:none')+';font-size:12px;color:#EF4444;text-align:right;margin-bottom:4px">- <span id="ds-remise-display">'+parseFloat(devis.remise_eur||0).toFixed(2)+'</span> € de remise</div>'
+    +'<div style="margin:10px 0;padding:10px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px">'
+    +'<div style="font-size:12px;font-weight:700;color:#1E40AF;margin-bottom:4px">💰 Total HT manuel (optionnel)</div>'
+    +'<div style="font-size:11px;color:#4B5563;margin-bottom:8px">Si renseigné, ce montant remplace le total calculé (dans les factures, missions et CA).</div>'
+    +'<div style="display:flex;align-items:center;gap:8px">'
+    +'<input id="ds-total-manuel" type="number" min="0" step="0.01" value="'+parseFloat(devis.total_manuel_ht||0).toFixed(2)+'" onchange="updateSpecialTotal()" placeholder="0.00" style="flex:1;padding:9px 12px;border-radius:8px;border:1.5px solid #BFDBFE;font-size:15px;font-weight:700;font-family:inherit;text-align:center;outline:none"/>'
+    +'<span style="font-size:14px;font-weight:700;color:#1E40AF">€ HT</span>'
+    +'</div></div>'
     +'<div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid #6EE7B7">'
     +'<span style="font-size:15px;font-weight:700;color:#065F46">Total HT</span>'
     +'<span id="ds-grand-total" style="font-size:22px;font-weight:800;color:#059669">'+parseFloat(devis.total_ht||0).toFixed(2)+' €</span>'
@@ -1337,10 +1353,12 @@ function renderDevisSpecialForm(body) {
 function getSpecialFormData() {
   _syncLotsFromDOM();
   var p = getCompanyProfile();
-  var grandTotal = _dsLots.reduce(function(s,l){return s+(l.sous_total||0);},0);
-  var remise_pct = parseFloat(document.getElementById('ds-remise-pct')?.value)||0;
-  var remise_eur = parseFloat(document.getElementById('ds-remise-eur')?.value)||0;
-  var totalHt    = Math.max(0, grandTotal - remise_eur);
+  var grandTotal      = _dsLots.reduce(function(s,l){return s+(l.sous_total||0);},0);
+  var remise_pct      = parseFloat(document.getElementById('ds-remise-pct')?.value)||0;
+  var remise_eur      = parseFloat(document.getElementById('ds-remise-eur')?.value)||0;
+  var total_manuel_ht = parseFloat(document.getElementById('ds-total-manuel')?.value)||0;
+  var calcHt          = Math.max(0, grandTotal - remise_eur);
+  var totalHt         = total_manuel_ht > 0 ? total_manuel_ht : calcHt;
   return {
     type:           'special',
     numero:         document.getElementById('ds-numero')?.value        ||'',
@@ -1364,6 +1382,8 @@ function getSpecialFormData() {
     remise_pct:     remise_pct,
     remise_eur:     remise_eur,
     total_ht_brut:  grandTotal,
+    total_manuel_ht:total_manuel_ht,
+    prix_final:     total_manuel_ht > 0 ? total_manuel_ht.toFixed(2) : '',
     total_ht:       totalHt,
     total_ttc:      totalHt*(1+(p.taux_tva||20)/100),
     savedAt:        new Date().toISOString(),
