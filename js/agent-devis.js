@@ -1163,19 +1163,26 @@ function _collectAgentLotsFromDOM() {
     var remise   = parseFloat(remiseEl ? remiseEl.value : '') || 0;
     var manuel   = parseFloat(manuelEl ? manuelEl.value : '') || 0;
 
-    var diags     = [];
-    var tarifsMan = {};
-    var sub       = 0;
+    var diags       = [];
+    var tarifsMan   = {};
+    var subParBien  = 0;
+    var subForfait  = 0;
+    var _FORFAITS_C = ['ERP', 'Frais déplacement'];
     card.querySelectorAll('.ag-sp-diag-item').forEach(function(el) {
       var nom = el.getAttribute('data-nom');
       var cb  = el.querySelector('input[type="checkbox"]');
       var inp = el.querySelector('.ag-sp-prix');
       var val = parseFloat(inp ? inp.value : 0) || 0;
       tarifsMan[nom] = val;
-      if (cb && cb.checked) { diags.push(nom); sub += val; }
+      if (cb && cb.checked) {
+        diags.push(nom);
+        if (_FORFAITS_C.indexOf(nom) !== -1) { subForfait += val; }
+        else                                 { subParBien += val; }
+      }
     });
 
-    var calcTotal = Math.max(0, sub * qte - remise);
+    // ERP et Frais déplacement : comptés UNE SEULE FOIS, pas × quantité
+    var calcTotal = Math.max(0, subParBien * qte + subForfait - remise);
     var totalHt   = manuel > 0 ? manuel : calcTotal;
 
     lots.push({
