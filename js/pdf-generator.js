@@ -780,7 +780,7 @@ function genererPDFDevisSpecial(devis, returnBlob, opts) {
     var remise       = parseFloat(lot.remise) || 0;
     var apresRemise  = Math.max(0, calcTotal - remise);
     var manuel       = parseFloat(lot.total_manuel_ht) || 0;
-    var totalLot     = manuel > 0 ? manuel : (lot.total_ht > 0 ? lot.total_ht : apresRemise);
+    var totalLot     = manuel > 0 ? manuel : apresRemise;  // TOUJOURS recalculer — lot.total_ht peut être obsolète
 
     var estimH = 30 + diagsParBien.length * 7 + (diagsForfait.length > 0 ? 12+diagsForfait.length*7 : 0) + 20;
     if (y + estimH > 270) { doc.addPage(); y = 15; }
@@ -877,7 +877,7 @@ function genererPDFDevisSpecial(devis, returnBlob, opts) {
     var remise       = parseFloat(lot.remise) || 0;
     var apresRemise  = Math.max(0, calcTotal - remise);
     var manuel       = parseFloat(lot.total_manuel_ht) || 0;
-    var totalLot     = manuel > 0 ? manuel : (lot.total_ht > 0 ? lot.total_ht : apresRemise);
+    var totalLot     = manuel > 0 ? manuel : apresRemise;  // TOUJOURS recalculer
     grandTotal      += totalLot;
 
     if (i%2===0) pdfRect(doc, 15, y-1, 180, 8, [249,250,251]);
@@ -894,8 +894,7 @@ function genererPDFDevisSpecial(devis, returnBlob, opts) {
   var isHT  = (devis.statut_fiscal||'HT') === 'HT';
   var taux  = parseFloat(devis.taux_tva||20)/100;
   var pfVal = parseFloat(devis.prix_final||0);
-  var htVal = parseFloat(devis.total_ht||0);
-  var ht    = pfVal > 0 ? pfVal : (htVal > 0 ? htVal : grandTotal);
+  var ht    = pfVal > 0 ? pfVal : grandTotal;  // TOUJOURS utiliser grandTotal recalculé
   var tvaMt = Math.round(ht*taux*100)/100;
   var ttc   = Math.round((ht+tvaMt)*100)/100;
 
