@@ -953,18 +953,33 @@ function agAddLot(data) {
   var typeBienOptions = ['Appartement','Maison','Immeuble','Commerce','Local','Terrain','Autre'];
   function selOpt(val, match) { return val === match ? ' selected' : ''; }
 
-  var diagsHtml = diagsList.map(function(nom) {
-    var isSel = selDiags.indexOf(nom) !== -1;
-    var prix  = (data.tarifs_manuels && data.tarifs_manuels[nom] !== undefined)
-                ? data.tarifs_manuels[nom] : (tarifs[nom] || 0);
+  var FORFAITS_UNIQUES = ['ERP', 'Frais déplacement'];
+  var diagsParBienList = diagsList.filter(function(n){ return FORFAITS_UNIQUES.indexOf(n) === -1; });
+  var diagsForfaitList = diagsList.filter(function(n){ return FORFAITS_UNIQUES.indexOf(n) !== -1; });
+
+  function buildDiagItem(nom) {
+    var isSel    = selDiags.indexOf(nom) !== -1;
+    var prix     = (data.tarifs_manuels && data.tarifs_manuels[nom] !== undefined)
+                   ? data.tarifs_manuels[nom] : (tarifs[nom] || 0);
+    var isForf   = FORFAITS_UNIQUES.indexOf(nom) !== -1;
+    var borderC  = isSel ? (isForf ? '#F59E0B' : '#6366F1') : '#E2E5F0';
+    var bgC      = isSel ? (isForf ? '#FFFBEB' : '#EEF2FF') : '#FAFAFA';
+    var priceC   = isForf ? '#D97706' : '#6366F1';
+    var priceBorder = isForf ? '#FCD34D' : '#A5B4FC';
     return '<div class="ag-sp-diag-item" data-nom="' + nom + '" data-lot="' + idx + '" onclick="agSpToggleDiag(this)"'
-      + ' style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;border:1.5px solid ' + (isSel?'#6366F1':'#E2E5F0') + ';background:' + (isSel?'#EEF2FF':'#FAFAFA') + ';cursor:pointer;margin-bottom:4px">'
-      + '<input type="checkbox"' + (isSel?' checked':'') + ' readonly style="accent-color:#6366F1;pointer-events:none;width:14px;height:14px"/>'
+      + ' style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;border:1.5px solid ' + borderC + ';background:' + bgC + ';cursor:pointer;margin-bottom:4px">'
+      + '<input type="checkbox"' + (isSel?' checked':'') + ' readonly style="accent-color:' + (isForf?'#D97706':'#6366F1') + ';pointer-events:none;width:14px;height:14px"/>'
       + '<span style="flex:1;font-size:12px">' + nom + '</span>'
       + '<input type="number" class="ag-sp-prix" data-diag="' + nom + '" value="' + prix + '" min="0" step="5"'
       + ' onclick="event.stopPropagation()" onchange="agSpUpdateLotTotal(' + idx + ')"'
-      + ' style="width:56px;padding:3px 5px;border-radius:5px;border:1px dashed #A5B4FC;font-size:11px;font-weight:700;color:#6366F1;text-align:right;background:transparent;outline:none;font-family:inherit"/> €</div>';
-  }).join('');
+      + ' style="width:56px;padding:3px 5px;border-radius:5px;border:1px dashed ' + priceBorder + ';font-size:11px;font-weight:700;color:' + priceC + ';text-align:right;background:transparent;outline:none;font-family:inherit"/> €</div>';
+  }
+
+  var diagsHtml =
+    '<div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px">Diagnostics — tarif PAR BIEN (x quantité)</div>'
+    + diagsParBienList.map(buildDiagItem).join('')
+    + '<div style="font-size:11px;font-weight:700;color:#92400E;margin:8px 0 5px;text-transform:uppercase;letter-spacing:.4px;background:#FEF3C7;padding:4px 8px;border-radius:6px">Forfaits uniques — comptes UNE SEULE FOIS / mission</div>'
+    + diagsForfaitList.map(buildDiagItem).join('');
 
   var card = document.createElement('div');
   card.id   = 'ag-lot-' + idx;
@@ -1012,8 +1027,7 @@ function agAddLot(data) {
     + '<span style="font-size:12px;color:#6B7280">bien(s)</span>'
     + '</div>'
 
-    // ── Diagnostics (tarif PAR bien) ──
-    + '<div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">🔬 Diagnostics — tarif PAR bien</div>'
+    // ── Diagnostics ──
     + '<div id="ag-lot-' + idx + '-diags">' + diagsHtml + '</div>'
 
     // ── Récapitulatif lot ──
@@ -1066,20 +1080,30 @@ function agSpToggleDiag(el) {
 }
 
 // ─── Recalculer le total d'un lot ─────────────────────────────────
+// ERP et Frais déplacement sont comptés UNE SEULE FOIS (forfait unique)
+// Tous les autres diagnostics sont multipliés par la quantité de biens
 function agSpUpdateLotTotal(idx) {
   var container = document.getElementById('ag-lot-' + idx + '-diags');
   if (!container) return;
-  var sub = 0;
+  var _FORFAITS = ['ERP', 'Frais déplacement'];
+  var subParBien = 0;
+  var subForfait = 0;
   container.querySelectorAll('.ag-sp-diag-item').forEach(function(el) {
     var cb = el.querySelector('input[type="checkbox"]');
     if (cb && cb.checked) {
+      var nom = el.getAttribute('data-nom');
       var inp = el.querySelector('.ag-sp-prix');
-      sub += parseFloat(inp ? inp.value : 0) || 0;
+      var val = parseFloat(inp ? inp.value : 0) || 0;
+      if (_FORFAITS.indexOf(nom) !== -1) {
+        subForfait += val;
+      } else {
+        subParBien += val;
+      }
     }
   });
   var qteEl    = document.getElementById('ag-lot-' + idx + '-qte');
   var qte      = Math.max(1, parseInt(qteEl ? qteEl.value : 1) || 1);
-  var calc     = sub * qte;
+  var calc     = subParBien * qte + subForfait;
   var remiseEl = document.getElementById('ag-lot-' + idx + '-remise');
   var remise   = parseFloat(remiseEl ? remiseEl.value : '') || 0;
   var apresRemise = Math.max(0, calc - remise);
@@ -1087,8 +1111,13 @@ function agSpUpdateLotTotal(idx) {
   var manuel   = parseFloat(manuelEl ? manuelEl.value : '') || 0;
   var display  = manuel > 0 ? manuel : apresRemise;
 
+  // Label sous-total : montre le détail du calcul
   var subEl = document.getElementById('ag-lot-' + idx + '-subtotal');
-  if (subEl) subEl.textContent = calc.toFixed(0) + ' € HT';
+  if (subEl) {
+    var subLabel = (subParBien * qte).toFixed(0) + ' €';
+    if (subForfait > 0) subLabel += ' + forfaits ' + subForfait.toFixed(0) + ' €';
+    subEl.textContent = '= ' + calc.toFixed(0) + ' € HT';
+  }
 
   var dispEl = document.getElementById('ag-lot-' + idx + '-total');
   if (dispEl) {
