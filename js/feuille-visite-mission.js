@@ -206,10 +206,8 @@ function renderFeuilleVisite(body) {
             <tr style="background:#2D6A4F">
               <th style="padding:8px 6px;color:#fff;font-size:11px;min-width:50px">Niv.</th>
               <th style="padding:8px 6px;color:#fff;font-size:11px;min-width:120px;text-align:left">Pièce</th>
-              <th style="padding:8px 6px;color:#fff;font-size:11px;min-width:65px">Long.(m)</th>
-              <th style="padding:8px 6px;color:#fff;font-size:11px;min-width:65px">Larg.(m)</th>
               <th style="padding:8px 6px;color:#fff;font-size:11px;min-width:65px">HSP(m)</th>
-              <th style="padding:8px 6px;color:#fff;font-size:11px;min-width:75px">Surf.(m²)</th>
+              <th style="padding:8px 6px;color:#fff;font-size:11px;min-width:90px">Surface (m²)</th>
               <th style="padding:8px 6px;color:#fff;font-size:11px;min-width:70px">&lt;1,80m</th>
               <th style="padding:8px 6px;color:#fff;font-size:11px;min-width:55px">Carrez</th>
               <th style="padding:8px 6px;color:#fff;font-size:11px;min-width:55px">Boutin</th>
@@ -414,14 +412,20 @@ function fvAddRow(data) {
   var tdStyle = 'border:1px solid #E2E5F0;padding:2px 3px';
   var inStyle = 'width:100%;padding:5px 4px;border:none;background:transparent;font-size:13px;font-family:inherit;outline:none;text-align:center';
 
+  // Rétrocompatiblité : si l'ancienne donnée avait long×larg mais pas surf, on calcule
+  var initSurf = data.surf || ((data.long && data.larg)
+    ? (parseFloat(data.long) * parseFloat(data.larg)).toFixed(2) : '');
+
   tr.innerHTML =
-    '<td style="'+tdStyle+'"><input type="text" value="'+(data.niv||'')+'" placeholder="RDC" style="'+inStyle+'"/></td>'
+    '<td style="'+tdStyle+'">'
+   +'<input type="text" value="'+(data.niv||'')+'" placeholder="RDC" style="'+inStyle+'"/>'
+   +'<input type="hidden" class="fv-long" value=""/>'
+   +'<input type="hidden" class="fv-larg" value=""/>'
+   +'</td>'
    +'<td style="'+tdStyle+'"><input type="text" value="'+(data.piece||'')+'" placeholder="Séjour…" style="'+inStyle+';text-align:left"/></td>'
-   +'<td style="'+tdStyle+'"><input type="number" class="fv-long" value="'+(data.long||'')+'" placeholder="4.20" step="0.01" oninput="fvRecalcRow('+id+')" style="'+inStyle+'"/></td>'
-   +'<td style="'+tdStyle+'"><input type="number" class="fv-larg" value="'+(data.larg||'')+'" placeholder="3.10" step="0.01" oninput="fvRecalcRow('+id+')" style="'+inStyle+'"/></td>'
-   +'<td style="'+tdStyle+'"><input type="number" class="fv-hsp" value="'+(data.hsp||'')+'" placeholder="2.50" step="0.01" oninput="fvRecalcRow('+id+')" style="'+inStyle+'"/></td>'
-   +'<td style="'+tdStyle+';background:#EEF9F3"><input type="number" class="fv-surf" value="'+(data.surf||'')+'" step="0.01" readonly tabindex="-1" style="'+inStyle+';font-weight:700;color:#1B4332;background:transparent"/></td>'
-   +'<td style="'+tdStyle+'"><input type="number" class="fv-sous180" value="'+(data.sous180||'')+'" placeholder="0" step="0.01" oninput="fvRecalcTotals()" style="'+inStyle+'"/></td>'
+   +'<td style="'+tdStyle+'"><input type="text" inputmode="decimal" class="fv-hsp" value="'+(data.hsp||'')+'" placeholder="2.50" oninput="fvRecalcTotals()" style="'+inStyle+'"/></td>'
+   +'<td style="'+tdStyle+';background:#EEF9F3"><input type="text" inputmode="decimal" class="fv-surf" value="'+initSurf+'" placeholder="ex: 4,67" oninput="fvRecalcTotals()" style="'+inStyle+';font-weight:700;color:#1B4332;background:transparent"/></td>'
+   +'<td style="'+tdStyle+'"><input type="text" inputmode="decimal" class="fv-sous180" value="'+(data.sous180||'')+'" placeholder="0" oninput="fvRecalcTotals()" style="'+inStyle+'"/></td>'
    +'<td style="'+tdStyle+';text-align:center"><input type="checkbox" class="fv-carrez" '+(data.carrez!==false?'checked':'')+' onchange="fvRecalcTotals()" style="width:20px;height:20px;cursor:pointer"/></td>'
    +'<td style="'+tdStyle+';text-align:center"><input type="checkbox" class="fv-boutin" '+(data.boutin!==false?'checked':'')+' onchange="fvRecalcTotals()" style="width:20px;height:20px;cursor:pointer"/></td>'
    +'<td style="'+tdStyle+'"><input type="text" class="fv-obs" value="'+(data.obs||'')+'" placeholder="…" style="'+inStyle+';text-align:left"/></td>'
@@ -446,8 +450,8 @@ function fvRecalcRow(id) {
 function fvRecalcTotals() {
   var totalP=0, totalC=0, totalB=0;
   document.querySelectorAll('#fv-metrage-body tr').forEach(function(r) {
-    var s   = parseFloat(r.querySelector('.fv-surf').value)||0;
-    var sub = parseFloat(r.querySelector('.fv-sous180').value)||0;
+    var s   = parseFloat((r.querySelector('.fv-surf').value||'').replace(',','.'))||0;
+    var sub = parseFloat((r.querySelector('.fv-sous180').value||'').replace(',','.'))||0;
     totalP += s;
     if (r.querySelector('.fv-carrez').checked) totalC += (s-sub);
     if (r.querySelector('.fv-boutin').checked) totalB += (s-sub);
@@ -560,8 +564,8 @@ function _fvCollectData() {
     rows.push({
       niv:    r.querySelector('td:nth-child(1) input').value,
       piece:  r.querySelector('td:nth-child(2) input').value,
-      long:   r.querySelector('.fv-long').value,
-      larg:   r.querySelector('.fv-larg').value,
+      long:   (r.querySelector('.fv-long')||{value:''}).value,
+      larg:   (r.querySelector('.fv-larg')||{value:''}).value,
       hsp:    r.querySelector('.fv-hsp').value,
       surf:   r.querySelector('.fv-surf').value,
       sous180:r.querySelector('.fv-sous180').value,
