@@ -102,13 +102,15 @@
 
   // ── Écoute les inputs via délégation ──────────────────────────
   document.addEventListener('input', function(e) {
-    var id = e.target && e.target.id;
-    if (!id || WATCHED_IDS.indexOf(id) === -1) return;
-    _active = e.target;
+    var el  = e.target;
+    var id  = el && el.id;
+    var hasCls = el && el.classList && el.classList.contains('addr-autocomplete');
+    if (!hasCls && (!id || WATCHED_IDS.indexOf(id) === -1)) return;
+    _active = el;
     clearTimeout(_timer);
-    var q = e.target.value.trim();
+    var q = el.value.trim();
     if (q.length < 4) { hideDropdown(); return; }
-    _timer = setTimeout(function() { fetchSuggestions(q, e.target); }, 320);
+    _timer = setTimeout(function() { fetchSuggestions(q, el); }, 320);
   });
 
   // ── Ferme si clic ailleurs ────────────────────────────────────
