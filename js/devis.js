@@ -417,6 +417,7 @@ function renderDevisForm(body) {
           <span id="dv-total-display" style="font-size:18px;font-weight:800;color:#059669">${parseFloat(devis.total_ht||0).toFixed(2)} €</span>
         </div>
         <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #BBF7D0">
+          <button type="button" onclick="appliquerGrilleTarifaire()" style="width:100%;padding:9px;border-radius:9px;border:2px solid #2D6A4F;background:#F0FDF4;color:#2D6A4F;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">📊 Appliquer la grille tarifaire</button>
           <div style="display:flex;align-items:center;gap:8px">
             <span style="font-size:12px;color:#6B7280;white-space:nowrap;font-weight:600">Prix forfaitaire</span>
             <input id="dv-prix_final" type="number" min="0" step="1"
@@ -494,6 +495,69 @@ function toggleDevisDep(el) {
   el.querySelector('input').checked = isSel;
   el.style.borderColor = isSel ? '#059669' : '';
   el.style.background  = isSel ? '#05966912' : '';
+}
+
+// ─── GRILLE TARIFAIRE — Application dans le devis ───
+function appliquerGrilleTarifaire() {
+  if (typeof getGrilleTarifaire !== 'function') { _devisToast('Module grille non chargé.','#EF4444'); return; }
+  var g = getGrilleTarifaire();
+  if (!g.active) { _devisToast('Grille tarifaire non activée.\nActive-la dans tes Tarifs.','#F59E0B'); return; }
+
+  var surface = parseFloat((document.getElementById('dv-surface')||{}).value) || 0;
+  if (surface <= 0) { _devisToast('Renseigne la surface du bien d\'abord.','#EF4444'); return; }
+
+  // Diagnostics exclus du comptage (add-ons à tarif fixe ou neutres)
+  var fixedMap = {
+    'ERP':                  g.tarifs_fixes.erp_seul,
+    'Prélèvement Amiante':  g.tarifs_fixes.prelevement_amiante,
+    'Prélèvement Plomb':    g.tarifs_fixes.prelevement_plomb
+  };
+  var excluded = ['Frais déplacement','ERP','Prélèvement Amiante','Prélèvement Plomb'];
+
+  var nbDiags    = 0;
+  var addOnTotal = 0;
+
+  document.querySelectorAll('#dv-diags-grid .diag-item.selected').forEach(function(el) {
+    var spans = el.querySelectorAll('span');
+    var name  = '';
+    for (var i = 0; i < spans.length; i++) {
+      var t = spans[i].textContent.trim();
+      if (t && isNaN(t) && t.indexOf('€') === -1) { name = t; break; }
+    }
+    if (!name) return;
+    if (fixedMap[name] !== undefined) {
+      addOnTotal += fixedMap[name];
+    } else if (name !== 'Frais déplacement') {
+      nbDiags++;
+    }
+  });
+
+  if (nbDiags === 0) { _devisToast('Sélectionne au moins un diagnostic principal.','#EF4444'); return; }
+
+  // Ligne dans la grille (plafonné à 6)
+  var row = Math.min(nbDiags, 6) - 1;
+
+  // Prix de la grille selon la surface
+  var grillePrice = 0;
+  if      (surface <= 60)  grillePrice = g.grille[row][0];
+  else if (surface <= 90)  grillePrice = g.grille[row][1];
+  else if (surface <= 120) grillePrice = g.grille[row][2];
+  else if (surface <= 150) grillePrice = g.grille[row][3];
+  else {
+    var base     = g.grille[row][3];
+    var tranches = Math.ceil((surface - 150) / 50);
+    grillePrice  = base + tranches * (g.majoration_150_pct / 100) * base;
+  }
+
+  var total = Math.round(grillePrice + addOnTotal);
+
+  var pf = document.getElementById('dv-prix_final');
+  if (pf) {
+    pf.value = total;
+    updateDevisTotal();
+    _devisToast('✅ Grille appliquée : ' + total + ' € HT'
+      + (addOnTotal > 0 ? ' (dont ' + addOnTotal + ' € add-ons)' : ''));
+  }
 }
 
 // ─── CALCUL TOTAL ───
