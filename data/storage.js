@@ -13,6 +13,7 @@ var _FS_KEYS = [
   'dd_company_profile',
   'dd_logo_compressed',   // Logo compressé stocké séparément (base64 JPEG ≤ 100 Ko)
   'dd_tarifs',
+  'dd_grille_tarifaire',
   'dd_devis_list',
   'dd_missions',
   'dd_factures_list',
