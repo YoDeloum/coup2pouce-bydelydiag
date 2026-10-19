@@ -949,48 +949,97 @@ function agAddLot(data) {
     'Plomb','Prélèvement Plomb','Électricité','Gaz','Termites',
     'ERP','Carrez','Boutin','Avant travaux','Avant démolition','Audit énergétique','Frais déplacement'
   ];
+  var periodOptions   = ['Avant 1949','1949-1997','1997-2011','Après 2011'];
+  var typeBienOptions = ['Appartement','Maison','Immeuble','Commerce','Local','Terrain','Autre'];
+  function selOpt(val, match) { return val === match ? ' selected' : ''; }
 
   var diagsHtml = diagsList.map(function(nom) {
     var isSel = selDiags.indexOf(nom) !== -1;
     var prix  = (data.tarifs_manuels && data.tarifs_manuels[nom] !== undefined)
                 ? data.tarifs_manuels[nom] : (tarifs[nom] || 0);
     return '<div class="ag-sp-diag-item" data-nom="' + nom + '" data-lot="' + idx + '" onclick="agSpToggleDiag(this)"'
-      + ' style="display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:8px;border:1.5px solid ' + (isSel?'#6366F1':'#E2E5F0') + ';background:' + (isSel?'#EEF2FF':'#FAFAFA') + ';cursor:pointer;margin-bottom:4px">'
+      + ' style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;border:1.5px solid ' + (isSel?'#6366F1':'#E2E5F0') + ';background:' + (isSel?'#EEF2FF':'#FAFAFA') + ';cursor:pointer;margin-bottom:4px">'
       + '<input type="checkbox"' + (isSel?' checked':'') + ' readonly style="accent-color:#6366F1;pointer-events:none;width:14px;height:14px"/>'
       + '<span style="flex:1;font-size:12px">' + nom + '</span>'
       + '<input type="number" class="ag-sp-prix" data-diag="' + nom + '" value="' + prix + '" min="0" step="5"'
       + ' onclick="event.stopPropagation()" onchange="agSpUpdateLotTotal(' + idx + ')"'
-      + ' style="width:52px;padding:3px 5px;border-radius:5px;border:1px dashed #A5B4FC;font-size:11px;font-weight:700;color:#6366F1;text-align:right;background:transparent;outline:none;font-family:inherit"/> €</div>';
+      + ' style="width:56px;padding:3px 5px;border-radius:5px;border:1px dashed #A5B4FC;font-size:11px;font-weight:700;color:#6366F1;text-align:right;background:transparent;outline:none;font-family:inherit"/> €</div>';
   }).join('');
 
   var card = document.createElement('div');
   card.id   = 'ag-lot-' + idx;
-  card.style.cssText = 'background:#F8F9FF;border-radius:12px;padding:12px;margin-bottom:10px;border:1.5px solid #A5B4FC';
+  card.style.cssText = 'background:#F8F9FF;border-radius:12px;padding:14px;margin-bottom:12px;border:2px solid #A5B4FC';
   card.innerHTML =
-    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
-    + '<div style="background:#6366F1;color:#fff;border-radius:8px;padding:3px 9px;font-size:12px;font-weight:700">Lot ' + (idx+1) + '</div>'
-    + '<input id="ag-lot-' + idx + '-label" type="text" value="' + (data.label||'') + '" placeholder="Ex : Appartement T3 – RDC"'
+    // ── En-tête lot ──
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">'
+    + '<div style="background:#6366F1;color:#fff;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;white-space:nowrap">Lot ' + (idx+1) + '</div>'
+    + '<input id="ag-lot-' + idx + '-label" type="text" value="' + (data.label||'') + '" placeholder="Description libre (ex : Appt T3 Bât. A)"'
     + ' style="flex:1;padding:6px 10px;border-radius:7px;border:1.5px solid #E2E5F0;font-size:12px;font-family:inherit;outline:none"/>'
-    + '<button onclick="agRemoveLot(' + idx + ')" style="background:none;border:none;color:#EF4444;font-size:16px;cursor:pointer;padding:2px 6px">✕</button>'
+    + '<button onclick="agRemoveLot(' + idx + ')" style="background:none;border:none;color:#EF4444;font-size:18px;cursor:pointer;padding:2px 6px;line-height:1">✕</button>'
     + '</div>'
-    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
-    + '<span style="font-size:12px;color:#6B7280;white-space:nowrap">Quantité :</span>'
+
+    // ── Adresse du bien ──
+    + '<div style="margin-bottom:10px">'
+    + '<label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Adresse du bien *</label>'
+    + '<input id="ag-lot-' + idx + '-adresse" type="text" value="' + (data.adresse||data.bien_adresse||'') + '"'
+    + ' placeholder="12 rue de la Paix, 75001 Paris" class="addr-autocomplete"'
+    + ' style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>'
+    + '</div>'
+
+    // ── Type + Surface + Période ──
+    + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">'
+    + '<div><label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Type de bien</label>'
+    + '<select id="ag-lot-' + idx + '-type" style="width:100%;padding:7px 8px;border-radius:7px;border:1.5px solid #E2E5F0;font-size:12px;font-family:inherit;outline:none;background:#fff">'
+    + '<option value="">—</option>'
+    + typeBienOptions.map(function(t){ return '<option value="' + t + '"' + selOpt(data.typeBien, t) + '>' + t + '</option>'; }).join('')
+    + '</select></div>'
+    + '<div><label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Surface (m²)</label>'
+    + '<input id="ag-lot-' + idx + '-surface" type="number" min="1" value="' + (data.surface||'') + '" placeholder="85"'
+    + ' style="width:100%;padding:7px 8px;border-radius:7px;border:1.5px solid #E2E5F0;font-size:12px;font-family:inherit;outline:none;box-sizing:border-box"/></div>'
+    + '<div><label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Période construction</label>'
+    + '<select id="ag-lot-' + idx + '-periode" style="width:100%;padding:7px 8px;border-radius:7px;border:1.5px solid #E2E5F0;font-size:12px;font-family:inherit;outline:none;background:#fff">'
+    + '<option value="">—</option>'
+    + periodOptions.map(function(p){ return '<option value="' + p + '"' + selOpt(data.periode, p) + '>' + p + '</option>'; }).join('')
+    + '</select></div>'
+    + '</div>'
+
+    // ── Quantité ──
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;background:#fff;border-radius:8px;padding:8px 12px;border:1px solid #E2E5F0">'
+    + '<span style="font-size:12px;font-weight:700;color:#374151;white-space:nowrap">Quantité de biens identiques :</span>'
     + '<input id="ag-lot-' + idx + '-qte" type="number" min="1" step="1" value="' + (data.quantite||1) + '"'
     + ' onchange="agSpUpdateLotTotal(' + idx + ')"'
-    + ' style="width:60px;padding:5px 8px;border-radius:7px;border:1.5px solid #E2E5F0;font-size:13px;font-weight:700;font-family:inherit;outline:none;text-align:center"/>'
-    + '<span style="font-size:12px;color:#6B7280">bien(s) identiques</span>'
+    + ' style="width:70px;padding:6px 8px;border-radius:7px;border:1.5px solid #6366F1;font-size:14px;font-weight:800;font-family:inherit;outline:none;text-align:center;color:#4F46E5"/>'
+    + '<span style="font-size:12px;color:#6B7280">bien(s)</span>'
     + '</div>'
+
+    // ── Diagnostics (tarif PAR bien) ──
+    + '<div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">🔬 Diagnostics — tarif PAR bien</div>'
     + '<div id="ag-lot-' + idx + '-diags">' + diagsHtml + '</div>'
-    + '<div style="background:#fff;border-radius:8px;padding:8px 10px;margin-top:6px;display:flex;align-items:center;justify-content:space-between">'
-    + '<span style="font-size:12px;font-weight:600;color:#374151">Total lot ' + (idx+1) + ' :</span>'
-    + '<span id="ag-lot-' + idx + '-total" style="font-size:14px;font-weight:800;color:#6366F1">0 € HT</span>'
+
+    // ── Récapitulatif lot ──
+    + '<div style="background:#EEF2FF;border-radius:10px;padding:10px 12px;margin-top:10px;border:1px solid #A5B4FC">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+    + '<span style="font-size:12px;color:#6B7280;font-weight:600">Sous-total (diags × quantité)</span>'
+    + '<span id="ag-lot-' + idx + '-subtotal" style="font-size:13px;font-weight:700;color:#6366F1">0 € HT</span>'
     + '</div>'
-    + '<div style="margin-top:6px">'
-    + '<div style="font-size:11px;color:#2563EB;font-weight:600;margin-bottom:4px">💰 Total HT manuel (optionnel)</div>'
-    + '<div style="display:flex;align-items:center;gap:6px">'
+    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+    + '<span style="font-size:12px;color:#EF4444;font-weight:600;white-space:nowrap">− Remise</span>'
+    + '<input id="ag-lot-' + idx + '-remise" type="number" min="0" step="5" value="' + (data.remise||'') + '" placeholder="0"'
+    + ' onchange="agSpUpdateLotTotal(' + idx + ')"'
+    + ' style="width:72px;padding:4px 7px;border-radius:6px;border:1.5px solid #FCA5A5;font-size:12px;font-weight:700;color:#EF4444;text-align:right;font-family:inherit;outline:none"/> €'
+    + '</div>'
+    + '<div style="border-top:1px dashed #A5B4FC;padding-top:8px;display:flex;justify-content:space-between;align-items:center">'
+    + '<span style="font-size:12px;font-weight:800;color:#4338CA">Total HT lot ' + (idx+1) + '</span>'
+    + '<span id="ag-lot-' + idx + '-total" style="font-size:16px;font-weight:800;color:#6366F1">0 € HT</span>'
+    + '</div></div>'
+
+    // ── Prix négocié global (optionnel) ──
+    + '<div style="margin-top:8px;padding:10px 12px;background:#EFF6FF;border-radius:8px;border:1px solid #BFDBFE">'
+    + '<div style="font-size:11px;font-weight:700;color:#2563EB;margin-bottom:6px">💰 Prix négocié global (optionnel — remplace le calcul ci-dessus)</div>'
+    + '<div style="display:flex;align-items:center;gap:8px">'
     + '<input id="ag-lot-' + idx + '-manuel" type="number" min="0" step="1" value="' + (data.total_manuel_ht||'') + '"'
     + ' placeholder="Laisse vide = calcul auto" onchange="agSpUpdateLotTotal(' + idx + ')"'
-    + ' style="flex:1;padding:5px 8px;border-radius:7px;border:1.5px solid #BFDBFE;font-size:12px;font-family:inherit;outline:none;color:#2563EB;font-weight:700"/>'
+    + ' style="flex:1;padding:6px 8px;border-radius:7px;border:1.5px solid #BFDBFE;font-size:13px;font-family:inherit;outline:none;color:#2563EB;font-weight:700"/>'
     + '<span style="font-size:12px;color:#6B7280">€ HT</span>'
     + '</div></div>';
 
@@ -1028,12 +1077,18 @@ function agSpUpdateLotTotal(idx) {
       sub += parseFloat(inp ? inp.value : 0) || 0;
     }
   });
-  var qteEl   = document.getElementById('ag-lot-' + idx + '-qte');
-  var qte     = Math.max(1, parseInt(qteEl ? qteEl.value : 1) || 1);
-  var calc    = sub * qte;
+  var qteEl    = document.getElementById('ag-lot-' + idx + '-qte');
+  var qte      = Math.max(1, parseInt(qteEl ? qteEl.value : 1) || 1);
+  var calc     = sub * qte;
+  var remiseEl = document.getElementById('ag-lot-' + idx + '-remise');
+  var remise   = parseFloat(remiseEl ? remiseEl.value : '') || 0;
+  var apresRemise = Math.max(0, calc - remise);
   var manuelEl = document.getElementById('ag-lot-' + idx + '-manuel');
-  var manuel  = parseFloat(manuelEl ? manuelEl.value : '') || 0;
-  var display = manuel > 0 ? manuel : calc;
+  var manuel   = parseFloat(manuelEl ? manuelEl.value : '') || 0;
+  var display  = manuel > 0 ? manuel : apresRemise;
+
+  var subEl = document.getElementById('ag-lot-' + idx + '-subtotal');
+  if (subEl) subEl.textContent = calc.toFixed(0) + ' € HT';
 
   var dispEl = document.getElementById('ag-lot-' + idx + '-total');
   if (dispEl) {
@@ -1061,16 +1116,27 @@ function _collectAgentLotsFromDOM() {
     var card = document.getElementById('ag-lot-' + i);
     if (!card) continue;  // Lot supprimé
 
-    var labelEl  = document.getElementById('ag-lot-' + i + '-label');
-    var qteEl    = document.getElementById('ag-lot-' + i + '-qte');
-    var manuelEl = document.getElementById('ag-lot-' + i + '-manuel');
-    var label    = labelEl  ? labelEl.value.trim()  : '';
+    var labelEl   = document.getElementById('ag-lot-' + i + '-label');
+    var adresseEl = document.getElementById('ag-lot-' + i + '-adresse');
+    var typeEl    = document.getElementById('ag-lot-' + i + '-type');
+    var surfaceEl = document.getElementById('ag-lot-' + i + '-surface');
+    var periodeEl = document.getElementById('ag-lot-' + i + '-periode');
+    var qteEl     = document.getElementById('ag-lot-' + i + '-qte');
+    var remiseEl  = document.getElementById('ag-lot-' + i + '-remise');
+    var manuelEl  = document.getElementById('ag-lot-' + i + '-manuel');
+
+    var label    = labelEl   ? labelEl.value.trim()  : '';
+    var adresse  = adresseEl ? adresseEl.value.trim() : '';
+    var typeBien = typeEl    ? typeEl.value            : '';
+    var surface  = surfaceEl ? surfaceEl.value         : '';
+    var periode  = periodeEl ? periodeEl.value         : '';
     var qte      = Math.max(1, parseInt(qteEl ? qteEl.value : 1) || 1);
+    var remise   = parseFloat(remiseEl ? remiseEl.value : '') || 0;
     var manuel   = parseFloat(manuelEl ? manuelEl.value : '') || 0;
 
-    var diags       = [];
-    var tarifsMan   = {};
-    var sub         = 0;
+    var diags     = [];
+    var tarifsMan = {};
+    var sub       = 0;
     card.querySelectorAll('.ag-sp-diag-item').forEach(function(el) {
       var nom = el.getAttribute('data-nom');
       var cb  = el.querySelector('input[type="checkbox"]');
@@ -1080,14 +1146,20 @@ function _collectAgentLotsFromDOM() {
       if (cb && cb.checked) { diags.push(nom); sub += val; }
     });
 
-    var calcTotal  = sub * qte;
-    var totalHt    = manuel > 0 ? manuel : calcTotal;
+    var calcTotal = Math.max(0, sub * qte - remise);
+    var totalHt   = manuel > 0 ? manuel : calcTotal;
 
     lots.push({
       label:           label,
+      adresse:         adresse,
+      bien_adresse:    adresse,
+      typeBien:        typeBien,
+      surface:         surface,
+      periode:         periode,
       quantite:        qte,
       diagnostics:     diags,
       tarifs_manuels:  tarifsMan,
+      remise:          remise,
       total_manuel_ht: manuel > 0 ? manuel : 0,
       total_ht:        totalHt
     });
@@ -1117,7 +1189,8 @@ function saveAgentDevisSpecialForm(envoyer) {
 
   var totalHt = lots.reduce(function(s, l) { return s + l.total_ht; }, 0);
   // Résumé de l'adresse pour l'affichage dans la liste
-  var adresseSummary = lots.length + ' lot' + (lots.length > 1 ? 's' : '') + (lots[0].label ? ' — ' + lots[0].label : '');
+  var premAdresse = lots[0] && (lots[0].adresse || lots[0].label) ? (lots[0].adresse || lots[0].label) : '';
+  var adresseSummary = lots.length + ' lot' + (lots.length > 1 ? 's' : '') + (premAdresse ? ' — ' + premAdresse : '');
 
   var data = {
     type:           'special',
