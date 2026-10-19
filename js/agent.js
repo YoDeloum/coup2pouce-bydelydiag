@@ -207,9 +207,14 @@ function renderAgentScreen() {
     </div>
 
     <!-- ── Boutons d'action ── -->
-    <button onclick="openAgentDevisForm()" style="width:100%;padding:16px;border-radius:12px;border:none;background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:10px">
-      📝 Créer un devis pour ${activeProfil.nom_affiche}
-    </button>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button onclick="openAgentDevisForm()" style="flex:1;padding:14px 8px;border-radius:12px;border:none;background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">
+        📝 Devis standard
+      </button>
+      <button onclick="openAgentDevisSpecialForm()" style="flex:1;padding:14px 8px;border-radius:12px;border:none;background:linear-gradient(135deg,#0891B2,#0E7490);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">
+        📦 Devis spécial<br><span style="font-size:10px;font-weight:500;opacity:.9">multi-lots</span>
+      </button>
+    </div>
     <button onclick="renderAgentDevisList()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #6366F1;background:#fff;color:#6366F1;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">
       📋 Voir mes devis (${devisActif.length})
     </button>
