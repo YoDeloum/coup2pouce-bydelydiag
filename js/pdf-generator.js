@@ -234,7 +234,9 @@ function genererPDFDevis(devis, _returnBlob, opts) {
   var tarifs_manuels = devis.tarifs_manuels || {};
   diags.forEach(function(d, i) {
     if (i % 2 === 0) pdfRect(doc, 15, y - 1, 180, 8, [249, 250, 251]);
-    pdfText(doc, '- ' + d, 18, y + 5, {size:9, color:[30,30,30]});
+    var _qtyD = (devis.qte_manuels && parseInt(devis.qte_manuels[d]) > 1) ? parseInt(devis.qte_manuels[d]) : 1;
+    var _labelD = '- ' + d + (_qtyD > 1 ? ' \xD7' + _qtyD : '');
+    pdfText(doc, _labelD, 18, y + 5, {size:9, color:[30,30,30]});
     pdfText(doc, 'incl.', 193, y + 5, {size:9, color:[45,106,79], align:'right'});
     y += 8;
     // DPE Immeuble : afficher le détail des logements juste en dessous
@@ -447,7 +449,9 @@ function genererPDFFacture(facture, _returnBlob, opts) {
 
     (facture.diagnostics || []).forEach(function(d, i) {
       if (i % 2 === 0) pdfRect(doc, 15, y - 1, 180, 8, [249, 250, 251]);
-      pdfText(doc, '- ' + d, 18, y + 5, {size:9, color:[30,30,30]});
+      var _qtyD = (facture.qte_manuels && parseInt(facture.qte_manuels[d]) > 1) ? parseInt(facture.qte_manuels[d]) : 1;
+      var _labelD = '- ' + d + (_qtyD > 1 ? ' \xD7' + _qtyD : '');
+      pdfText(doc, _labelD, 18, y + 5, {size:9, color:[30,30,30]});
       pdfText(doc, 'OK', 193, y + 5, {size:9, color:[27,67,50], align:'right'});
       y += 8;
     });
@@ -615,7 +619,9 @@ function genererPDFSigne(devis) {
   var diags = devis.diagnostics || [];
   diags.forEach(function(d, i) {
     if (i % 2 === 0) pdfRect(doc, 15, y - 1, 180, 8, [249, 250, 251]);
-    pdfText(doc, '- ' + d, 18, y + 5, {size:9, color:[30,30,30]});
+    var _qtyD = (devis.qte_manuels && parseInt(devis.qte_manuels[d]) > 1) ? parseInt(devis.qte_manuels[d]) : 1;
+    var _labelD = '- ' + d + (_qtyD > 1 ? ' \xD7' + _qtyD : '');
+    pdfText(doc, _labelD, 18, y + 5, {size:9, color:[30,30,30]});
     pdfText(doc, 'incl.', 193, y + 5, {size:9, color:[45,106,79], align:'right'});
     y += 8;
   });
@@ -793,10 +799,20 @@ function genererPDFDevisSpecial(devis, returnBlob, opts) {
     var diagsParBien = diags.filter(function(d){ return FORFAITS_UNIQUES.indexOf(d) === -1; });
     var diagsForfait = diags.filter(function(d){ return FORFAITS_UNIQUES.indexOf(d) !== -1; });
 
-    // Calcul réel du lot
-    var subParBien   = diagsParBien.reduce(function(s,d){ return s+(parseFloat(tm[d])||0); }, 0);
+    // Calcul réel du lot (les prélèvements avec qty propre ne sont PAS multipliés par qte_lot)
+    var _PREV_QTE = ['Prélèvement Amiante', 'Prélèvement Plomb'];
+    var subParBien   = 0; var subPrelev = 0;
+    diagsParBien.forEach(function(d) {
+      var tv = parseFloat(tm[d]) || 0;
+      if (_PREV_QTE.indexOf(d) >= 0) {
+        var dq = Math.max(1, parseInt((lot.qte_manuels && lot.qte_manuels[d]) || 1));
+        subPrelev += tv * dq;
+      } else {
+        subParBien += tv;
+      }
+    });
     var subForfait   = diagsForfait.reduce(function(s,d){ return s+(parseFloat(tm[d])||0); }, 0);
-    var calcTotal    = subParBien * qte + subForfait;
+    var calcTotal    = subParBien * qte + subPrelev + subForfait;
     var remise       = parseFloat(lot.remise) || 0;
     var apresRemise  = Math.max(0, calcTotal - remise);
     var manuel       = parseFloat(lot.total_manuel_ht) || 0;
@@ -833,15 +849,20 @@ function genererPDFDevisSpecial(devis, returnBlob, opts) {
       diagsParBien.forEach(function(d, di) {
         if (di % 2 === 0) pdfRect(doc, 15, y-1, 180, 7, [249,250,251]);
         var tv = parseFloat(tm[d]) || 0;
-        pdfText(doc, '  '+d,           18,  y+4, {size:8,color:[30,30,30]});
+        var isPrelev = _PREV_QTE.indexOf(d) >= 0;
+        var dq = isPrelev ? Math.max(1, parseInt((lot.qte_manuels && lot.qte_manuels[d]) || 1)) : qte;
+        var lineQteLabel = isPrelev ? '\xD7'+dq : 'x'+qte;
+        var lineTotal = (tv * dq).toFixed(2) + ' €';
+        var lineLabel = '  ' + d + (isPrelev && dq > 1 ? ' \xD7' + dq : '');
+        pdfText(doc, lineLabel,           18,  y+4, {size:8,color:[30,30,30]});
         pdfText(doc, tv.toFixed(2)+' €', 128, y+4, {size:8,color:[80,80,80],align:'right'});
-        pdfText(doc, 'x'+qte,          155,  y+4, {size:8,color:[100,100,100],align:'right'});
-        pdfText(doc, (tv*qte).toFixed(2)+' €', 193, y+4, {size:8,color:[45,106,79],align:'right'});
+        pdfText(doc, lineQteLabel,        155,  y+4, {size:8,color:[100,100,100],align:'right'});
+        pdfText(doc, lineTotal,           193, y+4, {size:8,color:[45,106,79],align:'right'});
         y += 7;
       });
       // Ligne sous-total diags
       pdfText(doc, 'Sous-total ('+qte+' bien'+(qte>1?'s':'')+' x '+diagsParBien.length+' diag'+(diagsParBien.length>1?'s':'')+') :', 130, y+5, {size:8,color:[80,80,80],align:'right'});
-      pdfText(doc, (subParBien*qte).toFixed(2)+' €', 193, y+5, {bold:true,size:8,color:[45,106,79],align:'right'});
+      pdfText(doc, (subParBien*qte+subPrelev).toFixed(2)+' €', 193, y+5, {bold:true,size:8,color:[45,106,79],align:'right'});
       y += 8;
     }
 
