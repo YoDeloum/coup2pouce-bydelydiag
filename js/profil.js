@@ -309,6 +309,15 @@ function renderProfilScreen() {
     <div id="profil-success" style="display:none;text-align:center;padding:12px;background:#D1FAE5;border-radius:10px;color:#065F46;font-weight:700;margin-bottom:4px">✅ Profil sauvegardé !</div>
     <button onclick="forcerSyncCloud(this)" style="width:100%;padding:12px;border-radius:10px;border:1.5px solid #0891B2;background:#fff;color:#0891B2;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px">☁️ Forcer la synchronisation vers le cloud</button>
 
+    <div style="margin-top:20px;padding:16px;background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:12px">
+      <div style="font-size:13px;font-weight:700;color:#C2410C;margin-bottom:8px">🔒 Sécurité du compte</div>
+      <div style="font-size:12px;color:#6B7280;margin-bottom:10px">
+        Un email de réinitialisation sera envoyé à : <strong>${localStorage.getItem('fb_email')||'votre adresse email'}</strong>
+      </div>
+      <button onclick="envoyerResetMotDePasse()" style="width:100%;padding:11px;border-radius:10px;border:1.5px solid #F97316;background:#fff;color:#C2410C;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🔑 Réinitialiser mon mot de passe</button>
+      <div id="reset-mdp-msg" style="display:none;margin-top:8px;text-align:center;font-size:12px;font-weight:600;padding:8px;border-radius:8px"></div>
+    </div>
+
   </div>`;
 }
 
@@ -604,6 +613,55 @@ function changerEmailConnexion() {
 // L'agent importe ce fichier une seule fois dans son app
 // pour créer des devis au nom du diagnostiqueur.
 // ─────────────────────────────────────────────
+
+// ─── Réinitialisation du mot de passe ─────────────────────────
+function envoyerResetMotDePasse() {
+  var email = localStorage.getItem('fb_email') || '';
+  var msgEl = document.getElementById('reset-mdp-msg');
+  if (!email) {
+    if (msgEl) {
+      msgEl.style.display = 'block';
+      msgEl.style.background = '#FEE2E2';
+      msgEl.style.color = '#B91C1C';
+      msgEl.textContent = '❌ Adresse email introuvable. Reconnectez-vous d\'abord.';
+    }
+    return;
+  }
+  var btn = document.querySelector('[onclick="envoyerResetMotDePasse()"]');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Envoi en cours...'; }
+
+  var API_KEY = 'AIzaSy' + 'ATgMy3v5Uj7xdSoql7xoNgrUmtqERm5G4';
+  fetch('https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=' + API_KEY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requestType: 'PASSWORD_RESET', email: email })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (btn) { btn.disabled = false; btn.textContent = '🔑 Réinitialiser mon mot de passe'; }
+    if (msgEl) {
+      msgEl.style.display = 'block';
+      if (data.error) {
+        msgEl.style.background = '#FEE2E2';
+        msgEl.style.color = '#B91C1C';
+        msgEl.textContent = '❌ Erreur : ' + (data.error.message || 'impossible d\'envoyer l\'email.');
+      } else {
+        msgEl.style.background = '#D1FAE5';
+        msgEl.style.color = '#065F46';
+        msgEl.textContent = '✅ Email envoyé à ' + email + ' — vérifiez votre boîte mail (et les spams).';
+      }
+    }
+  })
+  .catch(function() {
+    if (btn) { btn.disabled = false; btn.textContent = '🔑 Réinitialiser mon mot de passe'; }
+    if (msgEl) {
+      msgEl.style.display = 'block';
+      msgEl.style.background = '#FEE2E2';
+      msgEl.style.color = '#B91C1C';
+      msgEl.textContent = '❌ Erreur réseau. Vérifiez votre connexion.';
+    }
+  });
+}
 
 function exporterProfilAgent() {
   try {
