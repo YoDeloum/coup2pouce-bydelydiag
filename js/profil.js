@@ -144,6 +144,16 @@ function renderProfilScreen() {
         <p style="font-size:11px;color:#9ca3af;margin:4px 0 0">Stripe, SumUp, PayPal ou Revolut — apparaîtra dans les devis et factures.</p>
       </div>
       <div class="profil-field">
+        <label class="profil-label">🔬 Mon espace amiante (lien externe)</label>
+        <input class="profil-input" id="p-url_espace_amiante" type="url" value="${p.url_espace_amiante||''}" placeholder="https://portail.eurofins.fr/..."/>
+        <p style="font-size:11px;color:#9ca3af;margin:4px 0 0">Eurofins ou autre labo — accessible depuis le bouton "Outils terrain" dans les missions.</p>
+      </div>
+      <div class="profil-field">
+        <label class="profil-label">📋 Mon espace ERP (lien externe)</label>
+        <input class="profil-input" id="p-url_erp" type="url" value="${p.url_erp||''}" placeholder="https://erp-monportail.fr/..."/>
+        <p style="font-size:11px;color:#9ca3af;margin:4px 0 0">Plateforme de gestion des ERP — accessible depuis le bouton "Outils terrain" dans les missions.</p>
+      </div>
+      <div class="profil-field">
         <label class="profil-label">🎨 Modèle de PDF (devis &amp; facture)</label>
         <input type="hidden" id="p-pdf_template" value="${p.pdf_template||'standard'}"/>
         <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:6px" id="tpl-cards">
@@ -328,6 +338,7 @@ function saveProfilForm() {
   var fields = ['nom_societe','nom_responsable','forme_juridique','adresse','code_postal','ville',
                 'telephone','email','site_web','siret','tva_intrac','num_assurance','organisme_certif',
                 'num_certif','statut_fiscal','taux_tva','conditions_paiement','lien_paiement',
+                'url_espace_amiante','url_erp',
                 'pdf_template','mentions_legales','rib_banque','rib_iban','rib_bic'];
   var existing = getCompanyProfile();
   fields.forEach(function(f) {
