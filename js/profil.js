@@ -612,32 +612,42 @@ function exporterProfilAgent() {
       // Identifiant unique du diagnostiqueur (pour que l'agent puisse en gérer plusieurs)
       diag_uid:    localStorage.getItem('fb_uid') || ('diag_' + Date.now()),
       profil: {
-        nom_societe:       profil.nom_societe       || '',
-        nom_responsable:   profil.nom_responsable   || '',
-        adresse:           profil.adresse           || '',
-        telephone:         profil.telephone         || '',
-        email:             profil.email             || '',
-        siret:             profil.siret             || '',
-        rcs:               profil.rcs               || '',
-        tva:               profil.tva               || '',
+        nom_societe:         profil.nom_societe         || '',
+        nom_responsable:     profil.nom_responsable     || '',
+        adresse:             profil.adresse             || '',
+        code_postal:         profil.code_postal         || '',
+        ville:               profil.ville               || '',
+        telephone:           profil.telephone           || '',
+        email:               profil.email               || '',
+        siret:               profil.siret               || '',
+        rcs:                 profil.rcs                 || '',
+        // Fiscalité
+        statut_fiscal:       profil.statut_fiscal       || 'HT',
+        taux_tva:            profil.taux_tva            !== undefined ? profil.taux_tva : 20,
+        conditions_paiement: profil.conditions_paiement || 'Paiement à réception de facture',
         // RIB pour les factures de commission
-        iban:              profil.iban              || '',
-        bic:               profil.bic               || '',
-        banque:            profil.banque            || '',
-        // Mentions légales
-        mentions:          profil.mentions          || '',
-        assurance:         profil.assurance         || '',
-        certification:     profil.certification     || '',
+        rib_iban:            profil.rib_iban            || '',
+        rib_bic:             profil.rib_bic             || '',
+        rib_banque:          profil.rib_banque          || '',
+        // Mentions légales et assurance
+        mentions_legales:    profil.mentions_legales    || '',
+        num_assurance:       profil.num_assurance       || '',
+        // Certification
+        num_certif:          profil.num_certif          || '',
+        organisme_certif:    profil.organisme_certif    || '',
+        certification:       profil.certification       || '',
+        // Modèle PDF
+        pdf_template:        profil.pdf_template        || '',
         // Lien paiement en ligne
-        lien_paiement:     profil.lien_paiement     || '',
+        lien_paiement:       profil.lien_paiement       || '',
         // Validité devis (jours)
-        validite_devis:    profil.validite_devis    || 30,
+        validite_devis:      profil.validite_devis      || 30,
         // Logo (base64 complet pour l'en-tête des PDFs)
-        logo:              profil.logo              || '',
-        logo_w:            profil.logo_w            || '',
-        logo_h:            profil.logo_h            || '',
+        logo:                profil.logo                || '',
+        logo_w:              profil.logo_w              || '',
+        logo_h:              profil.logo_h              || '',
         // Signature numérique
-        signature:         profil.signature         || ''
+        signature:           profil.signature           || ''
       },
       tarifs: tarifs
     };
