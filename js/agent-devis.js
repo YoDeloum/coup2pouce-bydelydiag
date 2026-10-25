@@ -909,6 +909,15 @@ function _agentDevisSpecialFormHtml(devis, profil) {
     + '<input id="ag-sp-client_societe" type="text" value="' + (devis.client_societe||'') + '" placeholder="Entreprise XYZ" style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/></div>'
     + '</div></div>'
 
+    // Type de transaction (impacte le DAPP)
+    + '<div style="background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);display:flex;align-items:center;gap:12px">'
+    + '<span style="font-size:12px;font-weight:800;color:#6366F1;white-space:nowrap">Type de transaction *</span>'
+    + '<select id="ag-sp-type_transaction" onchange="agSpUpdateAllDAPP()" style="flex:1;padding:9px 12px;border-radius:8px;border:1.5px solid #A5B4FC;font-size:13px;font-family:inherit;outline:none;background:#fff;font-weight:700;color:#4338CA">'
+    + '<option value="">— Choisir —</option>'
+    + '<option value="Vente"'+(devis.type_transaction==='Vente'?' selected':'')+'>Vente</option>'
+    + '<option value="Location"'+(devis.type_transaction==='Location'?' selected':'')+'>Location</option>'
+    + '</select></div>'
+
     // Lots container
     + '<div style="background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)">'
     + '<div style="font-size:12px;font-weight:800;color:#6366F1;letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px">📦 Lots (biens / appartements)</div>'
@@ -945,7 +954,7 @@ function agAddLot(data) {
   var tarifs    = (profil && profil.tarifs) || {};
   var selDiags  = data.diagnostics || [];
   var diagsList = [
-    'DPE','DPE Projeté','DPE Immeuble','Amiante','Prélèvement Amiante',
+    'DPE','DPE Projeté','DPE Immeuble','Amiante','DAPP','Prélèvement Amiante',
     'Plomb','Prélèvement Plomb','Électricité','Gaz','Termites',
     'ERP','Carrez','Boutin','Avant travaux','Avant démolition','Audit énergétique','Frais déplacement'
   ];
@@ -957,19 +966,27 @@ function agAddLot(data) {
   var diagsParBienList = diagsList.filter(function(n){ return FORFAITS_UNIQUES.indexOf(n) === -1; });
   var diagsForfaitList = diagsList.filter(function(n){ return FORFAITS_UNIQUES.indexOf(n) !== -1; });
 
+  var _agSpTxn = (document.getElementById('ag-sp-type_transaction') || {}).value || data.type_transaction || '';
+
   function buildDiagItem(nom) {
     var isSel    = selDiags.indexOf(nom) !== -1;
     var prix     = (data.tarifs_manuels && data.tarifs_manuels[nom] !== undefined)
                    ? data.tarifs_manuels[nom] : (tarifs[nom] || 0);
     var isForf   = FORFAITS_UNIQUES.indexOf(nom) !== -1;
+    var isDAPP   = (nom === 'DAPP');
+    // DAPP visible seulement si Location + Appartement
+    var dappShow = isDAPP && (_agSpTxn === 'Location') && (data.typeBien === 'Appartement');
+    var hideStyle = isDAPP && !dappShow ? 'display:none;' : '';
     var borderC  = isSel ? (isForf ? '#F59E0B' : '#6366F1') : '#E2E5F0';
     var bgC      = isSel ? (isForf ? '#FFFBEB' : '#EEF2FF') : '#FAFAFA';
     var priceC   = isForf ? '#D97706' : '#6366F1';
     var priceBorder = isForf ? '#FCD34D' : '#A5B4FC';
     return '<div class="ag-sp-diag-item" data-nom="' + nom + '" data-lot="' + idx + '" onclick="agSpToggleDiag(this)"'
-      + ' style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;border:1.5px solid ' + borderC + ';background:' + bgC + ';cursor:pointer;margin-bottom:4px">'
+      + (isDAPP ? ' data-dapp-lot-ag="' + idx + '"' : '')
+      + ' style="display:' + (isDAPP && !dappShow ? 'none' : 'flex') + ';align-items:center;gap:6px;padding:6px 8px;border-radius:8px;border:1.5px solid ' + borderC + ';background:' + bgC + ';cursor:pointer;margin-bottom:4px">'
       + '<input type="checkbox"' + (isSel?' checked':'') + ' readonly style="accent-color:' + (isForf?'#D97706':'#6366F1') + ';pointer-events:none;width:14px;height:14px"/>'
       + '<span style="flex:1;font-size:12px">' + nom + '</span>'
+      + (isDAPP ? '<span style="font-size:9px;color:#F59E0B;font-weight:700;margin-right:2px">Liste A</span>' : '')
       + '<input type="number" class="ag-sp-prix" data-diag="' + nom + '" value="' + prix + '" min="0" step="5"'
       + ' onclick="event.stopPropagation()" onchange="agSpUpdateLotTotal(' + idx + ')"'
       + ' style="width:56px;padding:3px 5px;border-radius:5px;border:1px dashed ' + priceBorder + ';font-size:11px;font-weight:700;color:' + priceC + ';text-align:right;background:transparent;outline:none;font-family:inherit"/> €</div>';
@@ -1004,7 +1021,7 @@ function agAddLot(data) {
     // ── Type + Surface + Période ──
     + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">'
     + '<div><label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Type de bien</label>'
-    + '<select id="ag-lot-' + idx + '-type" style="width:100%;padding:7px 8px;border-radius:7px;border:1.5px solid #E2E5F0;font-size:12px;font-family:inherit;outline:none;background:#fff">'
+    + '<select id="ag-lot-' + idx + '-type" onchange="agSpUpdateDAPP(' + idx + ')" style="width:100%;padding:7px 8px;border-radius:7px;border:1.5px solid #E2E5F0;font-size:12px;font-family:inherit;outline:none;background:#fff">'
     + '<option value="">—</option>'
     + typeBienOptions.map(function(t){ return '<option value="' + t + '"' + selOpt(data.typeBien, t) + '>' + t + '</option>'; }).join('')
     + '</select></div>'
@@ -1204,16 +1221,54 @@ function _collectAgentLotsFromDOM() {
 }
 
 // ─── Enregistrer le devis spécial agent ───────────────────────────
+// ─── DAPP visibility helpers (agent devis spécial) ───────────────────────────
+
+function agSpUpdateDAPP(idx) {
+  var txn  = ((document.getElementById('ag-sp-type_transaction') || {}).value || '');
+  var typeEl = document.getElementById('ag-lot-' + idx + '-type');
+  var type = typeEl ? typeEl.value : '';
+  var show = (txn === 'Location' && type === 'Appartement');
+  var item = document.querySelector('[data-dapp-lot-ag="' + idx + '"]');
+  if (!item) return;
+  item.style.display = show ? 'flex' : 'none';
+  var cb = item.querySelector('input[type="checkbox"]');
+  if (show) {
+    if (cb && !cb.checked) {
+      cb.checked = true;
+      item.classList.add('selected');
+      item.style.borderColor = '#059669';
+      item.style.background  = '#05966912';
+    }
+  } else {
+    if (cb) cb.checked = false;
+    item.classList.remove('selected');
+    item.style.borderColor = '';
+    item.style.background  = '';
+  }
+  if (typeof agSpUpdateLotTotal === 'function') agSpUpdateLotTotal(idx);
+}
+
+function agSpUpdateAllDAPP() {
+  // Parcourt tous les lots visibles et met à jour le DAPP de chacun
+  var containers = document.querySelectorAll('[data-dapp-lot-ag]');
+  var seen = {};
+  for (var i = 0; i < containers.length; i++) {
+    var idx = containers[i].getAttribute('data-dapp-lot-ag');
+    if (!seen[idx]) { seen[idx] = true; agSpUpdateDAPP(parseInt(idx, 10)); }
+  }
+}
+
 function saveAgentDevisSpecialForm(envoyer) {
   var profil = getAgentActiveProfil();
   if (!profil) { alert('Aucun diagnostiqueur actif.'); return; }
 
-  var clientNom    = ((document.getElementById('ag-sp-client_nom')    || {}).value || '').trim();
-  var clientPrenom = ((document.getElementById('ag-sp-client_prenom') || {}).value || '').trim();
-  var clientTel    = ((document.getElementById('ag-sp-client_tel')    || {}).value || '').trim();
-  var clientEmail  = ((document.getElementById('ag-sp-client_email')  || {}).value || '').trim();
-  var clientSoc    = ((document.getElementById('ag-sp-client_societe')|| {}).value || '').trim();
-  var notes        = ((document.getElementById('ag-sp-notes')         || {}).value || '').trim();
+  var clientNom      = ((document.getElementById('ag-sp-client_nom')       || {}).value || '').trim();
+  var clientPrenom   = ((document.getElementById('ag-sp-client_prenom')    || {}).value || '').trim();
+  var clientTel      = ((document.getElementById('ag-sp-client_tel')       || {}).value || '').trim();
+  var clientEmail    = ((document.getElementById('ag-sp-client_email')     || {}).value || '').trim();
+  var clientSoc      = ((document.getElementById('ag-sp-client_societe')   || {}).value || '').trim();
+  var notes          = ((document.getElementById('ag-sp-notes')            || {}).value || '').trim();
+  var typeTransaction = ((document.getElementById('ag-sp-type_transaction') || {}).value || '').trim();
 
   if (!clientNom)   { alert('Le nom du client est obligatoire.'); return; }
   if (envoyer && !clientEmail) { alert('L\'email du client est obligatoire pour envoyer le devis.'); return; }
@@ -1229,17 +1284,18 @@ function saveAgentDevisSpecialForm(envoyer) {
   var adresseSummary = lots.length + ' lot' + (lots.length > 1 ? 's' : '') + (premAdresse ? ' — ' + premAdresse : '');
 
   var data = {
-    type:           'special',
-    client_nom:     clientNom,
-    client_prenom:  clientPrenom,
-    client_tel:     clientTel,
-    client_email:   clientEmail,
-    client_societe: clientSoc,
-    bien_adresse:   adresseSummary,
-    notes:          notes,
-    lots:           lots,
-    total_ht:       totalHt,
-    prix_final:     0
+    type:             'special',
+    client_nom:       clientNom,
+    client_prenom:    clientPrenom,
+    client_tel:       clientTel,
+    client_email:     clientEmail,
+    client_societe:   clientSoc,
+    bien_adresse:     adresseSummary,
+    notes:            notes,
+    type_transaction: typeTransaction,
+    lots:             lots,
+    total_ht:         totalHt,
+    prix_final:       0
   };
 
   var allDev  = getAgentDevis();
