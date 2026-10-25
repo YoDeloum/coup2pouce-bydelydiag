@@ -5,7 +5,7 @@
 
 // ── Stockage ──────────────────────────────────────────────────
 var _prospects = [];
-var _prospectionTab = 'pipeline'; // 'pipeline' | 'import' | 'relances'
+var _prospectionTab = 'pipeline'; // 'pipeline' | 'import' | 'relances' | 'newsletter'
 var _prospectSearch = '';
 var _prospectStatutFilter = '';
 var _prospectView = 'list'; // 'list' | 'fiche'
@@ -55,9 +55,10 @@ function renderProspection() {
   }
 
   var tabs = [
-    { key: 'pipeline', label: '📋 Pipeline' },
-    { key: 'import',   label: '📥 Import / Recherche' },
-    { key: 'relances', label: '🔔 Relances' }
+    { key: 'pipeline',   label: '📋 Pipeline' },
+    { key: 'import',     label: '📥 Import' },
+    { key: 'relances',   label: '🔔 Relances' },
+    { key: 'newsletter', label: '📧 Newsletter' }
   ];
   var tabsHtml = '<div style="display:flex;gap:6px;padding:12px 16px 0;background:#fff;border-bottom:1px solid #E5E7EB">';
   tabs.forEach(function(t) {
@@ -70,6 +71,7 @@ function renderProspection() {
   if (_prospectionTab === 'pipeline') content = _renderPipeline();
   else if (_prospectionTab === 'import') content = _renderImport();
   else if (_prospectionTab === 'relances') content = _renderRelances();
+  else if (_prospectionTab === 'newsletter') content = _renderNewsletter();
 
   el.innerHTML = tabsHtml + '<div style="padding:16px;overflow-y:auto;flex:1">' + content + '</div>';
 }
@@ -555,4 +557,126 @@ function _showMsg(msg) {
   d.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1E40AF;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:9999;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.2)';
   document.body.appendChild(d);
   setTimeout(function(){ d.remove(); }, 2500);
+}
+
+// ── NEWSLETTER ────────────────────────────────────────────────
+function _renderNewsletter() {
+  // Contacts avec au moins un email
+  var avecMail = _prospects.filter(function(p) { return (p.email && p.email.trim()) || (p.email2 && p.email2.trim()); });
+
+  if (avecMail.length === 0) {
+    return '<div style="text-align:center;padding:40px 20px;color:#6B7280">'
+      + '<div style="font-size:32px;margin-bottom:12px">📧</div>'
+      + '<div style="font-size:14px;font-weight:600;margin-bottom:8px">Aucun contact avec email</div>'
+      + '<div style="font-size:13px">Importez des contacts ayant un champ email renseigné.</div>'
+      + '</div>';
+  }
+
+  var statsActifs = ['RDV pris', 'RDV réalisé'];
+  var rows = avecMail.map(function(p, idx) {
+    var globalIdx = _prospects.indexOf(p);
+    var preChecked = statsActifs.indexOf(p.statut) >= 0;
+    var mail = p.email || p.email2 || '';
+    var statutInfo = PROSPECT_STATUTS.find(function(s){ return s.key === p.statut; }) || { color:'#6B7280', bg:'#F3F4F6' };
+    return '<label style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;border:1.5px solid #E5E7EB;margin-bottom:6px;cursor:pointer;background:#fff">'
+      + '<input type="checkbox" class="nl-check" data-idx="'+globalIdx+'" data-email="'+_escHtml(mail)+'" data-nom="'+_escHtml(p.nom||'')+'" '+(preChecked?'checked':'')+' style="width:16px;height:16px;cursor:pointer;accent-color:#2563EB">'
+      + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:13px;font-weight:600;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+_escHtml(p.nom||'—')+'</div>'
+        + '<div style="font-size:11px;color:#6B7280">'+_escHtml(mail)+(p.ville?' · '+_escHtml(p.ville):'')+'</div>'
+      + '</div>'
+      + '<span style="font-size:10px;font-weight:700;color:'+statutInfo.color+';background:'+statutInfo.bg+';border-radius:6px;padding:2px 7px;white-space:nowrap">'+_escHtml(p.statut)+'</span>'
+      + '</label>';
+  }).join('');
+
+  return '<div>'
+    // Barre sélection rapide
+    + '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">'
+      + '<button onclick="_nlSelectAll(true)" style="padding:6px 12px;border-radius:8px;border:1.5px solid #2563EB;background:#EFF6FF;color:#2563EB;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">✅ Tout cocher</button>'
+      + '<button onclick="_nlSelectAll(false)" style="padding:6px 12px;border-radius:8px;border:1.5px solid #E5E7EB;background:#F9FAFB;color:#6B7280;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">☐ Tout décocher</button>'
+      + '<span style="font-size:12px;color:#6B7280;align-self:center">'+avecMail.length+' contact(s) avec email</span>'
+    + '</div>'
+    // Liste contacts
+    + '<div id="nl-contacts-list" style="max-height:280px;overflow-y:auto;margin-bottom:16px;padding-right:4px">'+rows+'</div>'
+    // Compose
+    + '<div style="background:#F0F9FF;border:1.5px solid #BAE6FD;border-radius:10px;padding:14px;margin-bottom:14px">'
+      + '<div style="font-size:13px;font-weight:700;color:#0369A1;margin-bottom:10px">✏️ Rédiger le message</div>'
+      + '<div style="margin-bottom:8px">'
+        + '<label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Objet du mail</label>'
+        + '<input id="nl-subject" type="text" placeholder="Ex : Nouveautés diagnostics — Coup 2 Pouce" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:13px;font-family:inherit;outline:none"/>'
+      + '</div>'
+      + '<div>'
+        + '<label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Corps du message (HTML accepté)</label>'
+        + '<textarea id="nl-body" rows="6" placeholder="Bonjour,&#10;&#10;Nous souhaitions vous informer..." style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;outline:none"></textarea>'
+      + '</div>'
+    + '</div>'
+    // Bouton envoi
+    + '<button onclick="_envoyerNewsletter()" style="width:100%;padding:13px;border-radius:10px;border:none;background:linear-gradient(135deg,#2563EB,#1D4ED8);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">📨 Envoyer à la sélection</button>'
+    + '<div id="nl-progress" style="margin-top:10px;font-size:12px;color:#6B7280;text-align:center"></div>'
+  + '</div>';
+}
+
+function _nlSelectAll(checked) {
+  document.querySelectorAll('.nl-check').forEach(function(cb) { cb.checked = checked; });
+}
+
+function _envoyerNewsletter() {
+  var subject = (document.getElementById('nl-subject') || {}).value || '';
+  var body    = (document.getElementById('nl-body') || {}).value || '';
+  if (!subject.trim()) { alert('Veuillez saisir un objet.'); return; }
+  if (!body.trim())    { alert('Veuillez saisir un corps de message.'); return; }
+
+  var selected = [];
+  document.querySelectorAll('.nl-check:checked').forEach(function(cb) {
+    selected.push({ email: cb.dataset.email, nom: cb.dataset.nom });
+  });
+  if (selected.length === 0) { alert('Aucun contact coché.'); return; }
+
+  var p = typeof getCompanyProfile === 'function' ? getCompanyProfile() : {};
+  var fromName  = p.nom_societe || 'Coup 2 Pouce';
+  var fromEmail = 'noreply@coup2pouce-pro.fr';
+  var replyTo   = p.email || '';
+
+  var progressEl = document.getElementById('nl-progress');
+  if (progressEl) progressEl.textContent = 'Envoi en cours... (0 / ' + selected.length + ')';
+
+  var sent = 0, errors = 0;
+  var idx = 0;
+
+  function sendNext() {
+    if (idx >= selected.length) {
+      if (progressEl) progressEl.textContent = '✅ ' + sent + ' envoyé(s)' + (errors > 0 ? ' · ' + errors + ' erreur(s)' : '');
+      _showMsg('Newsletter envoyée à ' + sent + ' contact(s) ✓');
+      return;
+    }
+    var contact = selected[idx++];
+    // Personnalisation minimale : remplace {nom} dans le corps
+    var htmlBody = body.replace(/\{nom\}/g, contact.nom || '');
+    // Convertit les sauts de ligne en <br> si pas de balises HTML détectées
+    if (htmlBody.indexOf('<') === -1) htmlBody = htmlBody.replace(/\n/g, '<br>');
+
+    fetch('/.netlify/functions/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to:        contact.email,
+        subject:   subject,
+        html:      htmlBody,
+        fromName:  fromName,
+        fromEmail: fromEmail,
+        replyTo:   replyTo
+      })
+    }).then(function(res) {
+      return res.json().catch(function(){ return {}; });
+    }).then(function(data) {
+      if (data && data.error) errors++; else sent++;
+      if (progressEl) progressEl.textContent = 'Envoi en cours... (' + (sent+errors) + ' / ' + selected.length + ')';
+      sendNext();
+    }).catch(function() {
+      errors++;
+      if (progressEl) progressEl.textContent = 'Envoi en cours... (' + (sent+errors) + ' / ' + selected.length + ')';
+      sendNext();
+    });
+  }
+
+  sendNext();
 }
