@@ -4,6 +4,26 @@
 // ─────────────────────────────────────────────
 
 // ─── UTILITAIRES ───────────────────────────
+
+/**
+ * Normalise un profil société pour gérer les anciens .c2p
+ * dont les champs ont été renommés.
+ * Toujours appeler après getCompanyProfile() pour les PDFs agent.
+ */
+function _pdfNormalizeProfile(p) {
+  if (!p) return p;
+  // Compatibilité anciens exports .c2p (noms courts → noms complets)
+  p.mentions_legales    = p.mentions_legales    || p.mentions    || '';
+  p.num_assurance       = p.num_assurance       || p.assurance   || '';
+  p.rib_iban            = p.rib_iban            || p.iban        || '';
+  p.rib_bic             = p.rib_bic             || p.bic         || '';
+  p.rib_banque          = p.rib_banque          || p.banque      || '';
+  p.taux_tva            = p.taux_tva            !== undefined ? p.taux_tva : (p.tva !== undefined ? p.tva : 20);
+  p.statut_fiscal       = p.statut_fiscal       || 'HT';
+  p.conditions_paiement = p.conditions_paiement || 'Paiement à réception de facture';
+  return p;
+}
+
 // ─── TEMPLATES PDF ─────────────────────────
 var PDF_TEMPLATES = {
   standard:   { bg:[45,106,79],  fg:[255,255,255], sub:[200,230,210] },
@@ -158,7 +178,7 @@ function genererPDFDevis(devis, _returnBlob, opts) {
   if (!jsPDF) { alert('jsPDF non chargé. Vérifiez votre connexion internet.'); return; }
 
   var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  var p   = getCompanyProfile();
+  var p   = _pdfNormalizeProfile(getCompanyProfile());
   // Pour l'envoi par mail : ignorer le logo (trop lourd pour Netlify)
   if (opts.compressedLogo) { p = Object.assign({}, p); p.logo = opts.compressedLogo; }
   else if (opts.skipLogo) { p = Object.assign({}, p); delete p.logo; }
@@ -321,7 +341,7 @@ function genererPDFFacture(facture, _returnBlob, opts) {
   if (!jsPDF) { alert('jsPDF non chargé.'); return; }
 
   var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  var p   = getCompanyProfile();
+  var p   = _pdfNormalizeProfile(getCompanyProfile());
   // Pour l'envoi par mail : ignorer le logo (trop lourd pour Netlify)
   if (opts.compressedLogo) { p = Object.assign({}, p); p.logo = opts.compressedLogo; }
   else if (opts.skipLogo) { p = Object.assign({}, p); delete p.logo; }
@@ -540,7 +560,7 @@ function genererPDFSigne(devis) {
   if (!jsPDF) { alert('jsPDF non chargé. Vérifiez votre connexion internet.'); return; }
 
   var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  var p   = getCompanyProfile();
+  var p   = _pdfNormalizeProfile(getCompanyProfile());
   var y   = 15;
   var sig = devis.signature;
   var signedDateStr = sig.date_signature ? new Date(sig.date_signature).toLocaleDateString('fr-FR') : '';
@@ -717,7 +737,7 @@ function genererPDFDevisSpecial(devis, returnBlob, opts) {
   var jsPDF = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
   if (!jsPDF) { alert('jsPDF non chargé.'); return null; }
   var doc  = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  var p    = getCompanyProfile();
+  var p    = _pdfNormalizeProfile(getCompanyProfile());
   if (opts.compressedLogo) p = Object.assign({}, p, { logo: opts.compressedLogo });
   if (opts.skipLogo)       p = Object.assign({}, p, { logo: null });
   var y    = 15;
