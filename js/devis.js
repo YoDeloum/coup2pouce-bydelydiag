@@ -2,7 +2,10 @@
 // DEVIS.JS — Système de devis complet
 // ─────────────────────────────────────────────
 
-var DEVIS_DIAGNOSTICS_LIST = ['DPE','DPE Projeté','DPE Immeuble','Amiante','Prélèvement Amiante','Plomb','Prélèvement Plomb','Électricité','Gaz','Termites','ERP','Carrez','Boutin','Avant travaux','Avant démolition','Audit énergétique','Frais déplacement'];
+var DEVIS_DIAGNOSTICS_LIST = ['DPE','DPE Projeté','DPE Immeuble','Amiante','DAPP','Prélèvement Amiante','Plomb','Prélèvement Plomb','Électricité','Gaz','Termites','ERP','Carrez','Boutin','Avant travaux','Avant démolition','Audit énergétique','Frais déplacement'];
+
+// Diagnostics dont la quantité est saisie manuellement (tarif unitaire × nb de prélèvements)
+var PRELEVEMENTS_WITH_QTE = ['Prélèvement Amiante', 'Prélèvement Plomb'];
 
 var DEVIS_DEPS_LIST = ['Garage','Cave','Grenier','Box','Parking','Local annexe','Sous-sol','Dépendance extérieure'];
 
@@ -276,7 +279,7 @@ function renderDevisForm(body) {
         </div>
         <div class="devis-field">
           <label class="devis-label">Type de bien</label>
-          <select class="devis-select" id="dv-bien_type">
+          <select class="devis-select" id="dv-bien_type" onchange="_dvUpdateDAPP()">
             ${['Maison','Appartement','Local commercial','Immeuble','Partie commune','Cave / Box','Dépendance'].map(function(t) { return '<option ' + ((devis.bien_type||'Maison')===t?'selected':'') + '>' + t + '</option>'; }).join('')}
           </select>
         </div>
@@ -338,7 +341,7 @@ function renderDevisForm(body) {
         </div>
         <div class="devis-field" style="grid-column:1/-1">
           <label class="devis-label">Type de transaction</label>
-          <select class="devis-select" id="dv-type_transaction">
+          <select class="devis-select" id="dv-type_transaction" onchange="_dvUpdateDAPP()">
             <option value="" ${!devis.type_transaction?'selected':''}>— Non renseigné —</option>
             <option value="Vente" ${devis.type_transaction==='Vente'?'selected':''}>Vente</option>
             <option value="Location" ${devis.type_transaction==='Location'?'selected':''}>Location</option>
@@ -382,9 +385,18 @@ function renderDevisForm(body) {
         ${DEVIS_DIAGNOSTICS_LIST.map(function(d) {
           var isSel = sel.includes(d);
           var tarif_manuel = devis.tarifs_manuels && devis.tarifs_manuels[d] !== undefined ? devis.tarifs_manuels[d] : (tarifs[d]||0);
-          return '<div class="diag-item ' + (isSel?'selected':'') + '" onclick="toggleDevisDiag(this,\'' + d + '\')" style="' + (isSel?'border-color:#059669;background:#05966912':'') + '">'
+          var isDAPP   = (d === 'DAPP');
+          var isPrelev = PRELEVEMENTS_WITH_QTE.indexOf(d) >= 0;
+          var qte_prel = isPrelev ? (devis.qte_manuels && devis.qte_manuels[d] ? devis.qte_manuels[d] : 1) : 1;
+          var extraStyle = ''; // DAPP toujours visible — l'auto-cochage gère la sélection
+          return '<div class="diag-item ' + (isSel?'selected':'') + '"'
+            + (isDAPP ? ' data-dapp-item="1"' : '')
+            + ' onclick="toggleDevisDiag(this,\'' + d + '\')"'
+            + ' style="' + extraStyle + (isSel?'border-color:#059669;background:#05966912':'') + '">'
             + '<input type="checkbox" ' + (isSel?'checked':'') + ' readonly style="accent-color:#059669;pointer-events:none"/>'
             + '<span style="font-size:13px;flex:1">' + d + '</span>'
+            + (isDAPP ? '<span style="font-size:9px;color:#F59E0B;font-weight:700;white-space:nowrap;margin-right:2px">Liste A</span>' : '')
+            + (isPrelev ? '<input type="number" class="dv-qte-input" data-diag="' + d + '" value="' + qte_prel + '" min="1" step="1" onclick="event.stopPropagation()" onchange="updateDevisTotal()" title="Nombre de prélèvements" style="width:28px;font-size:11px;color:#6366F1;font-weight:700;text-align:center;border:none;border-bottom:1px dashed #A5B4FC;background:transparent;outline:none;padding:0 1px"/><span style="font-size:10px;color:#6366F1;margin:0 1px">×</span>' : '')
             + '<input type="number" class="dv-tarif-input" data-diag="' + d + '" value="' + tarif_manuel + '" min="0" step="5" onclick="event.stopPropagation()" onchange="updateDevisTotal()" style="width:52px;font-size:11px;color:#059669;font-weight:700;text-align:right;border:none;border-bottom:1px dashed #A7F3D0;background:transparent;outline:none;padding:0 2px"/>'
             + '<span style="font-size:11px;color:#9ca3af;margin-left:1px">€</span>'
             + '</div>';
@@ -472,6 +484,52 @@ function renderDevisForm(body) {
       }
     }
   }, 50);
+}
+
+// ─── DAPP — auto-cochage selon type de transaction + bien ──────────────
+// DAPP toujours visible dans la grille ; auto-coché pour Location + Appartement
+function _dvUpdateDAPP() {
+  var txn  = (document.getElementById('dv-type_transaction') || {}).value || '';
+  var type = (document.getElementById('dv-bien_type') || {}).value || '';
+  var shouldCheck = (txn === 'Location' && type === 'Appartement');
+  var item = document.querySelector('#dv-diags-grid [data-dapp-item]');
+  if (!item) return;
+  // DAPP reste toujours visible — on ne le cache jamais
+  item.style.display = '';
+  var cb = item.querySelector('input[type="checkbox"]');
+  if (shouldCheck) {
+    if (cb && !cb.checked) {
+      cb.checked = true;
+      item.classList.add('selected');
+      item.style.borderColor = '#059669';
+      item.style.background  = '#05966912';
+    }
+  }
+  // Si les conditions ne sont pas remplies on ne décoche PAS automatiquement
+  // (l'utilisateur peut avoir coché DAPP manuellement)
+  updateDevisTotal();
+}
+
+// Mise à jour DAPP pour un lot du devis spécial standard
+function _dsUpdateLotDAPP(idx) {
+  var txn  = (document.getElementById('dv-type_transaction') || {}).value || '';
+  var type = (document.getElementById('ds-lot-'+idx+'-type') || {}).value || '';
+  var shouldCheck = (txn === 'Location' && type === 'Appartement');
+  var item = document.querySelector('[data-dapp-lot-item="'+idx+'"]');
+  if (!item) return;
+  // DAPP toujours visible — on ne le cache jamais
+  item.style.display = '';
+  var cb = item.querySelector('input[type="checkbox"]');
+  if (shouldCheck) {
+    if (cb && !cb.checked) {
+      cb.checked = true;
+      item.classList.add('selected');
+      item.style.borderColor = '#059669';
+      item.style.background  = '#05966912';
+    }
+  }
+  // On ne décoche pas automatiquement si l'utilisateur l'a coché manuellement
+  updateSpecialTotal();
 }
 
 // ─── TOGGLE ───
@@ -565,8 +623,11 @@ function updateDevisTotal() {
   // Calcule le sous-total en lisant les prix manuels des inputs
   var subtotal = 0;
   document.querySelectorAll('#dv-diags-grid .diag-item.selected').forEach(function(el) {
-    var inp = el.querySelector('.dv-tarif-input');
-    subtotal += inp ? (parseFloat(inp.value) || 0) : 0;
+    var inp    = el.querySelector('.dv-tarif-input');
+    var qteInp = el.querySelector('.dv-qte-input');
+    var price  = inp ? (parseFloat(inp.value) || 0) : 0;
+    var qty    = qteInp ? Math.max(1, parseInt(qteInp.value) || 1) : 1;
+    subtotal  += price * qty;
   });
   var remisePct  = parseFloat(document.getElementById('dv-remise-pct')?.value) || 0;
   var remiseEur  = subtotal * remisePct / 100;
@@ -589,8 +650,11 @@ function updateDevisTotal() {
 function updateDevisRemisePct() {
   var subtotal  = 0;
   document.querySelectorAll('#dv-diags-grid .diag-item.selected').forEach(function(el) {
-    var inp = el.querySelector('.dv-tarif-input');
-    subtotal += inp ? (parseFloat(inp.value) || 0) : 0;
+    var inp    = el.querySelector('.dv-tarif-input');
+    var qteInp = el.querySelector('.dv-qte-input');
+    var price  = inp ? (parseFloat(inp.value) || 0) : 0;
+    var qty    = qteInp ? Math.max(1, parseInt(qteInp.value) || 1) : 1;
+    subtotal  += price * qty;
   });
   var pct = parseFloat(document.getElementById('dv-remise-pct')?.value) || 0;
   var eur = subtotal * pct / 100;
@@ -602,8 +666,11 @@ function updateDevisRemisePct() {
 function updateDevisRemiseEur() {
   var subtotal = 0;
   document.querySelectorAll('#dv-diags-grid .diag-item.selected').forEach(function(el) {
-    var inp = el.querySelector('.dv-tarif-input');
-    subtotal += inp ? (parseFloat(inp.value) || 0) : 0;
+    var inp    = el.querySelector('.dv-tarif-input');
+    var qteInp = el.querySelector('.dv-qte-input');
+    var price  = inp ? (parseFloat(inp.value) || 0) : 0;
+    var qty    = qteInp ? Math.max(1, parseInt(qteInp.value) || 1) : 1;
+    subtotal  += price * qty;
   });
   var eur = parseFloat(document.getElementById('dv-remise-eur')?.value) || 0;
   var pct = subtotal > 0 ? (eur / subtotal * 100) : 0;
@@ -626,8 +693,17 @@ function getDevisFormData() {
   document.querySelectorAll('#dv-diags-grid .dv-tarif-input').forEach(function(inp) {
     tarifs_manuels[inp.dataset.diag] = parseFloat(inp.value) || 0;
   });
-  // Calculs avec tarifs manuels
-  var totalBrut = selDiags.reduce(function(s, d) { return s + (tarifs_manuels[d] !== undefined ? tarifs_manuels[d] : 0); }, 0);
+  // Quantités prélèvements
+  var qte_manuels = {};
+  document.querySelectorAll('#dv-diags-grid .dv-qte-input').forEach(function(inp) {
+    qte_manuels[inp.dataset.diag] = Math.max(1, parseInt(inp.value) || 1);
+  });
+  // Calculs avec tarifs manuels (et quantités pour les prélèvements)
+  var totalBrut = selDiags.reduce(function(s, d) {
+    var price = tarifs_manuels[d] !== undefined ? tarifs_manuels[d] : 0;
+    var qty   = (PRELEVEMENTS_WITH_QTE.indexOf(d) >= 0 && qte_manuels[d]) ? qte_manuels[d] : 1;
+    return s + price * qty;
+  }, 0);
   var remise_pct = parseFloat(document.getElementById('dv-remise-pct')?.value) || 0;
   var remise_eur = parseFloat(document.getElementById('dv-remise-eur')?.value) || 0;
   var totalHt   = Math.max(0, totalBrut - remise_eur);
@@ -658,6 +734,7 @@ function getDevisFormData() {
     taux_tva:             p.taux_tva || 20,
     diagnostics:          selDiags,
     tarifs_manuels:       tarifs_manuels,
+    qte_manuels:          qte_manuels,
     total_ht_brut:        totalBrut,
     remise_pct:           remise_pct,
     remise_eur:           remise_eur,
@@ -1043,6 +1120,8 @@ function calculerDiagsAuto() {
   });
 
   updateDevisTotal();
+  // Mettre \u00e0 jour la visibilit\u00e9 du DAPP apr\u00e8s l'auto-calcul
+  if (typeof _dvUpdateDAPP === 'function') _dvUpdateDAPP();
 
   var nb = obligatoires.length;
   alert('\u2705 ' + nb + ' diagnostic' + (nb > 1 ? 's' : '') + ' selectionne' + (nb > 1 ? 's' : '') + ' :\n' + obligatoires.join(', ') + '\n\nTu peux modifier la selection manuellement.');
@@ -1166,11 +1245,11 @@ function updateDevisBadge() {
 var _dsLots = [];
 
 function _dsNewLot() {
-  return { label: '', meme_adresse: true, adresse: '', type_bien: 'Appartement', quantite: 1, diagnostics: ['Frais déplacement'], tarifs_manuels: {}, sous_total: 0 };
+  return { label: '', meme_adresse: true, adresse: '', type_bien: 'Appartement', quantite: 1, diagnostics: ['Frais déplacement'], tarifs_manuels: {}, qte_manuels: {}, sous_total: 0 };
 }
 
 function _initDsLots(lots) {
-  _dsLots = (lots && lots.length) ? lots.map(function(l) { return Object.assign({}, l, { tarifs_manuels: Object.assign({}, l.tarifs_manuels||{}), diagnostics: (l.diagnostics||[]).slice() }); }) : [_dsNewLot()];
+  _dsLots = (lots && lots.length) ? lots.map(function(l) { return Object.assign({}, l, { tarifs_manuels: Object.assign({}, l.tarifs_manuels||{}), qte_manuels: Object.assign({}, l.qte_manuels||{}), diagnostics: (l.diagnostics||[]).slice() }); }) : [_dsNewLot()];
 }
 
 function addSpecialLot() {
@@ -1201,14 +1280,25 @@ function _syncLotsFromDOM() {
     if (memeEl)    lot.meme_adresse = memeEl.checked;
     if (qteEl)     lot.quantite     = Math.max(1, parseInt(qteEl.value)||1);
     var diagEls = document.querySelectorAll('#ds-lot-'+idx+'-diags .diag-item.selected');
-    lot.diagnostics = []; lot.tarifs_manuels = {}; var sub = 0;
+    lot.diagnostics = []; lot.tarifs_manuels = {}; lot.qte_manuels = {}; var sub = 0;
     diagEls.forEach(function(el) {
-      var inp = el.querySelector('.dv-tarif-input');
+      var inp    = el.querySelector('.dv-tarif-input');
+      var qteInp = el.querySelector('.dv-qte-input');
       var d = inp ? inp.dataset.diag : '';
       var v = parseFloat(inp ? inp.value : 0) || 0;
-      if (d) { lot.diagnostics.push(d); lot.tarifs_manuels[d] = v; sub += v; }
+      if (d) {
+        lot.diagnostics.push(d);
+        lot.tarifs_manuels[d] = v;
+        if (PRELEVEMENTS_WITH_QTE.indexOf(d) >= 0) {
+          var qty = qteInp ? Math.max(1, parseInt(qteInp.value) || 1) : 1;
+          lot.qte_manuels[d] = qty;
+          sub += v * qty;
+        } else {
+          sub += v;
+        }
+      }
     });
-    lot.sous_total = sub;
+    lot.sous_total = sub; // sous-total unitaire (avant multiplication par quantité lot)
   });
 }
 
@@ -1224,12 +1314,21 @@ function _renderLotsSection() {
 function _renderLotCard(lot, idx, tarifs) {
   var typeOpts = ['Maison','Appartement','Local commercial','Immeuble','Partie commune','Cave / Box','Dépendance']
     .map(function(t) { return '<option '+(lot.type_bien===t?'selected':'')+'>'+t+'</option>'; }).join('');
+  var _txn = (document.getElementById('dv-type_transaction') || {}).value || '';
   var diagsHtml = DEVIS_DIAGNOSTICS_LIST.map(function(d) {
-    var isSel = (lot.diagnostics||[]).includes(d);
-    var tv = (lot.tarifs_manuels && lot.tarifs_manuels[d] !== undefined) ? lot.tarifs_manuels[d] : (tarifs[d]||0);
-    return '<div class="diag-item '+(isSel?'selected':'')+'" onclick="_toggleLotDiag('+idx+',\''+d+'\',this)" style="'+(isSel?'border-color:#059669;background:#05966912':'')+'">'
+    var isSel    = (lot.diagnostics||[]).includes(d);
+    var tv       = (lot.tarifs_manuels && lot.tarifs_manuels[d] !== undefined) ? lot.tarifs_manuels[d] : (tarifs[d]||0);
+    var isDAPP   = (d === 'DAPP');
+    var isPrelev = PRELEVEMENTS_WITH_QTE.indexOf(d) >= 0;
+    var qte_lot  = isPrelev ? (lot.qte_manuels && lot.qte_manuels[d] ? lot.qte_manuels[d] : 1) : 1;
+    // DAPP toujours visible dans chaque lot — pas de display:none
+    return '<div class="diag-item '+(isSel?'selected':'')+'"'
+      +(isDAPP?' data-dapp-lot-item="'+idx+'"':'')
+      +' onclick="_toggleLotDiag('+idx+',\''+d+'\',this)" style="'+(isSel?'border-color:#059669;background:#05966912':'')+'">'
       +'<input type="checkbox" '+(isSel?'checked':'')+' readonly style="accent-color:#059669;pointer-events:none"/>'
       +'<span style="font-size:13px;flex:1">'+d+'</span>'
+      +(isDAPP?'<span style="font-size:9px;color:#F59E0B;font-weight:700;white-space:nowrap;margin-right:2px">Liste A</span>':'')
+      +(isPrelev?'<input type="number" class="dv-qte-input" data-lot="'+idx+'" data-diag="'+d+'" value="'+qte_lot+'" min="1" step="1" onclick="event.stopPropagation()" onchange="updateSpecialTotal()" title="Nb de prélèvements" style="width:28px;font-size:11px;color:#6366F1;font-weight:700;text-align:center;border:none;border-bottom:1px dashed #A5B4FC;background:transparent;outline:none;padding:0 1px"/><span style="font-size:10px;color:#6366F1;margin:0 1px">×</span>':'')
       +'<input type="number" class="dv-tarif-input" data-lot="'+idx+'" data-diag="'+d+'" value="'+tv+'" min="0" step="5" onclick="event.stopPropagation()" onchange="updateSpecialTotal()" style="width:52px;font-size:11px;color:#059669;font-weight:700;text-align:right;border:none;border-bottom:1px dashed #A7F3D0;background:transparent;outline:none;padding:0 2px"/>'
       +'<span style="font-size:11px;color:#9ca3af;margin-left:1px">€</span></div>';
   }).join('');
@@ -1246,7 +1345,7 @@ function _renderLotCard(lot, idx, tarifs) {
     +'Même adresse que ci-dessus</label>'
     +'<input class="devis-input" id="ds-lot-'+idx+'-adresse" type="text" value="'+(lot.adresse||'')+'" placeholder="Adresse spécifique..." style="margin-top:6px;'+(lot.meme_adresse?'display:none':'')+'" /></div>'
     +'<div class="devis-field"><label class="devis-label">Type de bien</label>'
-    +'<select class="devis-select" id="ds-lot-'+idx+'-type">'+typeOpts+'</select></div>'
+    +'<select class="devis-select" id="ds-lot-'+idx+'-type" onchange="_dsUpdateLotDAPP('+idx+')">'+typeOpts+'</select></div>'
     +'<div class="devis-field"><label class="devis-label">Quantité</label>'
     +'<input class="devis-input" id="ds-lot-'+idx+'-qte" type="number" min="1" step="1" value="'+(lot.quantite||1)+'" onchange="updateSpecialTotal()" style="text-align:center"/></div>'
     +'</div>'
@@ -1281,17 +1380,26 @@ function _toggleLotDiag(idx, diag, el) {
 function updateSpecialTotal() {
   var grandTotal = 0;
   _dsLots.forEach(function(lot, idx) {
-    var sub = 0;
+    var subParBien = 0; // Diags classiques × qte_lot
+    var subPrelev  = 0; // Prélèvements × leur propre quantité (PAS × qte_lot)
     document.querySelectorAll('#ds-lot-'+idx+'-diags .diag-item.selected').forEach(function(el) {
-      var inp = el.querySelector('.dv-tarif-input');
-      sub += parseFloat(inp ? inp.value : 0) || 0;
+      var inp    = el.querySelector('.dv-tarif-input');
+      var qteInp = el.querySelector('.dv-qte-input');
+      var price  = parseFloat(inp ? inp.value : 0) || 0;
+      var diag   = inp ? inp.dataset.diag : '';
+      if (PRELEVEMENTS_WITH_QTE.indexOf(diag) >= 0) {
+        var qty = qteInp ? Math.max(1, parseInt(qteInp.value) || 1) : 1;
+        subPrelev += price * qty;
+      } else {
+        subParBien += price;
+      }
     });
     var qteEl = document.getElementById('ds-lot-'+idx+'-qte');
     var qte = Math.max(1, parseInt(qteEl ? qteEl.value : 1)||1);
-    lot.sous_total = sub * qte;
+    lot.sous_total = subParBien * qte + subPrelev;
     var subEl = document.getElementById('ds-lot-'+idx+'-subtotal');
-    if (subEl) subEl.textContent = (sub * qte).toFixed(2);
-    grandTotal += sub * qte;
+    if (subEl) subEl.textContent = lot.sous_total.toFixed(2);
+    grandTotal += lot.sous_total;
   });
   var stEl = document.getElementById('ds-grand-subtotal');
   if (stEl) stEl.textContent = grandTotal.toFixed(2) + ' €';
