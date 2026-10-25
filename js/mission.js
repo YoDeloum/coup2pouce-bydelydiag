@@ -89,6 +89,7 @@ function renderMissionForm(body) {
       typeBien:             src.bien_type    || '',
       date:                 src.date_mission || new Date().toISOString().split('T')[0],
       diags:                src.diagnostics  || [],
+      qte_manuels:          src.qte_manuels  || {},
       devis_ref:            src.numero       || '',
       periode_construction: src.periode_construction || '',
       nb_pieces:            src.nb_pieces    || '',
@@ -180,11 +181,14 @@ function renderMissionForm(body) {
       <div class="diag-grid">
         ${diags.map(function(d) {
           // Nouvelle mission sans diags sauvegardés → pré-cocher "Frais déplacement"
-          var isSel = m.diags != null ? m.diags.includes(d) : (d === 'Frais déplacement');
+          var isSel    = m.diags != null ? m.diags.includes(d) : (d === 'Frais déplacement');
           var isTravel = d === 'Frais déplacement';
+          var isPrelev = typeof PRELEVEMENTS_WITH_QTE !== 'undefined' && PRELEVEMENTS_WITH_QTE.indexOf(d) >= 0;
+          var qte_prel = isPrelev ? ((m.qte_manuels && m.qte_manuels[d]) ? m.qte_manuels[d] : 1) : 1;
           return '<div class="diag-item ' + (isSel?'selected':'') + '" onclick="toggleDiag(this,\'' + d + '\')">'
             + '<input type="checkbox" ' + (isSel?'checked':'') + ' readonly/>'
             + '<span style="font-size:13px' + (isTravel?';color:#B45309;font-weight:600':'') + '">' + d + '</span>'
+            + (isPrelev ? '<input type="number" class="m-qte-prelev" data-diag="' + d + '" value="' + qte_prel + '" min="1" step="1" onclick="event.stopPropagation()" onchange="calculerTotalMission(false)" title="Nombre de prélèvements" style="width:28px;font-size:11px;color:#6366F1;font-weight:700;text-align:center;border:none;border-bottom:1px dashed #A5B4FC;background:transparent;outline:none;padding:0 1px"/><span style="font-size:10px;color:#6366F1;margin:0 2px">×</span>' : '')
             + '</div>';
         }).join('')}
       </div>
@@ -227,7 +231,9 @@ function renderMissionForm(body) {
     <div id="outils-terrain-panel" style="display:none;background:#F9FAFB;border-radius:12px;border:1.5px solid #E5E7EB;padding:10px;margin-bottom:10px">
       <button onclick="ouvrirFeuilleVisite()" style="width:100%;padding:11px;border-radius:10px;border:1.5px solid #E5E7EB;background:#fff;color:#2D6A4F;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px">📋 Feuille de visite terrain</button>
       <button onclick="missionView='dpe';renderMissionScreen()" style="width:100%;padding:11px;border-radius:10px;border:1.5px solid #E5E7EB;background:#fff;color:#1D4ED8;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px">📐 Relevé DPE — Analyser un croquis</button>
-      ${currentMissionIdx !== null ? '<button onclick="openTerrain(currentMissionIdx)" style="width:100%;padding:11px;border-radius:10px;border:1.5px solid #E5E7EB;background:#fff;color:#374151;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🎙️ Notes Terrain</button>' : ''}
+      ${currentMissionIdx !== null ? '<button onclick="openTerrain(currentMissionIdx)" style="width:100%;padding:11px;border-radius:10px;border:1.5px solid #E5E7EB;background:#fff;color:#374151;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px">🎙️ Notes Terrain</button>' : ''}
+      ${(function(){ var _p = getCompanyProfile(); return _p.url_espace_amiante ? '<button onclick="window.open(\''+_p.url_espace_amiante+'\',\'_blank\')" style="width:100%;padding:11px;border-radius:10px;border:1.5px solid #E5E7EB;background:#fff;color:#7C3AED;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px">🔬 Mon espace amiante</button>' : ''; })()}
+      ${(function(){ var _p = getCompanyProfile(); return _p.url_erp ? '<button onclick="window.open(\''+_p.url_erp+'\',\'_blank\')" style="width:100%;padding:11px;border-radius:10px;border:1.5px solid #E5E7EB;background:#fff;color:#B45309;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">📋 Mon espace ERP</button>' : ''; })()}
     </div>
     ${currentMissionIdx !== null ? _renderConsentBlock(m) : ''}
     ${currentMissionIdx !== null ? '<button onclick="deleteMission()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #EF4444;background:#fff;color:#EF4444;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">🗑️ Supprimer cette mission</button>' : ''}`;
@@ -299,10 +305,19 @@ function calculerTotalMission(forceOverwrite) {
     typeof TARIFS_DEFAULT !== 'undefined' ? TARIFS_DEFAULT : {},
     JSON.parse(localStorage.getItem('dd_tarifs') || '{}')
   );
-  var diags = Array.from(document.querySelectorAll('.diag-grid .diag-item.selected')).map(function(el) {
-    return el.querySelector('span').textContent;
+  var _PRELEV = typeof PRELEVEMENTS_WITH_QTE !== 'undefined' ? PRELEVEMENTS_WITH_QTE : ['Prélèvement Amiante', 'Prélèvement Plomb'];
+  var total = 0;
+  document.querySelectorAll('.diag-grid .diag-item.selected').forEach(function(el) {
+    var d     = el.querySelector('span').textContent;
+    var price = parseFloat(tarifs[d]) || 0;
+    if (_PRELEV.indexOf(d) >= 0) {
+      var qteInp = el.querySelector('.m-qte-prelev[data-diag="' + d + '"]');
+      var qty = qteInp ? Math.max(1, parseInt(qteInp.value) || 1) : 1;
+      total += price * qty;
+    } else {
+      total += price;
+    }
   });
-  var total = diags.reduce(function(sum, d) { return sum + (parseFloat(tarifs[d]) || 0); }, 0);
   var calcEl = document.getElementById('m-total-calc');
   if (calcEl) calcEl.textContent = total > 0 ? total.toFixed(2) + ' €' : '—';
   var input = document.getElementById('m-total');
@@ -314,6 +329,11 @@ function calculerTotalMission(forceOverwrite) {
 function getMissionFormData() {
   var diags = Array.from(document.querySelectorAll('.diag-grid .diag-item.selected')).map(function(el) {
     return el.querySelector('span').textContent;
+  });
+  // Quantités des prélèvements
+  var qte_manuels = {};
+  document.querySelectorAll('.diag-grid .m-qte-prelev').forEach(function(inp) {
+    qte_manuels[inp.dataset.diag] = Math.max(1, parseInt(inp.value) || 1);
   });
   return {
     societe:              document.getElementById('m-societe')?.value           || '',
@@ -335,6 +355,7 @@ function getMissionFormData() {
     type_transaction:     document.getElementById('m-type_transaction')?.value || '',
     total:                document.getElementById('m-total')?.value            || '',
     diags,
+    qte_manuels,
     savedAt: new Date().toISOString()
   };
 }
