@@ -381,24 +381,23 @@ function renderDevisForm(body) {
       <div class="devis-section-title">🔬 Prestations</div>
       <p style="font-size:12px;color:#6B7280;margin-bottom:12px">Sélectionne les diagnostics — tarifs depuis ton profil</p>
       <button onclick="calculerDiagsAuto()" style="width:100%;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,#6366F1,#818CF8);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">⚡ Calculer automatiquement les diagnostics obligatoires</button>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="dv-diags-grid">
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px" id="dv-diags-grid">
         ${DEVIS_DIAGNOSTICS_LIST.map(function(d) {
           var isSel = sel.includes(d);
           var tarif_manuel = devis.tarifs_manuels && devis.tarifs_manuels[d] !== undefined ? devis.tarifs_manuels[d] : (tarifs[d]||0);
           var isDAPP   = (d === 'DAPP');
           var isPrelev = PRELEVEMENTS_WITH_QTE.indexOf(d) >= 0;
           var qte_prel = isPrelev ? (devis.qte_manuels && devis.qte_manuels[d] ? devis.qte_manuels[d] : 1) : 1;
-          var extraStyle = ''; // DAPP toujours visible — l'auto-cochage gère la sélection
-          return '<div class="diag-item ' + (isSel?'selected':'') + '"'
+          return '<div class="diag-item ' + (isSel?'selected':'') + '" style="overflow:hidden;min-width:0;'
+            + (isSel?'border-color:#059669;background:#05966912':'') + '"'
             + (isDAPP ? ' data-dapp-item="1"' : '')
-            + ' onclick="toggleDevisDiag(this,\'' + d + '\')"'
-            + ' style="' + extraStyle + (isSel?'border-color:#059669;background:#05966912':'') + '">'
-            + '<input type="checkbox" ' + (isSel?'checked':'') + ' readonly style="accent-color:#059669;pointer-events:none"/>'
-            + '<span style="font-size:13px;flex:1">' + d + '</span>'
-            + (isDAPP ? '<span style="font-size:9px;color:#F59E0B;font-weight:700;white-space:nowrap;margin-right:2px">Liste A</span>' : '')
-            + (isPrelev ? '<input type="number" class="dv-qte-input" data-diag="' + d + '" value="' + qte_prel + '" min="1" step="1" onclick="event.stopPropagation()" onchange="updateDevisTotal()" title="Nombre de prélèvements" style="width:28px;font-size:11px;color:#6366F1;font-weight:700;text-align:center;border:none;border-bottom:1px dashed #A5B4FC;background:transparent;outline:none;padding:0 1px"/><span style="font-size:10px;color:#6366F1;margin:0 1px">×</span>' : '')
-            + '<input type="number" class="dv-tarif-input" data-diag="' + d + '" value="' + tarif_manuel + '" min="0" step="5" onclick="event.stopPropagation()" onchange="updateDevisTotal()" style="width:52px;font-size:11px;color:#059669;font-weight:700;text-align:right;border:none;border-bottom:1px dashed #A7F3D0;background:transparent;outline:none;padding:0 2px"/>'
-            + '<span style="font-size:11px;color:#9ca3af;margin-left:1px">€</span>'
+            + ' onclick="toggleDevisDiag(this,\'' + d + '\')">'
+            + '<input type="checkbox" ' + (isSel?'checked':'') + ' readonly style="accent-color:#059669;pointer-events:none;flex-shrink:0"/>'
+            + '<span style="font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + d + '</span>'
+            + (isDAPP ? '<span style="font-size:8px;color:#F59E0B;font-weight:700;flex-shrink:0;margin-right:2px">A</span>' : '')
+            + (isPrelev ? '<input type="number" class="dv-qte-input" data-diag="' + d + '" value="' + qte_prel + '" min="1" step="1" onclick="event.stopPropagation()" onchange="updateDevisTotal()" title="Nombre de prélèvements" style="width:24px;font-size:11px;color:#6366F1;font-weight:700;text-align:center;border:none;border-bottom:1px dashed #A5B4FC;background:transparent;outline:none;padding:0;flex-shrink:0"/><span style="font-size:10px;color:#6366F1;flex-shrink:0">×</span>' : '')
+            + '<input type="number" class="dv-tarif-input" data-diag="' + d + '" value="' + tarif_manuel + '" min="0" step="5" onclick="event.stopPropagation()" onchange="updateDevisTotal()" style="width:44px;font-size:11px;color:#059669;font-weight:700;text-align:right;border:none;border-bottom:1px dashed #A7F3D0;background:transparent;outline:none;padding:0 1px;flex-shrink:0"/>'
+            + '<span style="font-size:11px;color:#9ca3af;flex-shrink:0">€</span>'
             + '</div>';
         }).join('')}
       </div>
