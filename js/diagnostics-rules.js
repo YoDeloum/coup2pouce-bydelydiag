@@ -52,11 +52,19 @@ function calculerDiagnosticsObligatoires(params) {
 
   // ── AMIANTE ──────────────────────────────────
   // Avant juillet 1997 (couvre Avant 1949 + 1949-1997)
-  // Exception : location d'une maison individuelle → non obligatoire
+  // Exceptions location :
+  //   - maison individuelle : non obligatoire
+  //   - appartement : c'est le DAPP (Liste A) qui s'applique, pas l'état d'amiante
   if (avant1997) {
-    var exemptLocation = (location && maison);
+    var exemptLocation = location && (maison || appart);
     if (!exemptLocation) result.push('Amiante');
   }
+
+  // ── DAPP (Diagnostic Amiante Parties Privatives) ──────────────
+  // UNIQUEMENT pour la location d'un appartement
+  // JAMAIS pour la location d'une maison individuelle
+  // Recherche Liste A uniquement : flocage, calorifugeage, faux plafond
+  if (location && appart) result.push('DAPP');
 
   // ── ERP ──────────────────────────────────────
   // État des Risques et Pollutions — obligatoire vente ET location
