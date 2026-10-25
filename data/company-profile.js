@@ -31,6 +31,9 @@ var COMPANY_PROFILE_DEFAULT = {
   rib_bic:          '',
   // Paiement en ligne (lien Stripe, SumUp, PayPal, Revolut…)
   lien_paiement:    '',
+  // Liens externes (outils terrain)
+  url_espace_amiante: '', // Lien vers l'espace labo amiante (Eurofins, etc.)
+  url_erp:            '', // Lien vers la plateforme ERP
   // Logo (base64 ou URL)
   logo:             '',
 };
