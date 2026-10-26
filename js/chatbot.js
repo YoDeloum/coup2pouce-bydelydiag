@@ -486,6 +486,64 @@ VALEURS EXACTES DU JSON (respecter la casse) :
 - surface et nb_pieces : entiers (0 si non renseigné)
 - N'inclus JAMAIS de commentaires dans le JSON, uniquement les valeurs
 
+══════════ ACTIONS MIIA — NAVIGATION ET AUTOMATISATIONS ══════════
+
+Tu peux DÉCLENCHER des actions directement dans l'application. Place toujours le bloc d'action à la FIN de ta réponse, après ton texte. Un seul bloc par réponse. JSON valide uniquement (zéro commentaire).
+
+🧭 NAVIGATION — Ouvrir un écran de l'application :
+Quand l'utilisateur dit "ouvre les devis", "va sur les missions", "affiche les stats", "montre les factures", "emmène-moi sur le profil", etc. :
+<<<NAVIGATE:devis>>> → ouvre l'écran Devis
+<<<NAVIGATE:factures>>> → ouvre l'écran Factures
+<<<NAVIGATE:missions>>> → ouvre l'écran Missions / Planning
+<<<NAVIGATE:stats>>> → ouvre les Statistiques
+<<<NAVIGATE:clients>>> → ouvre la liste Clients
+<<<NAVIGATE:profil>>> → ouvre les Réglages / Profil
+<<<NAVIGATE:checklist>>> → ouvre la Checklist terrain
+<<<NAVIGATE:prospection>>> → ouvre la Prospection
+<<<NAVIGATE:home>>> → revient à l'Accueil
+Exemple : "C'est parti, je t'ouvre les devis ! <<<NAVIGATE:devis>>>"
+
+🎯 OBJECTIF MENSUEL — Fixer/modifier l'objectif CA :
+Quand l'utilisateur dit "fixe mon objectif à X €", "mets l'objectif du mois à X", "je veux viser X € ce mois", "mon objectif c'est X €" :
+<<<OBJECTIF:4000>>> (montant entier sans €, sans espace — ex: <<<OBJECTIF:5000>>>)
+Exemple : "C'est noté, objectif du mois fixé à 5 000 € ! <<<OBJECTIF:5000>>>"
+
+📋 MISSION — Pré-remplir le formulaire nouvelle mission :
+Quand l'utilisateur demande de créer une mission, planifier un RDV terrain, ajouter une mission, programmer une intervention :
+1. Pose les questions manquantes UNE PAR UNE si non précisées (nom client, adresse, date, type de bien, diagnostics).
+2. Quand tu as les infos clés, génère le bloc EXACTEMENT ainsi (aucun espace avant <<<) :
+<<<MISSION_DATA>>>
+{"societe":"","nom":"","prenom":"","tel":"","email":"","adresse":"","typeBien":"Appartement","periode_construction":"1949-1997","date":"YYYY-MM-DD","diags":["DPE"]}
+<<<END_MISSION>>>
+3. Après le bloc : "✅ Le formulaire mission s'ouvre pré-rempli — vérifie et complète avant de sauvegarder !"
+Valeurs exactes JSON mission :
+- typeBien : "Maison", "Appartement", "Local commercial", "Immeuble", "Dépendance"
+- periode_construction : "Avant 1949", "1949-1997", "1997-2011", "Après 2011"
+- date : format YYYY-MM-DD (si non précisée, utilise la date du lendemain)
+- diags : parmi : DPE, Amiante, Plomb, Électricité, Gaz, Termites, ERP, Carrez, Boutin, Avant travaux, Avant démolition, Audit énergétique, Frais déplacement
+
+══════════ GUIDE DE L'APPLICATION COUP 2 POUCE ══════════
+
+L'application COUP 2 POUCE PRO est une PWA pour diagnostiqueurs immobiliers DELY DIAG. Voici ses fonctionnalités :
+
+📄 DEVIS : Créer, modifier, envoyer par email des devis de diagnostics. Devis standard (diagnostiqueur) et devis spécial (agent commercial). Champs : client, adresse du bien, type de bien, période de construction, diagnostics choisis avec tarifs auto.
+
+🧾 FACTURES : Transformer un devis en facture, gérer les statuts (En attente / Payé / Annulé), envoyer par email, télécharger en PDF.
+
+📅 MISSIONS / PLANNING : Planifier les interventions terrain. Formulaire : client, adresse, type de bien, date, diagnostics à réaliser. Vue liste et vue calendrier disponibles.
+
+📊 STATISTIQUES : CA mensuel, objectif avec jauge de progression, top diagnostics, top clients. Permet de fixer/modifier l'objectif mensuel.
+
+👥 CLIENTS : Liste de tous les clients avec recherche, historique des devis et factures.
+
+👤 PROFIL / RÉGLAGES : Informations de la société (nom, adresse, SIRET, logo, tarifs, mentions légales, signature).
+
+✅ CHECKLIST TERRAIN : Checklist de mission étape par étape selon les diagnostics à réaliser.
+
+🎯 PROSPECTION : Suivi des prospects et relances commerciales.
+
+🔧 TARIFS : Les tarifs par diagnostic sont configurables dans le profil. Les diagnostics facturables incluent : DPE, Amiante, Plomb, Électricité, Gaz, Termites, ERP, Carrez, Boutin, Audit énergétique, Frais déplacement et autres.
+
 ══════════ RÈGLES MIIA ══════════
 - Réponds TOUJOURS en français
 - Sois précis, cite les textes de référence quand pertinent
@@ -508,8 +566,11 @@ if (window.speechSynthesis) {
 function _speakMiia(text) {
   if (!_miiaVoiceEnabled || !window.speechSynthesis) return;
   window.speechSynthesis.cancel();
-  // Supprimer le bloc JSON devis avant de parler
+  // Supprimer les blocs d'action avant de parler
   text = text.replace(/<<<DEVIS_DATA>>>[\s\S]*?<<<END_DEVIS>>>/g, 'Formulaire de devis en cours d\'ouverture.');
+  text = text.replace(/<<<MISSION_DATA>>>[\s\S]*?<<<END_MISSION>>>/g, 'Formulaire de mission en cours d\'ouverture.');
+  text = text.replace(/<<<NAVIGATE:[^>]+>>>/g, '');
+  text = text.replace(/<<<OBJECTIF:[^>]+>>>/g, 'Objectif mis à jour.');
   // Nettoyer le markdown et les symboles non parlables
   var clean = text
     .replace(/[═─✅❌⚠️🔬🔴⚡🔥🌡️🐜☢️📋⏱️⚖️🏗️🔧🌬️🧱💶📄#*_`>]/g, '')
@@ -552,7 +613,14 @@ function _isDataQuestion(text) {
     'ca ', ' ca', 'chiffre', 'argent', 'facture', 'impayé', 'impayée', 'encaiss',
     'devis', 'objectif', 'stats', 'statistique', 'mois', "aujourd", 'activité',
     'résultat', 'combien', 'client', 'prochain', 'prochaine', 'relance', 'signé',
-    'en attente', 'payé', 'annulé', 'clôturé', 'total'
+    'en attente', 'payé', 'annulé', 'clôturé', 'total',
+    // Mots-clés supplémentaires pour actions et navigation
+    'ouvre', 'ouvrir', 'va sur', 'aller sur', 'affiche', 'montre', 'navigue',
+    'fixe', 'règle', 'change', 'modifier', 'met', 'mets', 'établi',
+    'crée une mission', 'nouvelle mission', 'planifie', 'ajoute une mission',
+    'nouveau rdv', 'intervention', 'alerte', 'rappel', 'retard', 'délai',
+    'prochain rdv', 'prochains rdv', 'prochaines missions', 'semaine prochaine',
+    'tarif', 'tarifs', 'prix', 'grille', 'honoraire'
   ];
   return keywords.some(function(kw) { return t.indexOf(kw) !== -1; });
 }
@@ -619,14 +687,60 @@ function _gatherAppContext() {
     return '• ' + nom + ' — ' + mt + ' € (' + (f.statut || 'En attente') + ')';
   }).join('\n') || '• Aucune facture impayée';
 
+  // ── Prochains 7 jours (hors semaine courante si besoin) ──
+  var next7End = new Date(now); next7End.setDate(now.getDate() + 7);
+  var n7Str = next7End.toISOString().substring(0, 10);
+  var next7Missions = allMissions.filter(function(m) { return m.date && m.date > today && m.date <= n7Str; })
+                                  .sort(function(a, b) { return a.date.localeCompare(b.date); });
+  var next7Lines = next7Missions.map(function(m) {
+    var nom = ((m.nom || m.client_nom || '') + ' ' + (m.prenom || m.client_prenom || '')).trim() || 'Client inconnu';
+    var diags = (m.diags || []).join(', ') || 'diagnostic';
+    return '• ' + m.date + ' : ' + nom + ' — ' + diags;
+  }).join('\n') || '• Aucune mission dans les 7 prochains jours';
+
+  // ── Alertes intelligentes ──
+  var alertLines = [];
+  // Factures impayées depuis > 30 jours
+  var now_ts = now.getTime();
+  factImpayees.forEach(function(f) {
+    var fDate = f.date || f.created_at || '';
+    if (fDate) {
+      var diff = Math.floor((now_ts - new Date(fDate).getTime()) / 86400000);
+      if (diff > 30) {
+        var nom = (f.client_nom || f.nom || 'Client').trim();
+        var mt  = parseFloat(f.total_ht || f.prix_final || 0).toFixed(0);
+        alertLines.push('⚠️ Facture impayée +' + diff + 'j : ' + nom + ' — ' + mt + ' €');
+      }
+    }
+  });
+  // Devis sans réponse depuis > 15 jours
+  devisEnAttente.forEach(function(d) {
+    var dDate = d.date || d.created_at || '';
+    if (dDate) {
+      var diff = Math.floor((now_ts - new Date(dDate).getTime()) / 86400000);
+      if (diff > 15) {
+        var nom = (d.client_nom || d.nom || 'Client').trim();
+        var mt  = parseFloat(d.total_ht || d.prix_final || 0).toFixed(0);
+        alertLines.push('📋 Devis sans réponse +' + diff + 'j : ' + nom + ' — ' + mt + ' €');
+      }
+    }
+  });
+
+  // ── Tarifs configurés ──
+  var tarifLines = Object.keys(tarifs).filter(function(k) { return parseFloat(tarifs[k]) > 0; })
+    .map(function(k) { return '• ' + k + ' : ' + parseFloat(tarifs[k]).toFixed(0) + ' €'; })
+    .join('\n') || '• Tarifs non configurés';
+
   var ctx = '\n\n══════════ DONNÉES TEMPS RÉEL DE TON APPLICATION ══════════\n';
   ctx += 'Date du jour : ' + today + '\n';
   ctx += 'Semaine en cours : ' + wsStr + ' → ' + weStr + '\n\n';
   ctx += '📅 RDV / MISSIONS CETTE SEMAINE (' + weekMissions.length + ') :\n' + rdvLines + '\n\n';
+  ctx += '🔮 PROCHAINES MISSIONS (7 jours) :\n' + next7Lines + '\n\n';
   ctx += '📊 CA DU MOIS EN COURS (' + currentMonth + ') :\n';
   ctx += '• CA estimé (missions) : ' + caMonth.toFixed(0) + ' €\n';
   ctx += '• Missions ce mois : ' + monthMissions.length + '\n';
   if (objectif > 0) ctx += '• Objectif mensuel : ' + objectif.toFixed(0) + ' € → ' + (pctObj || 0) + '% atteint\n';
+  else ctx += '• Objectif mensuel : non défini\n';
   ctx += '• CA total tous mois : ' + caTotal.toFixed(0) + ' €\n\n';
   ctx += '💶 FACTURES :\n';
   ctx += '• Factures impayées : ' + factImpayees.length + ' — total ' + totalImpaye.toFixed(0) + ' €\n';
@@ -639,7 +753,11 @@ function _gatherAppContext() {
   ctx += '📋 ACTIVITÉ GLOBALE :\n';
   ctx += '• Total missions (toutes périodes) : ' + allMissions.length + '\n';
   ctx += '• Total devis créés : ' + allDevis.length + '\n';
-  ctx += '• Total factures émises : ' + allFactures.length + '\n';
+  ctx += '• Total factures émises : ' + allFactures.length + '\n\n';
+  if (alertLines.length > 0) {
+    ctx += '🚨 ALERTES :\n' + alertLines.join('\n') + '\n\n';
+  }
+  ctx += '💰 TARIFS CONFIGURÉS :\n' + tarifLines + '\n';
   ctx += '══════════════════════════════════════════════════════\n';
   ctx += 'Utilise ces données pour répondre. Si données à 0 = pas encore enregistré.\n';
   ctx += '⚡ RÈGLE ABSOLUE : Réponds en MAXIMUM 2 phrases courtes. Donne le chiffre clé + une phrase de contexte. PAS de liste, PAS d\'explication longue. L\'utilisateur t\'écoute à voix haute.';
@@ -676,9 +794,16 @@ function addMsg(text, type) {
   var msgs = document.getElementById('chat-messages');
   var div  = document.createElement('div');
   div.className = 'msg ' + type;
-  // Remplacer le bloc JSON devis par un message visuel propre
-  var displayText = text.replace(/<<<DEVIS_DATA>>>[\s\S]*?<<<END_DEVIS>>>/g,
-    '<span style="display:inline-block;background:#F0FDF4;border:1.5px solid #6EE7B7;border-radius:10px;padding:8px 14px;margin-top:6px;font-size:13px;color:#065F46;font-weight:600">📋 Ouverture du formulaire devis...</span>');
+  // Remplacer les blocs d'action par des messages visuels propres
+  var displayText = text
+    .replace(/<<<DEVIS_DATA>>>[\s\S]*?<<<END_DEVIS>>>/g,
+      '<span style="display:inline-block;background:#F0FDF4;border:1.5px solid #6EE7B7;border-radius:10px;padding:8px 14px;margin-top:6px;font-size:13px;color:#065F46;font-weight:600">📋 Ouverture du formulaire devis...</span>')
+    .replace(/<<<MISSION_DATA>>>[\s\S]*?<<<END_MISSION>>>/g,
+      '<span style="display:inline-block;background:#EFF6FF;border:1.5px solid #93C5FD;border-radius:10px;padding:8px 14px;margin-top:6px;font-size:13px;color:#1E40AF;font-weight:600">📅 Ouverture du formulaire mission...</span>')
+    .replace(/<<<NAVIGATE:([^>]+)>>>/g,
+      '<span style="display:inline-block;background:#FFF7ED;border:1.5px solid #FCD34D;border-radius:10px;padding:8px 14px;margin-top:6px;font-size:13px;color:#92400E;font-weight:600">🧭 Navigation en cours...</span>')
+    .replace(/<<<OBJECTIF:([^>]+)>>>/g,
+      '<span style="display:inline-block;background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:10px;padding:8px 14px;margin-top:6px;font-size:13px;color:#14532D;font-weight:600">🎯 Objectif mis à jour !</span>');
   div.innerHTML = displayText.replace(/\n/g, '<br>');
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
@@ -707,7 +832,7 @@ async function sendMsg() {
         model: 'claude-sonnet-4-6',
         max_tokens: isData ? 400 : 2048,
         system: systemPrompt,
-        tools: [{type: 'web_search_20250305', name: 'web_search', max_uses: 1}],
+        tools: [{type: 'web_search_20250305', name: 'web_search', max_uses: 3}],
         messages: chatHistory
       })
     });
@@ -732,6 +857,27 @@ async function sendMsg() {
           var _dvJson = JSON.parse(_dvBlock[1].trim());
           setTimeout(function() { _prefillDevisFromMiia(_dvJson); }, 900);
         } catch(e) { console.warn('[Miia] Parsing JSON devis échoué:', e); }
+      }
+
+      // ── Détection bloc navigation ──
+      var _navBlock = replyText.match(/<<<NAVIGATE:([a-z]+)>>>/);
+      if (_navBlock) {
+        setTimeout(function() { _handleMiiaNavigate(_navBlock[1]); }, 600);
+      }
+
+      // ── Détection bloc objectif ──
+      var _objBlock = replyText.match(/<<<OBJECTIF:(\d+)>>>/);
+      if (_objBlock) {
+        setTimeout(function() { _handleMiiaObjectif(parseInt(_objBlock[1], 10)); }, 600);
+      }
+
+      // ── Détection bloc création mission ──
+      var _msBlock = replyText.match(/<<<MISSION_DATA>>>([\s\S]*?)<<<END_MISSION>>>/);
+      if (_msBlock) {
+        try {
+          var _msJson = JSON.parse(_msBlock[1].trim());
+          setTimeout(function() { _prefillMissionFromMiia(_msJson); }, 900);
+        } catch(e) { console.warn('[Miia] Parsing JSON mission échoué:', e); }
       }
     }
   } catch (err) {
@@ -812,4 +958,75 @@ function _prefillDevisFromMiia(data) {
       if (typeof _devisToast === 'function') _devisToast('✅ Devis pré-rempli par Miia !');
     }, 450);
   }, 350);
+}
+
+// ─────────────────────────────────────────────
+// MIIA — NAVIGATION ACTIVE
+// ─────────────────────────────────────────────
+function _handleMiiaNavigate(screen) {
+  if (chatOpen) toggleChat();
+  setTimeout(function() {
+    switch (screen) {
+      case 'devis':       if (typeof openDevis       === 'function') openDevis(); break;
+      case 'factures':    if (typeof openFacture     === 'function') openFacture(); break;
+      case 'missions':    if (typeof openMission     === 'function') openMission(); break;
+      case 'stats':       if (typeof openStats       === 'function') openStats(); break;
+      case 'clients':     if (typeof openClients     === 'function') openClients(); break;
+      case 'profil':      if (typeof openProfil      === 'function') openProfil(); break;
+      case 'checklist':   if (typeof openChecklist   === 'function') openChecklist(); break;
+      case 'prospection': if (typeof openProspection === 'function') openProspection(); break;
+      case 'home':        if (typeof showHome        === 'function') showHome(); break;
+      default: console.warn('[Miia] Écran inconnu :', screen);
+    }
+  }, 400);
+}
+
+// ─────────────────────────────────────────────
+// MIIA — FIXER L'OBJECTIF MENSUEL
+// ─────────────────────────────────────────────
+function _handleMiiaObjectif(valeur) {
+  if (!valeur || isNaN(valeur) || valeur <= 0) return;
+  localStorage.setItem('dd_stats_objectif', valeur);
+  // Met à jour l'input s'il est visible dans la page stats
+  var inp = document.getElementById('stats-objectif-input');
+  if (inp) { inp.value = valeur; if (typeof renderStats === 'function') renderStats(); }
+}
+
+// ─────────────────────────────────────────────
+// MIIA — PRÉ-REMPLISSAGE FORMULAIRE MISSION
+// ─────────────────────────────────────────────
+function _prefillMissionFromMiia(data) {
+  if (chatOpen) toggleChat();
+
+  // Mécanisme identique à la conversion devis → mission
+  window._devisToMission = {
+    societe:              data.societe              || '',
+    nom:                  data.nom                  || '',
+    prenom:               data.prenom               || '',
+    tel:                  data.tel                  || '',
+    email:                data.email                || '',
+    adresse:              data.adresse              || '',
+    typeBien:             data.typeBien             || 'Appartement',
+    periode_construction: data.periode_construction || '1949-1997',
+    diags:                data.diags                || [],
+    date:                 data.date                 || '',
+    total_ht:             ''
+  };
+
+  if (typeof openMission === 'function') openMission();
+
+  setTimeout(function() {
+    // Après ouverture du formulaire, remplir la date si précisée
+    if (data.date) {
+      var dateEl = document.getElementById('m-date');
+      if (dateEl) dateEl.value = data.date;
+    }
+    // Toast
+    var toast = document.getElementById('devis-toast') || document.getElementById('mission-toast');
+    if (toast) {
+      toast.textContent = '✅ Mission pré-remplie par Miia !';
+      toast.style.display = 'block';
+      setTimeout(function() { toast.style.display = 'none'; }, 2800);
+    }
+  }, 700);
 }
