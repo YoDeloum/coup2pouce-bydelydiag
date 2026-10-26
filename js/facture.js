@@ -202,15 +202,21 @@ function renderFactureForm(body) {
       ` : `
         <!-- Devis standard : grille de diagnostics -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="fc-diags-grid">
-          ${DEVIS_DIAGNOSTICS_LIST.map(function(d) {
-            var isSel = diags.includes(d);
+          ${(function(){
+            var _PREV = typeof PRELEVEMENTS_WITH_QTE !== 'undefined' ? PRELEVEMENTS_WITH_QTE : ['Prélèvement Amiante','Prélèvement Plomb'];
             var tarifs = Object.assign({}, TARIFS_DEFAULT, JSON.parse(localStorage.getItem('dd_tarifs') || '{}'));
-            return '<div class="diag-item '+(isSel?'selected':'')+'" onclick="toggleFactureDiag(this,\''+d+'\')" style="'+(isSel?'border-color:#1B4332;background:#1B433212':'')+'">'
-              +'<input type="checkbox" '+(isSel?'checked':'')+' readonly style="accent-color:#1B4332"/>'
-              +'<span style="font-size:13px">'+d+'</span>'
-              +'<span style="font-size:11px;color:#1B4332;font-weight:700;margin-left:auto">'+(tarifs[d]||0)+'€</span>'
-              +'</div>';
-          }).join('')}
+            return DEVIS_DIAGNOSTICS_LIST.map(function(d) {
+              var isSel    = diags.includes(d);
+              var isPrelev = _PREV.indexOf(d) >= 0;
+              var qte_prel = isPrelev ? Math.max(1, parseInt((src.qte_manuels && src.qte_manuels[d]) || 1)) : 1;
+              return '<div class="diag-item '+(isSel?'selected':'')+'" onclick="toggleFactureDiag(this,\''+d+'\')" style="'+(isSel?'border-color:#1B4332;background:#1B433212':'')+'">'
+                +'<input type="checkbox" '+(isSel?'checked':'')+' readonly style="accent-color:#1B4332"/>'
+                +'<span style="font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+d+'</span>'
+                +(isPrelev ? '<input type="number" class="fc-qte-prelev" data-diag="'+d+'" value="'+qte_prel+'" min="1" step="1" onclick="event.stopPropagation()" onchange="updateFactureTotal()" title="Quantité" style="width:28px;font-size:11px;color:#1B4332;font-weight:700;text-align:center;border:none;border-bottom:1px dashed #6EE7B7;background:transparent;outline:none;padding:0 1px;flex-shrink:0"/><span style="font-size:10px;color:#1B4332;margin:0 2px;flex-shrink:0">×</span>' : '')
+                +'<span style="font-size:11px;color:#1B4332;font-weight:700;margin-left:auto;flex-shrink:0">'+(tarifs[d]||0)+'€</span>'
+                +'</div>';
+            }).join('');
+          })()}
         </div>
         <div style="margin-top:14px;padding:14px;background:#F0FDF4;border-radius:10px;border:1px solid #BBF7D0;display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:14px;font-weight:700;color:#065F46">Total HT</span>
@@ -258,11 +264,20 @@ function toggleFactureDiag(el, diag) {
 
 function updateFactureTotal() {
   var tarifs = Object.assign({}, TARIFS_DEFAULT, JSON.parse(localStorage.getItem('dd_tarifs') || '{}'));
-  var sel    = Array.from(document.querySelectorAll('#fc-diags-grid .diag-item.selected')).map(function(el) {
-    return el.querySelector('span').textContent;
+  var _PREV  = typeof PRELEVEMENTS_WITH_QTE !== 'undefined' ? PRELEVEMENTS_WITH_QTE : ['Prélèvement Amiante','Prélèvement Plomb'];
+  var total  = 0;
+  Array.from(document.querySelectorAll('#fc-diags-grid .diag-item.selected')).forEach(function(el) {
+    var d     = el.querySelector('span').textContent;
+    var price = parseFloat(tarifs[d]) || 0;
+    if (_PREV.indexOf(d) >= 0) {
+      var qteInp = el.querySelector('.fc-qte-prelev[data-diag="'+d+'"]');
+      var qty    = qteInp ? Math.max(1, parseInt(qteInp.value) || 1) : 1;
+      total += price * qty;
+    } else {
+      total += price;
+    }
   });
-  var total = sel.reduce(function(s, d) { return s + (parseFloat(tarifs[d]) || 0); }, 0);
-  var disp  = document.getElementById('fc-total-display');
+  var disp = document.getElementById('fc-total-display');
   if (disp) disp.textContent = total.toFixed(2) + ' €';
 }
 
@@ -272,18 +287,31 @@ function getFactureFormData() {
   var src       = _factureFromDevis || (_factureEdit !== null ? getAllFactures()[_factureEdit] : {});
   var isSpecial = src.type === 'special';
   var lots      = src.lots || [];
-  var sel, totalHt;
+  var sel, totalHt, _qm = {};
   if (isSpecial) {
     // Facture spéciale : total calculé depuis les lots, diagnostics = liste globale pour référence
     sel     = lots.reduce(function(acc, l) { return acc.concat(l.diagnostics||[]); }, []);
     sel     = sel.filter(function(d, i) { return sel.indexOf(d) === i; }); // dédupliqué
     totalHt = lots.reduce(function(s, l) { return s + parseFloat(l.sous_total||0); }, 0);
   } else {
-    sel     = Array.from(document.querySelectorAll('#fc-diags-grid .diag-item.selected')).map(function(el) {
+    sel = Array.from(document.querySelectorAll('#fc-diags-grid .diag-item.selected')).map(function(el) {
       return el.querySelector('span').textContent;
     });
-    totalHt = sel.reduce(function(s, d) { return s + (parseFloat(tarifs[d]) || 0); }, 0);
+    // Collect quantités prélèvements depuis la grille
+    _qm = {};
+    document.querySelectorAll('#fc-diags-grid .fc-qte-prelev').forEach(function(inp) {
+      _qm[inp.dataset.diag] = Math.max(1, parseInt(inp.value) || 1);
+    });
+    var _PREV2 = typeof PRELEVEMENTS_WITH_QTE !== 'undefined' ? PRELEVEMENTS_WITH_QTE : ['Prélèvement Amiante','Prélèvement Plomb'];
+    totalHt = sel.reduce(function(s, d) {
+      var price = parseFloat(tarifs[d]) || 0;
+      if (_PREV2.indexOf(d) >= 0) {
+        return s + price * Math.max(1, parseInt((_qm && _qm[d]) || 1));
+      }
+      return s + price;
+    }, 0);
   }
+  var qte_manuels = isSpecial ? (src.qte_manuels || {}) : (_qm || {});
   return {
     numero_facture: document.getElementById('fc-numero_facture')?.value || '',
     numero:         src.numero || '',
@@ -314,6 +342,7 @@ function getFactureFormData() {
     dep_custom:           src.dep_custom            || '',
     taux_tva:             p.taux_tva || 20,
     diagnostics:          sel,
+    qte_manuels:          qte_manuels,
     total_ht:             totalHt,
     total_ttc:            totalHt * (1 + (p.taux_tva || 20) / 100),
     prix_final:           parseFloat(document.getElementById('fc-prix_final')?.value) || 0,
