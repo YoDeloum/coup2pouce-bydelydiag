@@ -893,6 +893,7 @@ function convertirMissionEnFacture() {
     bien_type:      m.typeBien       || 'Appartement',
     date_mission:   m.date           || '',
     diagnostics:    m.diags          || [],
+    qte_manuels:    m.qte_manuels   || {},
     total_ht:       parseFloat(m.total) || 0,
     // prix_final verrouille le montant exact (calculé ou ajusté)
     prix_final:     parseFloat(m.total) > 0 ? parseFloat(m.total) : '',
