@@ -995,7 +995,7 @@ function agAddLot(data) {
   var diagsHtml =
     '<div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px">Diagnostics — tarif PAR BIEN (x quantité)</div>'
     + diagsParBienList.map(buildDiagItem).join('')
-    + '<div style="font-size:11px;font-weight:700;color:#92400E;margin:8px 0 5px;text-transform:uppercase;letter-spacing:.4px;background:#FEF3C7;padding:4px 8px;border-radius:6px">Forfaits uniques — comptes UNE SEULE FOIS / mission</div>'
+    + '<div style="font-size:11px;font-weight:700;color:#92400E;margin:8px 0 5px;text-transform:uppercase;letter-spacing:.4px;background:#FEF3C7;padding:4px 8px;border-radius:6px">Autres</div>'
     + diagsForfaitList.map(buildDiagItem).join('');
 
   var card = document.createElement('div');
