@@ -1,5 +1,5 @@
 // Service Worker — Coup 2 Pouce DELY DIAG
-const CACHE = 'coup2pouce-v75';
+const CACHE = 'coup2pouce-v76';
 
 // ─── Fichiers à mettre en cache pour le mode hors-ligne ───
 const PRECACHE = [
@@ -61,7 +61,8 @@ const PRECACHE = [
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
   './assets/icons/icon-180.png',
-  './assets/icons/icon-512-maskable.png'
+  './assets/icons/icon-512-maskable.png',
+  './assets/icons/miia-avatar.png'
 ];
 
 // ─── Installation : mise en cache de tous les fichiers ───
