@@ -15,7 +15,10 @@ function _pdfNormalizeProfile(p) {
   // Compatibilité anciens exports .c2p (noms courts → noms complets)
   // IMPORTANT : les anciens champs ont la PRIORITÉ car getCompanyProfile() a déjà
   // rempli les nouveaux champs avec les valeurs par défaut — il faut les écraser.
-  p.mentions_legales    = p.mentions    || p.mentions_legales    || '';
+  // Pour mentions_legales : si les deux champs sont vides (vieux .c2p sans mentions),
+  // on utilise COMPANY_PROFILE_DEFAULT comme filet de sécurité.
+  p.mentions_legales    = p.mentions    || p.mentions_legales    ||
+    (typeof COMPANY_PROFILE_DEFAULT !== 'undefined' ? COMPANY_PROFILE_DEFAULT.mentions_legales : '') || '';
   p.num_assurance       = p.assurance   || p.num_assurance       || '';
   p.rib_iban            = p.iban        || p.rib_iban            || '';
   p.rib_bic             = p.bic         || p.rib_bic             || '';
@@ -963,10 +966,12 @@ function genererPDFDevisSpecial(devis, returnBlob, opts) {
 
   // ── Mentions légales ──
   if (p.mentions_legales && p.mentions_legales.trim()) {
+    if (y + 15 > 278) { doc.addPage(); y = 15; }
     y += 8;
     pdfText(doc, 'Mentions légales', 15, y, {bold:true,size:8,color:[107,114,128]}); y += 5;
     doc.splitTextToSize(p.mentions_legales.trim(), 180).forEach(function(line) {
-      pdfText(doc, line, 15, y, {size:7,color:[120,120,120]}); y += 3.5;
+      if (y + 5 > 278) { doc.addPage(); y = 15; }
+      pdfText(doc, line, 15, y, {size:8,color:[120,120,120]}); y += 4;
     });
   }
 
