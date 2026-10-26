@@ -13,12 +13,14 @@
 function _pdfNormalizeProfile(p) {
   if (!p) return p;
   // Compatibilité anciens exports .c2p (noms courts → noms complets)
-  p.mentions_legales    = p.mentions_legales    || p.mentions    || '';
-  p.num_assurance       = p.num_assurance       || p.assurance   || '';
-  p.rib_iban            = p.rib_iban            || p.iban        || '';
-  p.rib_bic             = p.rib_bic             || p.bic         || '';
-  p.rib_banque          = p.rib_banque          || p.banque      || '';
-  p.taux_tva            = p.taux_tva            !== undefined ? p.taux_tva : (p.tva !== undefined ? p.tva : 20);
+  // IMPORTANT : les anciens champs ont la PRIORITÉ car getCompanyProfile() a déjà
+  // rempli les nouveaux champs avec les valeurs par défaut — il faut les écraser.
+  p.mentions_legales    = p.mentions    || p.mentions_legales    || '';
+  p.num_assurance       = p.assurance   || p.num_assurance       || '';
+  p.rib_iban            = p.iban        || p.rib_iban            || '';
+  p.rib_bic             = p.bic         || p.rib_bic             || '';
+  p.rib_banque          = p.banque      || p.rib_banque          || '';
+  p.taux_tva            = p.taux_tva    !== undefined ? p.taux_tva : (p.tva !== undefined ? p.tva : 20);
   p.statut_fiscal       = p.statut_fiscal       || 'HT';
   p.conditions_paiement = p.conditions_paiement || 'Paiement à réception de facture';
   return p;
@@ -46,7 +48,7 @@ function _pdfRenderHeader(doc, tplKey, p, docType, docNum, docDate, extraLine) {
     var tx = 15;
     if (p.logo && p.logo.startsWith('data:image')) tx = pdfAddLogo(doc, p.logo, 15, 8, p.logo_w, p.logo_h);
     pdfText(doc, p.nom_societe||'DELY DIAG', tx, 18, {bold:true,size:14,color:cfg.fg});
-    pdfText(doc, (p.forme_juridique||'')+( p.nom_responsable?' '+p.nom_responsable:'')+( p.siret?' — SIRET : '+p.siret:''), tx, 24, {size:8,color:cfg.sub});
+    pdfText(doc, (p.nom_responsable||'')+( p.siret?' — SIRET : '+p.siret:''), tx, 24, {size:8,color:cfg.sub});
     pdfText(doc, (p.adresse?p.adresse+(p.code_postal?', ':'')+'':'')+(p.code_postal?p.code_postal+' '+(p.ville||''):''), tx, 30, {size:8,color:cfg.sub});
     pdfText(doc, (p.telephone||'')+(p.email?'  |  '+p.email:''), tx, 36, {size:8,color:cfg.sub});
     pdfText(doc, docType, 195, 18, {bold:true,size:20,color:cfg.fg,align:'right'});
@@ -59,7 +61,7 @@ function _pdfRenderHeader(doc, tplKey, p, docType, docNum, docDate, extraLine) {
     var tx = 15;
     if (p.logo && p.logo.startsWith('data:image')) tx = pdfAddLogo(doc, p.logo, 15, 8, p.logo_w, p.logo_h);
     pdfText(doc, p.nom_societe||'DELY DIAG', tx, 18, {bold:true,size:16,color:cfg.fg});
-    pdfText(doc, (p.forme_juridique||'')+( p.nom_responsable?' '+p.nom_responsable:'')+( p.siret?' — SIRET : '+p.siret:''), tx, 25, {size:9,color:cfg.sub});
+    pdfText(doc, (p.nom_responsable||'')+( p.siret?' — SIRET : '+p.siret:''), tx, 25, {size:9,color:cfg.sub});
     pdfText(doc, (p.adresse?p.adresse+(p.code_postal?', ':'')+'':'')+(p.code_postal?p.code_postal+' '+(p.ville||''):''), tx, 31, {size:9,color:cfg.sub});
     pdfText(doc, (p.telephone||'')+(p.email?'  |  '+p.email:''), tx, 37, {size:9,color:cfg.sub});
     pdfText(doc, docType, 195, 18, {bold:true,size:22,color:cfg.fg,align:'right'});
@@ -205,13 +207,12 @@ function genererPDFDevis(devis, _returnBlob, opts) {
   if (devis.client_societe) {
     pdfText(doc, devis.client_societe, 122, y + 13, {bold:true, size:10, color:[30,30,30]});
     pdfText(doc, (devis.client_prenom||'') + ' ' + (devis.client_nom||''), 122, y + 20, {size:8, color:[80,80,80]});
-    pdfText(doc, devis.bien_adresse || '', 122, y + 27, {size:8, color:[80,80,80]});
-    if (devis.client_tel) pdfText(doc, 'Tel : ' + devis.client_tel, 122, y + 34, {size:8, color:[80,80,80]});
+    if (devis.client_tel)   pdfText(doc, 'Tel : ' + devis.client_tel,   122, y + 27, {size:8, color:[80,80,80]});
+    if (devis.client_email) pdfText(doc, 'Email : ' + devis.client_email, 122, y + 34, {size:8, color:[80,80,80]});
   } else {
     pdfText(doc, (devis.client_prenom||'') + ' ' + (devis.client_nom||''), 122, y + 13, {bold:true, size:11, color:[30,30,30]});
-    pdfText(doc, devis.bien_adresse || '', 122, y + 20, {size:9, color:[80,80,80]});
-    if (devis.client_tel)   pdfText(doc, 'Tel : ' + devis.client_tel,   122, y + 27, {size:9, color:[80,80,80]});
-    if (devis.client_email) pdfText(doc, 'Email : ' + devis.client_email, 122, y + 34, {size:9, color:[80,80,80]});
+    if (devis.client_tel)   pdfText(doc, 'Tel : ' + devis.client_tel,   122, y + 20, {size:9, color:[80,80,80]});
+    if (devis.client_email) pdfText(doc, 'Email : ' + devis.client_email, 122, y + 27, {size:9, color:[80,80,80]});
   }
 
   // ── Objet ──
@@ -227,7 +228,8 @@ function genererPDFDevis(devis, _returnBlob, opts) {
   // ── Tableau diagnostics ──
   pdfRect(doc, 15, y, 180, 8, _tplBg);
   pdfText(doc, 'PRESTATIONS', 18, y + 5.5, {bold:true, size:9, color:_tplTextOnBg});
-  pdfText(doc, 'INCLUS', 195, y + 5.5, {bold:true, size:9, color:[255,255,255], align:'right'});
+  pdfText(doc, 'QTÉ', 162, y + 5.5, {bold:true, size:9, color:_tplSub, align:'right'});
+  pdfText(doc, 'INCLUS', 193, y + 5.5, {bold:true, size:9, color:[255,255,255], align:'right'});
   y += 10;
 
   var diags = devis.diagnostics || [];
@@ -235,8 +237,8 @@ function genererPDFDevis(devis, _returnBlob, opts) {
   diags.forEach(function(d, i) {
     if (i % 2 === 0) pdfRect(doc, 15, y - 1, 180, 8, [249, 250, 251]);
     var _qtyD = (devis.qte_manuels && parseInt(devis.qte_manuels[d]) > 1) ? parseInt(devis.qte_manuels[d]) : 1;
-    var _labelD = '- ' + d + (_qtyD > 1 ? ' \xD7' + _qtyD : '');
-    pdfText(doc, _labelD, 18, y + 5, {size:9, color:[30,30,30]});
+    pdfText(doc, '- ' + d, 18, y + 5, {size:9, color:[30,30,30]});
+    pdfText(doc, String(_qtyD), 162, y + 5, {size:9, color:[80,80,80], align:'right'});
     pdfText(doc, 'incl.', 193, y + 5, {size:9, color:[45,106,79], align:'right'});
     y += 8;
     // DPE Immeuble : afficher le détail des logements juste en dessous
@@ -444,14 +446,15 @@ function genererPDFFacture(facture, _returnBlob, opts) {
     // ─── Devis standard : liste plate ───
     pdfRect(doc, 15, y, 180, 8, _tplBg);
     pdfText(doc, 'PRESTATIONS RÉALISÉES', 18, y + 5.5, {bold:true, size:9, color:_tplTextOnBg});
+    pdfText(doc, 'QTÉ', 162, y + 5.5, {bold:true, size:9, color:_tplSub, align:'right'});
     pdfText(doc, 'RÉALISÉ', 193, y + 5.5, {bold:true, size:9, color:[255,255,255], align:'right'});
     y += 10;
 
     (facture.diagnostics || []).forEach(function(d, i) {
       if (i % 2 === 0) pdfRect(doc, 15, y - 1, 180, 8, [249, 250, 251]);
       var _qtyD = (facture.qte_manuels && parseInt(facture.qte_manuels[d]) > 1) ? parseInt(facture.qte_manuels[d]) : 1;
-      var _labelD = '- ' + d + (_qtyD > 1 ? ' \xD7' + _qtyD : '');
-      pdfText(doc, _labelD, 18, y + 5, {size:9, color:[30,30,30]});
+      pdfText(doc, '- ' + d, 18, y + 5, {size:9, color:[30,30,30]});
+      pdfText(doc, String(_qtyD), 162, y + 5, {size:9, color:[80,80,80], align:'right'});
       pdfText(doc, 'OK', 193, y + 5, {size:9, color:[27,67,50], align:'right'});
       y += 8;
     });
@@ -591,13 +594,12 @@ function genererPDFSigne(devis) {
   if (devis.client_societe) {
     pdfText(doc, devis.client_societe, 122, y + 13, {bold:true, size:10, color:[30,30,30]});
     pdfText(doc, (devis.client_prenom||'') + ' ' + (devis.client_nom||''), 122, y + 20, {size:8, color:[80,80,80]});
-    pdfText(doc, devis.bien_adresse || '', 122, y + 27, {size:8, color:[80,80,80]});
-    if (devis.client_tel) pdfText(doc, 'Tel : ' + devis.client_tel, 122, y + 34, {size:8, color:[80,80,80]});
+    if (devis.client_tel)   pdfText(doc, 'Tel : ' + devis.client_tel,   122, y + 27, {size:8, color:[80,80,80]});
+    if (devis.client_email) pdfText(doc, 'Email : ' + devis.client_email, 122, y + 34, {size:8, color:[80,80,80]});
   } else {
     pdfText(doc, (devis.client_prenom||'') + ' ' + (devis.client_nom||''), 122, y + 13, {bold:true, size:11, color:[30,30,30]});
-    pdfText(doc, devis.bien_adresse || '', 122, y + 20, {size:9, color:[80,80,80]});
-    if (devis.client_tel)   pdfText(doc, 'Tel : ' + devis.client_tel,   122, y + 27, {size:9, color:[80,80,80]});
-    if (devis.client_email) pdfText(doc, 'Email : ' + devis.client_email, 122, y + 34, {size:9, color:[80,80,80]});
+    if (devis.client_tel)   pdfText(doc, 'Tel : ' + devis.client_tel,   122, y + 20, {size:9, color:[80,80,80]});
+    if (devis.client_email) pdfText(doc, 'Email : ' + devis.client_email, 122, y + 27, {size:9, color:[80,80,80]});
   }
 
   // ── Objet (identique à genererPDFDevis) ──
@@ -613,15 +615,16 @@ function genererPDFSigne(devis) {
   // ── Tableau diagnostics (identique à genererPDFDevis) ──
   pdfRect(doc, 15, y, 180, 8, _tplBg);
   pdfText(doc, 'PRESTATIONS', 18, y + 5.5, {bold:true, size:9, color:_tplTextOnBg});
-  pdfText(doc, 'INCLUS', 195, y + 5.5, {bold:true, size:9, color:[255,255,255], align:'right'});
+  pdfText(doc, 'QTÉ', 162, y + 5.5, {bold:true, size:9, color:_tplSub, align:'right'});
+  pdfText(doc, 'INCLUS', 193, y + 5.5, {bold:true, size:9, color:[255,255,255], align:'right'});
   y += 10;
 
   var diags = devis.diagnostics || [];
   diags.forEach(function(d, i) {
     if (i % 2 === 0) pdfRect(doc, 15, y - 1, 180, 8, [249, 250, 251]);
     var _qtyD = (devis.qte_manuels && parseInt(devis.qte_manuels[d]) > 1) ? parseInt(devis.qte_manuels[d]) : 1;
-    var _labelD = '- ' + d + (_qtyD > 1 ? ' \xD7' + _qtyD : '');
-    pdfText(doc, _labelD, 18, y + 5, {size:9, color:[30,30,30]});
+    pdfText(doc, '- ' + d, 18, y + 5, {size:9, color:[30,30,30]});
+    pdfText(doc, String(_qtyD), 162, y + 5, {size:9, color:[80,80,80], align:'right'});
     pdfText(doc, 'incl.', 193, y + 5, {size:9, color:[45,106,79], align:'right'});
     y += 8;
   });
