@@ -873,7 +873,7 @@ function genererPDFDevisSpecial(devis, returnBlob, opts) {
     if (diagsForfait.length > 0) {
       if (y + diagsForfait.length*7 + 14 > 270) { doc.addPage(); y = 15; }
       pdfRect(doc, 15, y, 180, 6, [255,247,230]);
-      pdfText(doc, 'Prestations forfaitaires - comptees une seule fois :', 18, y+4, {bold:true,size:7.5,color:[146,64,14]});
+      pdfText(doc, 'Autres :', 18, y+4, {bold:true,size:7.5,color:[146,64,14]});
       y += 6;
       diagsForfait.forEach(function(d, di) {
         if (di % 2 === 0) pdfRect(doc, 15, y-1, 180, 7, [255,251,235]);
