@@ -32,7 +32,13 @@ var _FS_KEYS = [
   'dd_prescripteurs',
   // Clés Agent Commercial (légères — synchronisées sous le compte de l'agent)
   'dd_agent_role',
-  'dd_agent_active'
+  'dd_agent_active',
+  // Clés Agent Commercial volumineuses — manquaient dans _FS_KEYS, d'où la non-synchronisation inter-appareils
+  // (elles sont bien dans _FS_BIG_KEYS pour la lecture, mais l'intercepteur setItem n'écrivait pas vers Firestore)
+  'dd_agent_devis',
+  'dd_agent_profiles',
+  'dd_agent_comm_factures',
+  'dd_agent_own_profil'
 ];
 
 var _lsSetItem = Storage.prototype.setItem;
