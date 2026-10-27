@@ -244,6 +244,14 @@ function envoyerMailRDVConfirme(mission) {
     + '<p style="margin:0 0 12px;font-size:12px;color:#6B7280">Ce formulaire est obligatoire. Il prend moins d\'une minute à compléter.</p>'
     + '<a href="' + consentUrl + '" style="display:inline-block;padding:12px 20px;background:#1E40AF;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">✍️ Remplir le formulaire de consentement</a>'
     + '</div>'
+    // Section paiement CB (si lien configuré dans le profil)
+    + (p.lien_paiement
+      ? '<div style="background:#F0FDF4;border:2px solid #86EFAC;border-radius:10px;padding:18px 20px;margin:20px 0">'
+      + '<p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#166534">💳 Réglez votre prestation à l\'avance</p>'
+      + '<p style="margin:0 0 12px;font-size:13px;color:#374151;line-height:1.6">Vous pouvez régler dès maintenant par carte bancaire, avant même la réception de votre facture. C\'est rapide et sécurisé.</p>'
+      + '<a href="' + p.lien_paiement + '" style="display:inline-block;padding:12px 20px;background:#166534;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">💳 Payer par carte bancaire</a>'
+      + '</div>'
+      : '')
     + '<p style="color:#374151;margin-top:24px">Cordialement,<br><strong>' + (p.nom_responsable || societe) + '</strong><br>'
     + (p.telephone ? p.telephone + '<br>' : '') + (p.email || '') + '</p>'
     + '</div>'
