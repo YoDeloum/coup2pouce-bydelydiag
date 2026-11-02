@@ -665,6 +665,7 @@ function genererPDFFV() {
     return;
   }
 
+  try {
   var m   = (currentMissionIdx !== null && missions[currentMissionIdx]) ? missions[currentMissionIdx] : {};
   var p   = (typeof getCompanyProfile === 'function') ? getCompanyProfile() : {};
   var doc = new window.jspdf.jsPDF({unit:'mm', format:'a4', orientation:'portrait'});
@@ -741,7 +742,7 @@ function genererPDFFV() {
   y = _sec('Identification du bien', y);
   y = _r2('Type de bien', (fv.cg_type_bien||[]).join(', '), 'Adresse', fv.adresse, y);
   y = _r2('Code postal', fv.cp, 'Ville', fv.ville, y);
-  y = _r2('Bât.', fv.bat, 'Esc.  '+( fv.esc||'—')+'  Ét. '+(fv.etage||'—')+'  Porte '+(fv.porte||'—'), y);
+  y = _r2('Bât. / Esc. / Ét.', (fv.bat||'—')+' / '+(fv.esc||'—')+' / '+(fv.etage||'—'), 'Porte', fv.porte, y);
   y = _r2('N° lot', fv.lot, 'Tantièmes', fv.tantiemes, y);
   y = _r2('Section cadastrale', fv.section, 'Parcelle', fv.parcelle, y);
   y = _r2('Année construction', fv.annee, 'Permis de construire', fv.pc, y);
@@ -844,4 +845,8 @@ function genererPDFFV() {
   // Téléchargement
   var nomFichier = 'FV-' + ((m.nom||m.societe||'visite').replace(/[^a-zA-Z0-9]/g,'-')) + '-' + (fv.date||new Date().toISOString().slice(0,10)).replace(/\//g,'-').replace(/:/g,'-') + '.pdf';
   doc.save(nomFichier);
+  } catch(e) {
+    alert('Erreur lors de la génération PDF : ' + e.message);
+    console.error('[PDF FV]', e);
+  }
 }
