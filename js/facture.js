@@ -37,6 +37,8 @@ function renderFactureScreen(view) {
   else                         renderFactureList(body);
 }
 
+var _factureFilter = '';
+
 function renderFactureList(body) {
   var list   = getAllFactures();
   var sorted = list.slice().reverse();
@@ -46,14 +48,24 @@ function renderFactureList(body) {
     'Facturé': 'statut-facture', 'Payé': 'statut-paye', 'Annulé': 'statut-annule'
   };
 
+  if (_factureFilter) {
+    var _ff = _factureFilter.toUpperCase();
+    sorted = sorted.filter(function(f) {
+      return ((f.client_nom||'') + ' ' + (f.client_prenom||'') + ' ' + (f.client_societe||'')).toUpperCase().includes(_ff)
+          || (f.bien_adresse||'').toUpperCase().includes(_ff)
+          || (f.numero_facture||'').toUpperCase().includes(_ff);
+    });
+  }
+
   body.innerHTML = `
-    <button onclick="_factureEdit=null;_factureFromDevis=null;renderFactureScreen('form')" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#1B4332,#2D6A4F);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:16px">
+    <button onclick="_factureEdit=null;_factureFromDevis=null;renderFactureScreen('form')" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#1B4332,#2D6A4F);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px">
       ➕ Nouvelle facture
     </button>
-    <div style="font-size:12px;color:#6B7280;margin-bottom:12px;font-weight:600">${list.length} facture${list.length>1?'s':''} enregistrée${list.length>1?'s':''}</div>
+    <input type="text" data-search="1" placeholder="🔍 Rechercher un client, un N° de facture..." value="${_factureFilter.replace(/"/g,'&quot;')}" style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:10px"/>
+    <div style="font-size:12px;color:#6B7280;margin-bottom:12px;font-weight:600">${sorted.length} facture${sorted.length>1?'s':''} ${sorted.length !== list.length ? 'trouvée' + (sorted.length>1?'s':'') + ' sur ' + list.length : 'enregistrée' + (list.length>1?'s':'')}</div>
     ${sorted.length === 0 ? '<div style="text-align:center;padding:40px;color:#6B7280">Aucune facture créée</div>' : ''}
     ${sorted.map((f, i) => {
-      var realIdx = list.length - 1 - i;
+      var realIdx = list.indexOf(f);
       var cls = statuts[f.statut] || 'statut-devis';
       return `
         <div class="devis-card" onclick="_factureEdit=${realIdx};_factureFromDevis=null;renderFactureScreen('form')">
@@ -73,6 +85,12 @@ function renderFactureList(body) {
           </div>
         </div>`;
     }).join('')}`;
+
+  var _si = body.querySelector('input[data-search]');
+  if (_si) {
+    _si.addEventListener('input', function() { _factureFilter = this.value; renderFactureList(body); });
+    if (_factureFilter) { _si.focus(); var _l = _factureFilter.length; _si.setSelectionRange(_l, _l); }
+  }
 }
 
 function renderFactureForm(body) {
