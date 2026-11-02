@@ -26,16 +26,26 @@ function renderMissionScreen() {
   else renderMissionList(body);
 }
 
+var _missionsFilter = '';
+
 function renderMissionList(body) {
   var sorted = missions.slice().reverse();
+  if (_missionsFilter) {
+    var _mf = _missionsFilter.toUpperCase();
+    sorted = sorted.filter(function(m) {
+      return ((m.nom||'') + ' ' + (m.prenom||'') + ' ' + (m.societe||'')).toUpperCase().includes(_mf)
+          || (m.adresse||'').toUpperCase().includes(_mf);
+    });
+  }
   body.innerHTML = `
-    <div style="display:flex;gap:8px;margin-bottom:16px">
+    <div style="display:flex;gap:8px;margin-bottom:8px">
       <button onclick="newMission()" style="flex:1;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#E8650A,#F4A261);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">➕ Nouvelle mission</button>
       <button onclick="missionView='calendar';renderMissionScreen()" style="padding:14px 16px;border-radius:12px;border:1.5px solid #E2E5F0;background:#fff;color:#6B7280;font-size:18px;cursor:pointer" title="Vue calendrier">📅</button>
     </div>
-    ${sorted.length === 0 ? '<div style="text-align:center;padding:40px;color:#6B7280;font-size:14px">Aucune mission enregistrée</div>' : ''}
+    <input type="text" data-search="1" placeholder="🔍 Rechercher un client, une adresse..." value="${_missionsFilter.replace(/"/g,'&quot;')}" style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:12px"/>
+    ${sorted.length === 0 ? '<div style="text-align:center;padding:40px;color:#6B7280;font-size:14px">' + (_missionsFilter ? 'Aucun résultat pour "' + _missionsFilter + '"' : 'Aucune mission enregistrée') + '</div>' : ''}
     ${sorted.map(function(m, i) {
-      var realIdx = missions.length - 1 - i;
+      var realIdx = missions.indexOf(m);
       return `
         <div class="mission-card" onclick="editMission(${realIdx})">
           <div class="mission-card-title">${m.societe ? m.societe+' — ' : ''}${m.nom||'Sans nom'} ${m.prenom||''}${m.tel ? ' — <a href="tel:'+m.tel+'" onclick="event.stopPropagation()" style="color:#059669;font-weight:600;font-size:13px;text-decoration:none">📞 '+m.tel+'</a>' : ''}</div>
@@ -50,6 +60,12 @@ function renderMissionList(body) {
           </div>
         </div>`;
     }).join('')}`;
+
+  var _si = body.querySelector('input[data-search]');
+  if (_si) {
+    _si.addEventListener('input', function() { _missionsFilter = this.value; renderMissionList(body); });
+    if (_missionsFilter) { _si.focus(); var _l = _missionsFilter.length; _si.setSelectionRange(_l, _l); }
+  }
 }
 
 function newMission() {
