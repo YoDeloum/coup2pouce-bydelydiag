@@ -55,7 +55,11 @@ function renderMissionList(body) {
           <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
             ${(m.diags||[]).map(function(d) {
               var isTravel = d === 'Frais déplacement';
-              return '<span style="font-size:10px;padding:2px 8px;border-radius:999px;background:' + (isTravel ? '#FEF3C718' : '#2D6A4F18') + ';color:' + (isTravel ? '#B45309' : '#2D6A4F') + ';font-weight:600">' + d + '</span>';
+              var _dk = document.body.classList.contains('dark');
+              return '<span style="font-size:10px;padding:2px 8px;border-radius:999px;background:'
+                + (isTravel ? (_dk ? 'rgba(252,211,77,0.22)' : '#FEF3C718') : (_dk ? 'rgba(82,183,136,0.22)' : '#2D6A4F18'))
+                + ';color:' + (isTravel ? (_dk ? '#FCD34D' : '#B45309') : (_dk ? '#95D5B2' : '#2D6A4F'))
+                + ';font-weight:600">' + d + '</span>';
             }).join('')}
           </div>
         </div>`;
@@ -878,7 +882,8 @@ function _showDayMissions(dateStr) {
           + (m.heure ? '<div style="font-size:12px;color:#E8650A;font-weight:600;margin-top:3px">🕐 ' + m.heure + '</div>' : '')
           + '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px">'
           + (m.diags || []).slice(0,4).map(function(d) {
-              return '<span style="font-size:10px;padding:2px 8px;border-radius:999px;background:#2D6A4F18;color:#2D6A4F;font-weight:600">' + d + '</span>';
+              var _dk2 = document.body.classList.contains('dark');
+              return '<span style="font-size:10px;padding:2px 8px;border-radius:999px;background:' + (_dk2 ? 'rgba(82,183,136,0.22)' : '#2D6A4F18') + ';color:' + (_dk2 ? '#95D5B2' : '#2D6A4F') + ';font-weight:600">' + d + '</span>';
             }).join('')
           + '</div>'
           + '<button onclick="document.getElementById(\'day-missions-modal\').remove();editMission(' + item.idx + ')" style="margin-top:10px;width:100%;padding:9px 14px;border-radius:8px;border:none;background:linear-gradient(135deg,#E8650A,#F4A261);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">📋 Ouvrir la fiche mission</button>'
