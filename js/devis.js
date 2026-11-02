@@ -155,11 +155,22 @@ function renderDevisScreen(view) {
   }
 }
 
+var _devisFilter = '';
+
 function renderDevisList(body) {
   var list   = getAllDevis();
   var sorted = list.slice().reverse();
   var nbSignesNouveaux = list.filter(function(d) { return d.signature_new; }).length;
   updateDevisBadge();
+
+  if (_devisFilter) {
+    var _df = _devisFilter.toUpperCase();
+    sorted = sorted.filter(function(d) {
+      return ((d.client_nom||'') + ' ' + (d.client_prenom||'') + ' ' + (d.client_societe||'')).toUpperCase().includes(_df)
+          || (d.bien_adresse||'').toUpperCase().includes(_df)
+          || (d.numero||'').toUpperCase().includes(_df);
+    });
+  }
 
   body.innerHTML = `
     <div style="display:flex;gap:8px;margin-bottom:8px">
@@ -173,10 +184,11 @@ function renderDevisList(body) {
       ⭐ Devis spécial — multi-biens (plusieurs appartements, même propriétaire...)
     </button>
     ${nbSignesNouveaux > 0 ? `<div style="background:#F0FDF4;border:1.5px solid #6EE7B7;border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px"><span style="font-size:20px">✅</span><div><div style="font-weight:700;color:#065F46;font-size:13px">${nbSignesNouveaux} devis signé${nbSignesNouveaux>1?'s':''} !</div><div style="font-size:11px;color:#6B7280">Ouvre le devis pour voir la signature</div></div></div>` : ''}
-    <div style="font-size:12px;color:#6B7280;margin-bottom:12px;font-weight:600">${list.length} devis enregistré${list.length>1?'s':''}</div>
+    <input type="text" data-search="1" placeholder="🔍 Rechercher un client, un N° de devis..." value="${_devisFilter.replace(/"/g,'&quot;')}" style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:10px"/>
+    <div style="font-size:12px;color:#6B7280;margin-bottom:12px;font-weight:600">${sorted.length} devis${sorted.length !== list.length ? ' trouvé' + (sorted.length>1?'s':'') + ' sur ' + list.length : (list.length>1?' enregistrés':' enregistré')}</div>
     ${sorted.length === 0 ? '<div style="text-align:center;padding:40px;color:#6B7280">Aucun devis créé</div>' : ''}
     ${sorted.map(function(d, i) {
-      var realIdx = list.length - 1 - i;
+      var realIdx = list.indexOf(d);
       var statutClass = 'statut-' + (d.statut||'devis').toLowerCase()
         .replace(/é/g,'e').replace(/è/g,'e').replace(/ê/g,'e')
         .replace(/\s+/g,'_');
@@ -196,6 +208,12 @@ function renderDevisList(body) {
         + '<div class="devis-card-amount">'+(function(){ var m = (d.prix_final && parseFloat(d.prix_final) > 0) ? parseFloat(d.prix_final) : (d.total_ht ? parseFloat(d.total_ht) : 0); return m > 0 ? m.toFixed(2)+' € HT' : ''; })()+'</div>'
         + '</div></div></div>';
     }).join('')}`;
+
+  var _si = body.querySelector('input[data-search]');
+  if (_si) {
+    _si.addEventListener('input', function() { _devisFilter = this.value; renderDevisList(body); });
+    if (_devisFilter) { _si.focus(); var _l = _devisFilter.length; _si.setSelectionRange(_l, _l); }
+  }
 }
 
 function renderDevisForm(body) {
