@@ -197,7 +197,7 @@ function _renderClientsList() {
     // ── Barre filtre + tri
     + '<div style="display:flex;gap:8px;margin-bottom:12px">'
     +   '<input type="text" placeholder="🔍 Rechercher..." value="' + _clientsFilter + '"'
-    +   ' oninput="_clientsFilter=this.value;renderClients()"'
+    +   ' oninput="_clientsFilter=this.value;_renderClientsList()"'
     +   ' style="flex:1;padding:10px 12px;border-radius:10px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none"/>'
     +   '<select onchange="_clientsSort=this.value;renderClients()"'
     +   ' style="padding:8px 10px;border-radius:10px;border:1.5px solid #E2E5F0;font-size:12px;font-family:inherit;outline:none;background:#fff">'
@@ -239,6 +239,12 @@ function _renderClientsList() {
           +   '</div>'
           + '</div>';
       }).join('');
+
+  // Restaurer le focus sur la barre de recherche si un filtre est actif
+  if (_clientsFilter) {
+    var _inp = body.querySelector('input[type="text"]');
+    if (_inp) { _inp.focus(); var _l = _clientsFilter.length; _inp.setSelectionRange(_l, _l); }
+  }
 }
 
 // ─── Ouvrir la fiche d'un client par son index dans _clientsDB ───
