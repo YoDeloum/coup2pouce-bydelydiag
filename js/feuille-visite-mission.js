@@ -286,7 +286,10 @@ function renderFeuilleVisite(body) {
     </div>
 
     <!-- Bouton sauvegarder en bas -->
-    <button onclick="sauvegarderFeuilleVisite()" style="width:100%;margin-top:14px;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#2D6A4F,#1B4332);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">💾 Sauvegarder la feuille de visite</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px">
+      <button onclick="sauvegarderFeuilleVisite()" style="padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#2D6A4F,#1B4332);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">💾 Sauvegarder</button>
+      <button onclick="genererPDFFV()" style="padding:14px;border-radius:12px;border:2px solid #2D6A4F;background:#fff;color:#2D6A4F;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">📄 Exporter PDF</button>
+    </div>
   `;
 
   // Initialiser les données du métrage sauvegardées (ou pièces par défaut)
@@ -643,4 +646,202 @@ function sauvegarderFeuilleVisite() {
   toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1B4332;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:9999';
   document.body.appendChild(toast);
   setTimeout(function() { toast.remove(); }, 2500);
+}
+
+// ── GÉNÉRATION PDF FEUILLE DE VISITE ──────────────────────────────────────
+function genererPDFFV() {
+  if (typeof window.jspdf === 'undefined' || !window.jspdf.jsPDF) {
+    alert("La bibliothèque PDF n'est pas encore chargée. Réessayez dans 2 secondes.");
+    return;
+  }
+
+  var fv;
+  if (document.getElementById('fv-dossier')) {
+    fv = _fvCollectData();
+  } else if (currentMissionIdx !== null && missions[currentMissionIdx] && missions[currentMissionIdx].feuille_visite) {
+    fv = missions[currentMissionIdx].feuille_visite;
+  } else {
+    alert('Ouvre la feuille de visite et sauvegarde-la avant de générer le PDF.');
+    return;
+  }
+
+  var m   = (currentMissionIdx !== null && missions[currentMissionIdx]) ? missions[currentMissionIdx] : {};
+  var p   = (typeof getCompanyProfile === 'function') ? getCompanyProfile() : {};
+  var doc = new window.jspdf.jsPDF({unit:'mm', format:'a4', orientation:'portrait'});
+  var GREEN = [45,106,79];
+  var LGN   = [200,230,210];
+  var DGRAY = [30,30,30];
+  var GRAY  = [107,114,128];
+  var W = 210, MG = 14;
+
+  function _fmtDate(d) {
+    if (!d) return '—';
+    try { return new Date(d).toLocaleDateString('fr-FR'); } catch(e) { return d; }
+  }
+
+  function _head(title, pageLabel) {
+    pdfRect(doc, 0, 0, W, 32, GREEN);
+    pdfText(doc, p.nom_societe || 'DELY DIAG', MG, 11, {bold:true, size:13, color:[255,255,255]});
+    pdfText(doc, (p.telephone||'') + (p.email ? '  |  '+p.email : ''), MG, 17, {size:8, color:LGN});
+    pdfText(doc, (p.adresse||'') + (p.code_postal ? ', '+p.code_postal+' '+(p.ville||'') : ''), MG, 22, {size:8, color:LGN});
+    pdfText(doc, title, W-MG, 13, {bold:true, size:15, color:[255,255,255], align:'right'});
+    pdfText(doc, 'Dossier N° '+(fv.dossier||'—'), W-MG, 20, {size:9, color:LGN, align:'right'});
+    pdfText(doc, _fmtDate(fv.date) + (fv.operateur ? '  |  '+fv.operateur : ''), W-MG, 27, {size:8, color:LGN, align:'right'});
+    pdfText(doc, 'Page '+pageLabel, W-MG, 291, {size:8, color:GRAY, align:'right'});
+    return 38;
+  }
+
+  function _sec(title, y) {
+    pdfRect(doc, MG, y, W-2*MG, 6.5, GREEN);
+    pdfText(doc, title.toUpperCase(), MG+2, y+4.7, {bold:true, size:7.5, color:[255,255,255]});
+    return y + 9;
+  }
+
+  function _r2(l1, v1, l2, v2, y) {
+    pdfText(doc, l1, MG, y, {size:8, color:GRAY});
+    pdfText(doc, String(v1||'—'), MG+38, y, {size:8, bold:true, color:DGRAY});
+    pdfText(doc, l2, 110, y, {size:8, color:GRAY});
+    pdfText(doc, String(v2||'—'), 148, y, {size:8, bold:true, color:DGRAY});
+    return y + 5;
+  }
+
+  function _r1(label, value, y) {
+    pdfText(doc, label, MG, y, {size:8, color:GRAY});
+    pdfText(doc, String(value||'—'), MG+38, y, {size:8, bold:true, color:DGRAY});
+    return y + 5;
+  }
+
+  function _ml(text, y) {
+    if (!text) { pdfText(doc, '—', MG, y, {size:8, color:DGRAY}); return y+5; }
+    var lines = doc.splitTextToSize(text, W-2*MG);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    doc.setTextColor(DGRAY[0],DGRAY[1],DGRAY[2]);
+    doc.text(lines, MG, y);
+    return y + lines.length*4.5 + 1;
+  }
+
+  // ────────────────────────────────────────────────────────
+  // PAGE 1 — INFORMATIONS GÉNÉRALES
+  // ────────────────────────────────────────────────────────
+  var y = _head('FEUILLE DE VISITE', '1/2');
+
+  y = _sec('Dossier', y);
+  y = _r2('N° Dossier', fv.dossier, 'Date', _fmtDate(fv.date), y);
+  y = _r2('Heure arrivée', fv.heure_arr, 'Heure départ', fv.heure_dep, y);
+  y = _r1('Opérateur', fv.operateur, y);
+  y += 2;
+
+  y = _sec('Client / Contact', y);
+  y = _r2('Nom', fv.client_nom, 'Tél.', fv.client_tel, y);
+  y = _r2('Adresse client', fv.client_adresse, 'Email', fv.client_email, y);
+  y = _r2('Propriétaire', fv.proprio, 'Personne présente', fv.present, y);
+  y = _r1('Qualité', (fv.cg_qualite||[]).join(', '), y);
+  y += 2;
+
+  y = _sec('Identification du bien', y);
+  y = _r2('Type de bien', (fv.cg_type_bien||[]).join(', '), 'Adresse', fv.adresse, y);
+  y = _r2('Code postal', fv.cp, 'Ville', fv.ville, y);
+  y = _r2('Bât.', fv.bat, 'Esc.  '+( fv.esc||'—')+'  Ét. '+(fv.etage||'—')+'  Porte '+(fv.porte||'—'), y);
+  y = _r2('N° lot', fv.lot, 'Tantièmes', fv.tantiemes, y);
+  y = _r2('Section cadastrale', fv.section, 'Parcelle', fv.parcelle, y);
+  y = _r2('Année construction', fv.annee, 'Permis de construire', fv.pc, y);
+  y = _r2('Niveaux', fv.niveaux, 'Pièces', fv.pieces, y);
+  y = _r2('Surface déclarée', fv.surface ? fv.surface+' m²' : '—', 'HSP', fv.hsp ? fv.hsp+' m' : '—', y);
+  y = _r2('Chauffage', fv.chauffage, 'Annexes', (fv.cg_annexes||[]).join(', ')||'—', y);
+  y += 2;
+
+  y = _sec('Repères réglementaires', y);
+  var reglMap = {pc1997:'PC avant 1997', avant1949:'Avant 1949', elec15:'Élec. +15 ans', gaz15:'Gaz +15 ans', termites:'Zone termites'};
+  var reglArr = fv.cg_reglementaire || [];
+  var reglLine = Object.keys(reglMap).map(function(k){ return (reglArr.indexOf(k)>=0?'✓ ':'✗ ')+reglMap[k]; }).join('    ');
+  pdfText(doc, reglLine, MG, y, {size:8, color:DGRAY});
+  y += 7;
+
+  y = _sec('Occupation & Accès', y);
+  y = _r2('Occupation', (fv.cg_occup||[]).join(', ')||'—', 'Accès via', (fv.cg_acces||[]).join(', ')||'—', y);
+  y += 2;
+
+  y = _sec('Prestations commandées', y);
+  var prest = (fv.cg_prest||[]).join('  •  ') || '—';
+  pdfText(doc, prest, MG, y, {size:8, bold:true, color:GREEN});
+  y += 7;
+
+  y = _sec('Documents remis & Observations', y);
+  if (fv.docs_remis) { pdfText(doc,'Docs remis :',MG,y,{size:8,bold:true,color:GRAY}); y+=5; y=_ml(fv.docs_remis,y); }
+  if (fv.observations) { pdfText(doc,'Observations :',MG,y,{size:8,bold:true,color:GRAY}); y+=5; y=_ml(fv.observations,y); }
+
+  // ────────────────────────────────────────────────────────
+  // PAGE 2 — MÉTRAGE
+  // ────────────────────────────────────────────────────────
+  doc.addPage();
+  y = _head('RELEVÉ DE MÉTRAGE', '2/2');
+
+  y = _sec('Informations métrage', y);
+  y = _r2('Adresse du bien', fv.m_adresse||fv.adresse, 'HSP courante', fv.m_hsp ? fv.m_hsp+' m' : '—', y);
+  y += 3;
+
+  // En-tête tableau
+  var cols = [
+    {l:'Niv.',  w:12}, {l:'Pièce', w:36}, {l:'HSP m', w:14},
+    {l:'Surf.', w:17}, {l:'<1,80m',w:14}, {l:'Carrez',w:13},
+    {l:'Boutin',w:13}, {l:'Observations', w:63}
+  ];
+  pdfRect(doc, MG, y, W-2*MG, 7, GREEN);
+  var cx = MG+1.5;
+  cols.forEach(function(c) {
+    pdfText(doc, c.l, cx, y+5.2, {size:7, bold:true, color:[255,255,255]});
+    cx += c.w;
+  });
+  y += 7;
+
+  var mrows  = fv.metrage_rows || [];
+  var totP=0, totC=0, totB=0;
+  mrows.forEach(function(r, i) {
+    if (y+7 > 276) { doc.addPage(); y=_head('RELEVÉ DE MÉTRAGE (suite)','2/2'); y+=5; }
+    var bg = i%2===0 ? [255,255,255] : [245,250,247];
+    pdfRect(doc, MG, y, W-2*MG, 6.5, bg);
+    doc.setDrawColor(226,229,240);
+    doc.rect(MG, y, W-2*MG, 6.5);
+
+    var surf = parseFloat((r.surf||'').replace(',','.'))||0;
+    var s180 = parseFloat((r.sous180||'').replace(',','.'))||0;
+    totP += surf;
+    if (r.carrez) totC += (surf-s180);
+    if (r.boutin) totB += (surf-s180);
+
+    var vals = [
+      r.niv||'', r.piece||'', r.hsp||'',
+      surf>0 ? surf.toFixed(2) : '', s180>0 ? s180.toFixed(2) : '',
+      r.carrez?'✓':'', r.boutin?'✓':'', r.obs||''
+    ];
+    var cx2 = MG+1.5;
+    vals.forEach(function(v, vi) {
+      pdfText(doc, String(v), cx2, y+4.5, {size:7.5, color:DGRAY});
+      cx2 += cols[vi].w;
+    });
+    y += 6.5;
+  });
+
+  // Totaux
+  y += 3;
+  pdfRect(doc, MG, y, W-2*MG, 8.5, [232,245,238]);
+  pdfText(doc, 'TOTAUX', MG+2, y+5.8, {bold:true, size:8, color:GREEN});
+  pdfText(doc, 'Plancher : '+totP.toFixed(2)+' m²', MG+32, y+5.8, {size:8, bold:true, color:DGRAY});
+  pdfText(doc, 'Carrez : '+totC.toFixed(2)+' m²',   MG+80, y+5.8, {size:8, bold:true, color:GREEN});
+  pdfText(doc, 'Boutin : '+totB.toFixed(2)+' m²',   MG+125, y+5.8, {size:8, bold:true, color:GREEN});
+  y += 13;
+
+  if (fv.m_exclusions) {
+    pdfText(doc, 'Surfaces exclues et motifs :', MG, y, {size:8, bold:true, color:GRAY});
+    y += 5; y = _ml(fv.m_exclusions, y); y += 3;
+  }
+
+  // Note réglementaire
+  pdfRect(doc, MG, y, W-2*MG, 13, [255,247,237]);
+  pdfText(doc, 'Carrez : exclure caves, garages, combles non aménagés, balcons, terrasses et surfaces sous 1,80 m.', MG+2, y+4.5, {size:7, color:[146,64,14]});
+  pdfText(doc, 'Boutin : surface habitable — exclure en plus vérandas, sous-sols, emprise des cloisons et embrasures.', MG+2, y+9.5, {size:7, color:[146,64,14]});
+
+  // Téléchargement
+  var nomFichier = 'FV-' + ((m.nom||m.societe||'visite').replace(/[^a-zA-Z0-9]/g,'-')) + '-' + (fv.date||new Date().toISOString().slice(0,10)).replace(/\//g,'-').replace(/:/g,'-') + '.pdf';
+  doc.save(nomFichier);
 }
