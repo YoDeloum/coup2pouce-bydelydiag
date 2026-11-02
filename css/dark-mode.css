@@ -32,3 +32,8 @@ body.dark .mission-textarea{background:#1A1D2E;color:#e2e8f0;border-color:#37415
 body.dark .cl-module-select{background:#252A3A}
 body.dark .cl-section{background:#252A3A}
 body.dark .cl-item-text{color:#e2e8f0}
+
+/* Liste diagnostics (missions / devis / factures) */
+body.dark .diag-item{background:#252A3A !important;border-color:#374151 !important;color:#e2e8f0}
+body.dark .diag-item span{color:#e2e8f0}
+body.dark .diag-item.selected{background:rgba(82,183,136,0.18) !important;border-color:#52B788 !important}
