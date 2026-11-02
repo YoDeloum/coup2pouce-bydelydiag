@@ -156,11 +156,13 @@ function renderDevisScreen(view) {
 }
 
 var _devisFilter = '';
+var _devisShowNew = false;
 
 function renderDevisList(body) {
   var list   = getAllDevis();
   var sorted = list.slice().reverse();
   var nbSignesNouveaux = list.filter(function(d) { return d.signature_new; }).length;
+  if (_devisShowNew) { sorted = sorted.filter(function(d) { return d.signature_new; }); }
   updateDevisBadge();
 
   if (_devisFilter) {
@@ -183,7 +185,7 @@ function renderDevisList(body) {
     <button onclick="_devisEdit=null;_isSpecialMode=true;renderDevisScreen('form')" style="width:100%;padding:12px;border-radius:12px;border:2px dashed #F59E0B;background:#FFFBEB;color:#92400E;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:16px">
       ⭐ Devis spécial — multi-biens (plusieurs appartements, même propriétaire...)
     </button>
-    ${nbSignesNouveaux > 0 ? `<div style="background:#F0FDF4;border:1.5px solid #6EE7B7;border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px"><span style="font-size:20px">✅</span><div><div style="font-weight:700;color:#065F46;font-size:13px">${nbSignesNouveaux} devis signé${nbSignesNouveaux>1?'s':''} !</div><div style="font-size:11px;color:#6B7280">Ouvre le devis pour voir la signature</div></div></div>` : ''}
+    ${nbSignesNouveaux > 0 ? `<div onclick="_devisShowNew=!_devisShowNew;renderDevisScreen('list')" style="background:#F0FDF4;border:1.5px solid #6EE7B7;border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">✅</span><div><div style="font-weight:700;color:#065F46;font-size:13px">${nbSignesNouveaux} devis signé${nbSignesNouveaux>1?'s':''} !</div><div style="font-size:11px;color:#6B7280">${_devisShowNew ? '← Voir tous les devis' : 'Cliquer pour voir lesquels →'}</div></div></div><span style="font-size:18px">${_devisShowNew ? '✖' : '👁'}</span></div>` : ''}
     <input type="text" data-search="1" placeholder="🔍 Rechercher un client, un N° de devis..." value="${_devisFilter.replace(/"/g,'&quot;')}" style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:10px"/>
     <div style="font-size:12px;color:#6B7280;margin-bottom:12px;font-weight:600">${sorted.length} devis${sorted.length !== list.length ? ' trouvé' + (sorted.length>1?'s':'') + ' sur ' + list.length : (list.length>1?' enregistrés':' enregistré')}</div>
     ${sorted.length === 0 ? '<div style="text-align:center;padding:40px;color:#6B7280">Aucun devis créé</div>' : ''}
@@ -196,7 +198,7 @@ function renderDevisList(body) {
         + '<div class="devis-card-accent" style="background:#059669"></div>'
         + '<div style="padding-left:12px">'
         + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
-        + '<div class="devis-card-title">Devis N° '+(d.numero||'')+'</div>'
+        + '<div style="display:flex;align-items:center;gap:6px"><div class="devis-card-title">Devis N° '+(d.numero||'')+'</div>'+(d.signature_new ? '<span style="font-size:10px;font-weight:800;background:#059669;color:#fff;border-radius:20px;padding:2px 8px;letter-spacing:.5px;white-space:nowrap">🆕 NOUVEAU</span>' : '')+'</div>'
         + '<span class="statut-badge '+statutClass+'">'+(d.statut||'Devis')+'</span>'
         + '</div>'
         + '<div class="devis-card-sub">👤 '+(d.client_societe ? d.client_societe+' — ' : '')+(d.client_prenom||'')+' '+(d.client_nom||'')+''+(d.client_tel ? ' — <a href="tel:'+d.client_tel+'" onclick="event.stopPropagation()" style="color:#059669;font-weight:600;text-decoration:none">📞 '+d.client_tel+'</a>' : '')+'</div>'
