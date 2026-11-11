@@ -293,8 +293,16 @@ function _checkOpenMission() {
     history.replaceState({}, '', cleanUrl);
     // Persister pour survivre à l'écran de login
     try { sessionStorage.setItem('_pending_open_mission', savedAt); } catch(e) {}
+    // Toast de confirmation (deep link bien détecté)
+    try {
+      var _dlToast = document.createElement('div');
+      _dlToast.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#1B4332;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.25)';
+      _dlToast.textContent = '📋 Ouverture de la fiche mission...';
+      document.body.appendChild(_dlToast);
+      setTimeout(function() { if (_dlToast.parentNode) _dlToast.parentNode.removeChild(_dlToast); }, 5000);
+    } catch(e) {}
     if (localStorage.getItem('fb_uid')) {
-      // Attendre que missions soit chargé (max 5 tentatives, 600ms d'intervalle)
+      // Attendre que missions soit chargé (max 20 tentatives × 600ms = 12s)
       _waitAndOpenMission(0);
     }
   } catch(e) {
@@ -305,7 +313,7 @@ function _checkOpenMission() {
 function _waitAndOpenMission(attempt) {
   var ready = typeof missions !== 'undefined' && Array.isArray(missions) && missions.length > 0
     && typeof openMission === 'function';
-  if (ready || attempt >= 8) {
+  if (ready || attempt >= 20) {
     _processPendingOpenMission();
   } else {
     setTimeout(function() { _waitAndOpenMission(attempt + 1); }, 600);
