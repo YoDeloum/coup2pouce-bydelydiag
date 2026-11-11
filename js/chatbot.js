@@ -593,6 +593,34 @@ function _speakMiia(text) {
   window.speechSynthesis.speak(u);
 }
 
+// Voix IAN — masculine (pitch bas, préférence Thomas)
+function _speakIAN(text) {
+  if (!_miiaVoiceEnabled || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  // Même nettoyage que MIIA
+  text = text.replace(/<<<[^>]*>>>/g, '');
+  var clean = text
+    .replace(/[═─✅❌⚠️🔬🔴⚡🔥🌡️🐜☢️📋⏱️⚖️🏗️🔧🌬️🧱💶📄#*_`>]/g, '')
+    .replace(/\n{2,}/g, '. ')
+    .replace(/\n/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    .substring(0, 380);
+  if (!clean) return;
+  var u = new SpeechSynthesisUtterance(clean);
+  u.lang  = 'fr-FR';
+  u.rate  = 1.0;
+  u.pitch = 0.8; // voix masculine
+  // Préférence : Thomas (voix française masculine), sinon premier fr-FR disponible
+  var voices = window.speechSynthesis.getVoices();
+  var frVoice = voices.find(function(v) { return v.lang === 'fr-FR' && /thomas/i.test(v.name); })
+             || voices.find(function(v) { return v.lang === 'fr-FR' && /nicolas|pierre|paul|jean|luca/i.test(v.name); })
+             || voices.find(function(v) { return v.lang === 'fr-FR'; })
+             || voices.find(function(v) { return v.lang.startsWith('fr'); });
+  if (frVoice) u.voice = frVoice;
+  window.speechSynthesis.speak(u);
+}
+
 function toggleMiiaVoice() {
   _miiaVoiceEnabled = !_miiaVoiceEnabled;
   localStorage.setItem('dd_miia_voice', _miiaVoiceEnabled ? 'on' : 'off');
