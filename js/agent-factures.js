@@ -1,539 +1,478 @@
 // ─────────────────────────────────────────────
-// AGENT-FACTURES.JS — Factures de commission (15%)
-// Coup 2 Pouce — DELY DIAG
-//
-// L'agent génère une facture de commission par diagnostiqueur
-// pour chaque devis signé. Montant = 15% HT du devis.
-//
-// Clés localStorage :
-//   dd_agent_own_profil     → profil de l'agent elle-même (nom, SIRET, IBAN…)
-//   dd_agent_comm_factures  → liste de toutes ses factures de commission
+// MAIL.JS — Ouverture de l'application mail
 // ─────────────────────────────────────────────
 
-// ─── Storage ─────────────────────────────────
-
-function getAgentOwnProfil() {
-  try { return JSON.parse(localStorage.getItem('dd_agent_own_profil') || '{}'); }
-  catch(e) { return {}; }
-}
-function saveAgentOwnProfil(data) {
-  localStorage.setItem('dd_agent_own_profil', JSON.stringify(data));
-}
-
-function getAgentCommFactures() {
-  try { return JSON.parse(localStorage.getItem('dd_agent_comm_factures') || '[]'); }
-  catch(e) { return []; }
-}
-function saveAgentCommFactures(list) {
-  localStorage.setItem('dd_agent_comm_factures', JSON.stringify(list));
-}
-
-function genAgentFactureNumero() {
-  var year = new Date().getFullYear();
-  var all  = getAgentCommFactures();
-  var seq  = all.filter(function(f) {
-    return f.numero && f.numero.startsWith('COM-' + year + '-');
-  }).length + 1;
-  return 'COM-' + year + '-' + String(seq).padStart(3, '0');
+/**
+ * Ouvre l'app mail du téléphone avec les infos d'une mission
+ * @param {Object} options - { to, subject, body }
+ */
+function ouvrirMail(options) {
+  var to      = options.to      || '';
+  var subject = options.subject || '';
+  var body    = options.body    || '';
+  // Copie automatique vers l'utilisateur (profil société, ou email de connexion en fallback)
+  var p        = typeof getCompanyProfile === 'function' ? getCompanyProfile() : {};
+  var userMail = p.email || localStorage.getItem('fb_email') || '';
+  var cc       = options.cc !== undefined ? options.cc : userMail;
+  var gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1'
+    + '&to='   + encodeURIComponent(to)
+    + '&su='   + encodeURIComponent(subject)
+    + '&body=' + encodeURIComponent(body)
+    + (cc ? '&cc='  + encodeURIComponent(cc) : '')
+    + (cc ? '&bcc=' + encodeURIComponent(cc) : '');
+  window.open(gmailUrl, '_blank');
 }
 
-// ─── Point d'entrée principal ─────────────────
-// Remplace le placeholder défini dans agent.js
-function openAgentFactures() {
-  var body = document.getElementById('agent-body');
-  if (!body) return;
-  var agentProfil = getAgentOwnProfil();
+/**
+ * Mail de confirmation de rendez-vous à partir d'une mission
+ */
+function envoyerMailMission(mission) {
+  if (!mission) return;
+  var p       = getCompanyProfile();
+  var societe = p.nom_societe || 'DELY DIAG';
+  var diags   = (mission.diags || []).join(', ') || 'Diagnostics immobiliers';
 
-  // Si l'agent n'a pas encore renseigné son profil → formulaire de config
-  if (!agentProfil.nom) {
-    body.innerHTML = _agentOwnProfilFormHtml({});
-    return;
-  }
-  renderAgentFacturesScreen();
+  var subject = 'Confirmation de rendez-vous — ' + societe;
+  var body    = 'Bonjour ' + (mission.prenom || '') + ',\n\n'
+    + 'Votre rendez-vous de diagnostic immobilier est confirmé.\n\n'
+    + 'Bien : ' + (mission.adresse || '') + '\n'
+    + 'Date : ' + (mission.date || '') + '\n'
+    + 'Diagnostics : ' + diags + '\n\n'
+    + 'En cas de question, n\'hésitez pas à nous contacter.\n\n'
+    + 'Cordialement,\n'
+    + (p.nom_responsable || p.nom_societe || societe) + '\n'
+    + (p.telephone || '') + '\n'
+    + (p.email || '');
+
+  ouvrirMail({ to: mission.email || '', subject: subject, body: body });
 }
 
-// ─── Formulaire profil de l'agent ────────────
-function _agentOwnProfilFormHtml(data) {
-  return `
-    <button onclick="renderAgentScreen()"
-      style="background:none;border:none;color:#6366F1;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:16px;font-family:inherit">← Retour</button>
+/**
+ * Mail d'envoi de devis
+ */
+function envoyerMailDevis(devis) {
+  if (!devis) return;
+  var p       = getCompanyProfile();
+  var societe = p.nom_societe || 'DELY DIAG';
 
-    <div style="background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:12px;padding:12px 14px;margin-bottom:14px">
-      <div style="font-size:13px;font-weight:700;color:#C2410C;margin-bottom:4px">📋 Ton profil (1 seule fois)</div>
-      <div style="font-size:12px;color:#92400E;line-height:1.6">
-        Ces informations apparaîtront sur tes factures de commission.<br>
-        Tu es l'<strong>émetteur</strong>, le diagnostiqueur est le <strong>client</strong>.
-      </div>
-    </div>
+  var subject = 'Devis N°' + (devis.numero || '') + ' — ' + societe;
+  var body    = 'Bonjour ' + (devis.client_prenom || '') + ',\n\n'
+    + 'Veuillez trouver ci-joint votre devis pour la réalisation des diagnostics immobiliers '
+    + 'relatifs au bien situé au ' + (devis.bien_adresse || '') + '.\n\n'
+    + 'Montant : ' + (function() {
+        var htBase = devis.prix_final && devis.prix_final > 0 ? parseFloat(devis.prix_final) : parseFloat(devis.total_ht || 0);
+        var taux = (devis.taux_tva || 20) / 100;
+        return devis.statut_fiscal === 'TTC'
+          ? (htBase * (1 + taux)).toFixed(2) + ' EUR TTC'
+          : htBase.toFixed(2) + ' EUR HT';
+      })() + '\n'
+    + 'Valable jusqu\'au : ' + getDevisExpiry(devis.date) + '\n\n'
+    + 'Pour accepter ce devis, il vous suffit de nous répondre à ce mail ou de nous contacter.\n\n'
+    + (p.lien_paiement ? 'Payer en ligne : ' + p.lien_paiement + '\n\n' : '')
+    + 'Cordialement,\n'
+    + (p.nom_responsable || societe) + '\n'
+    + (p.telephone || '') + '\n'
+    + (p.email || '');
 
-    <div style="background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)">
-      <div style="font-size:12px;font-weight:800;color:#059669;letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px">👤 Ton identité</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div style="grid-column:1/-1">
-          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Ton nom / Nom commercial *</label>
-          <input id="aop-nom" type="text" value="${data.nom||''}" placeholder="Ex : Marie Dupont Agent Commercial"
-            style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Téléphone</label>
-          <input id="aop-telephone" type="tel" value="${data.telephone||''}" placeholder="06 00 00 00 00"
-            style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Email</label>
-          <input id="aop-email" type="email" value="${data.email||localStorage.getItem('fb_email')||''}" placeholder="ton@email.fr"
-            style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
-        </div>
-        <div style="grid-column:1/-1">
-          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Adresse</label>
-          <input id="aop-adresse" type="text" value="${data.adresse||''}" placeholder="12 rue de la Paix, 75001 Paris"
-            style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">SIRET</label>
-          <input id="aop-siret" type="text" value="${data.siret||''}" placeholder="123 456 789 00012"
-            style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">TVA</label>
-          <select id="aop-tva" style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;background:#fff">
-            <option value="non" ${(data.tva||'non')==='non'?'selected':''}>Non assujetti (HT)</option>
-            <option value="oui" ${data.tva==='oui'?'selected':''}>Assujetti TVA 20%</option>
-          </select>
-        </div>
-      </div>
-    </div>
-
-    <div style="background:#fff;border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.06)">
-      <div style="font-size:12px;font-weight:800;color:#059669;letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px">🏦 Coordonnées bancaires</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div style="grid-column:1/-1">
-          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">IBAN</label>
-          <input id="aop-iban" type="text" value="${data.iban||''}" placeholder="FR76 3000 4000 0100 0000 0000 000"
-            style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">BIC</label>
-          <input id="aop-bic" type="text" value="${data.bic||''}" placeholder="BNPAFRPP"
-            style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:600;color:#6B7280;display:block;margin-bottom:4px">Banque</label>
-          <input id="aop-banque" type="text" value="${data.banque||''}" placeholder="BNP Paribas"
-            style="width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #E2E5F0;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
-        </div>
-      </div>
-    </div>
-
-    <button onclick="saveAgentOwnProfilForm()"
-      style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#059669,#10B981);color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit">
-      💾 Enregistrer mon profil
-    </button>
-  `;
+  ouvrirMail({ to: devis.client_email || '', subject: subject, body: body });
 }
 
-function saveAgentOwnProfilForm() {
-  var nom = (document.getElementById('aop-nom') || {}).value || '';
-  if (!nom.trim()) { alert('Ton nom est obligatoire.'); return; }
-  var data = {
-    nom:       nom.trim(),
-    telephone: (document.getElementById('aop-telephone') || {}).value || '',
-    email:     (document.getElementById('aop-email')     || {}).value || '',
-    adresse:   (document.getElementById('aop-adresse')   || {}).value || '',
-    siret:     (document.getElementById('aop-siret')     || {}).value || '',
-    tva:       (document.getElementById('aop-tva')       || {}).value || 'non',
-    iban:      (document.getElementById('aop-iban')      || {}).value || '',
-    bic:       (document.getElementById('aop-bic')       || {}).value || '',
-    banque:    (document.getElementById('aop-banque')    || {}).value || ''
-  };
-  saveAgentOwnProfil(data);
-  renderAgentFacturesScreen();
-}
-
-// ─── Écran principal des factures commission ──
-function renderAgentFacturesScreen() {
-  var body      = document.getElementById('agent-body');
-  if (!body) return;
-  var profiles  = getAgentProfiles();
-  var allFact   = getAgentCommFactures();
-  var allDevis  = getAgentDevis();
-  var agentP    = getAgentOwnProfil();
-
-  body.innerHTML = `
-    <button onclick="renderAgentScreen()"
-      style="background:none;border:none;color:#6366F1;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:16px;font-family:inherit">← Retour</button>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <div style="font-size:15px;font-weight:800;color:#1B4332">🧾 Commissions (15%)</div>
-      <button onclick="openAgentFactures_editProfil()"
-        style="padding:6px 12px;border-radius:8px;border:1.5px solid #059669;background:#fff;color:#059669;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">
-        ✏️ Mon profil
-      </button>
-    </div>
-
-    <!-- Profil résumé -->
-    <div style="background:#F0FDF4;border:1px solid #A7F3D0;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#065F46">
-      <strong>${agentP.nom||''}</strong>${agentP.siret?' — SIRET : '+agentP.siret:''}
-      ${agentP.iban ? '<br>IBAN : ' + agentP.iban : ''}
-    </div>
-
-    <!-- Une section par diagnostiqueur -->
-    ${profiles.length === 0
-      ? '<div style="text-align:center;padding:30px;color:#9CA3AF">Aucun diagnostiqueur importé.</div>'
-      : profiles.map(function(profil) {
-          var diagUid     = profil.diag_uid;
-          var diagNom     = profil.nom_affiche || profil.profil.nom_societe || '?';
-          var devisSignes = allDevis.filter(function(d) {
-            return d.diag_uid === diagUid && d.statut_signature === 'accepte';
-          });
-          var devisFactures = allFact
-            .filter(function(f) { return f.diag_uid === diagUid; })
-            .reduce(function(acc, f) { return acc.concat(f.devis_ids || []); }, []);
-          var devisNonFactures = devisSignes.filter(function(d) {
-            return !devisFactures.includes(d.id);
-          });
-          var totalNonFacture = devisNonFactures.reduce(function(s, d) {
-            return s + parseFloat(d.prix_final > 0 ? d.prix_final : d.total_ht || 0);
-          }, 0);
-          var commissionDue = totalNonFacture * 0.15;
-          var facturesDiag  = allFact.filter(function(f) { return f.diag_uid === diagUid; })
-                                     .sort(function(a,b) { return (b.date||'').localeCompare(a.date||''); });
-
-          return '<div style="background:#fff;border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.06)">'
-            + '<div style="font-size:14px;font-weight:800;color:#1B4332;margin-bottom:4px">' + diagNom + '</div>'
-            + '<div style="font-size:11px;color:#6B7280;margin-bottom:10px">'
-            + devisSignes.length + ' devis signés — '
-            + devisNonFactures.length + ' non encore facturés</div>'
-
-            // Décompte à facturer
-            + (devisNonFactures.length > 0
-              ? '<div style="background:#EEF2FF;border-radius:10px;padding:12px;margin-bottom:10px">'
-                + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-                + '<span style="font-size:12px;color:#4338CA;font-weight:700">À facturer</span>'
-                + '<span style="font-size:11px;color:#6366F1">' + devisNonFactures.length + ' devis</span>'
-                + '</div>'
-                + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-                + '<span style="font-size:12px;color:#6B7280">Total devis HT</span>'
-                + '<span style="font-size:13px;font-weight:700;color:#1B4332">' + totalNonFacture.toFixed(2) + ' €</span>'
-                + '</div>'
-                + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
-                + '<span style="font-size:13px;font-weight:800;color:#6366F1">Commission 15%</span>'
-                + '<span style="font-size:18px;font-weight:800;color:#6366F1">' + commissionDue.toFixed(2) + ' €</span>'
-                + '</div>'
-                + '<button onclick="creerFactureCommission(\'' + diagUid + '\')"'
-                + ' style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">'
-                + '🧾 Générer la facture de commission'
-                + '</button>'
-                + '</div>'
-              : '<div style="padding:10px;text-align:center;font-size:12px;color:#9CA3AF;margin-bottom:10px">✅ Tous les devis sont facturés</div>')
-
-            // Liste des factures existantes
-            + (facturesDiag.length > 0
-              ? '<div style="font-size:11px;font-weight:700;color:#9CA3AF;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Factures émises</div>'
-                + facturesDiag.map(function(f) {
-                    var isPaye = f.statut === 'payee';
-                    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid #F3F4F6">'
-                      + '<div style="flex:1">'
-                      + '<div style="font-size:12px;font-weight:700;color:#1B4332">' + f.numero + '</div>'
-                      + '<div style="font-size:11px;color:#9CA3AF">' + new Date(f.date).toLocaleDateString('fr-FR') + ' — ' + (f.devis_ids||[]).length + ' devis</div>'
-                      + '</div>'
-                      + '<span style="font-size:13px;font-weight:800;color:#6366F1">' + parseFloat(f.commission_ht||0).toFixed(2) + ' €</span>'
-                      + '<span style="font-size:10px;font-weight:700;padding:3px 7px;border-radius:20px;background:' + (isPaye?'#D1FAE5':'#EEF2FF') + ';color:' + (isPaye?'#065F46':'#4338CA') + '">'
-                      + (isPaye ? '✅ Payée' : '⏳ En attente') + '</span>'
-                      + '<button onclick="telechargerPDFCommission(\'' + f.id + '\')" title="Télécharger PDF"'
-                      + ' style="padding:5px 8px;border-radius:7px;border:1.5px solid #E2E5F0;background:#fff;font-size:13px;cursor:pointer">📄</button>'
-                      + '<button onclick="envoyerMailCommission(\'' + f.id + '\')" title="Envoyer par mail"'
-                      + ' style="padding:5px 8px;border-radius:7px;border:1.5px solid #E2E5F0;background:#fff;font-size:13px;cursor:pointer">✉️</button>'
-                      + (!isPaye ? '<button onclick="marquerCommissionPayee(\'' + f.id + '\')" title="Marquer payée"'
-                        + ' style="padding:5px 8px;border-radius:7px;border:1.5px solid #A7F3D0;background:#F0FDF4;font-size:13px;cursor:pointer">💶</button>' : '')
-                      + '</div>';
-                  }).join('')
-              : '')
-            + '</div>';
-        }).join('')
-    }
-  `;
-}
-
-// ─── Éditer son propre profil ────────────────
-function openAgentFactures_editProfil() {
-  var body = document.getElementById('agent-body');
-  if (!body) return;
-  body.innerHTML = _agentOwnProfilFormHtml(getAgentOwnProfil());
-}
-
-// ─── Créer une facture de commission ─────────
-function creerFactureCommission(diagUid) {
-  var allDevis  = getAgentDevis();
-  var allFact   = getAgentCommFactures();
-  var profil    = getAgentProfiles().find(function(p) { return p.diag_uid === diagUid; });
-  if (!profil) { alert('Profil diagnostiqueur introuvable.'); return; }
-
-  // Devis déjà facturés
-  var dejaFactures = allFact
-    .filter(function(f) { return f.diag_uid === diagUid; })
-    .reduce(function(acc, f) { return acc.concat(f.devis_ids || []); }, []);
-
-  // Devis signés non encore facturés
-  var devisNF = allDevis.filter(function(d) {
-    return d.diag_uid === diagUid
-      && d.statut_signature === 'accepte'
-      && !dejaFactures.includes(d.id);
-  });
-
-  if (devisNF.length === 0) {
-    alert('Aucun devis signé à facturer pour ce diagnostiqueur.');
-    return;
-  }
-
-  var totalDevis    = devisNF.reduce(function(s, d) {
-    return s + parseFloat(d.prix_final > 0 ? d.prix_final : d.total_ht || 0);
-  }, 0);
-  var commissionHT  = totalDevis * 0.15;
-  var agentP        = getAgentOwnProfil();
-  var assujetti     = agentP.tva === 'oui';
-  var commissionTTC = assujetti ? commissionHT * 1.20 : commissionHT;
-
-  var nouvFact = {
-    id:             'comf-' + Date.now(),
-    numero:         genAgentFactureNumero(),
-    diag_uid:       diagUid,
-    date:           new Date().toISOString(),
-    devis_ids:      devisNF.map(function(d) { return d.id; }),
-    devis_details:  devisNF.map(function(d) {
-      return {
-        numero:  d.numero,
-        client:  (d.client_prenom || '') + ' ' + (d.client_nom || ''),
-        adresse: d.bien_adresse || '',
-        montant: parseFloat(d.prix_final > 0 ? d.prix_final : d.total_ht || 0)
-      };
-    }),
-    total_devis_ht: totalDevis,
-    taux_commission: 15,
-    commission_ht:  commissionHT,
-    tva:            assujetti ? 20 : 0,
-    commission_ttc: commissionTTC,
-    statut:         'emise',
-    date_paiement:  null
-  };
-
-  allFact.push(nouvFact);
-  saveAgentCommFactures(allFact);
-
-  alert('✅ Facture ' + nouvFact.numero + ' créée !\n'
-    + devisNF.length + ' devis — Commission : ' + commissionHT.toFixed(2) + ' € HT');
-
-  renderAgentFacturesScreen();
-}
-
-// ─── Marquer une facture comme payée ─────────
-function marquerCommissionPayee(factureId) {
-  var all = getAgentCommFactures();
-  var idx = all.findIndex(function(f) { return f.id === factureId; });
-  if (idx < 0) return;
-  if (!confirm('Marquer cette facture comme payée ?')) return;
-  all[idx].statut        = 'payee';
-  all[idx].date_paiement = new Date().toISOString();
-  saveAgentCommFactures(all);
-  renderAgentFacturesScreen();
-}
-
-// ─── Générer le PDF de commission ────────────
-function _genPDFCommission(facture, returnBlob) {
-  var jsPDF = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
-  if (!jsPDF) { alert('jsPDF non chargé.'); return null; }
-
-  var agentP  = getAgentOwnProfil();
-  var profil  = getAgentProfiles().find(function(p) { return p.diag_uid === facture.diag_uid; });
-  var diagP   = profil ? (profil.profil || {}) : {};
-  var assujetti = agentP.tva === 'oui';
-
-  var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-
-  // ── En-tête violet agent ─────────────────────
-  pdfRect(doc, 0, 0, 210, 42, [99, 102, 241]);
-  pdfText(doc, agentP.nom || 'Agent Commercial', 15, 16, {bold:true, size:14, color:[255,255,255]});
-  pdfText(doc, (agentP.adresse||'') + (agentP.siret ? '   SIRET : ' + agentP.siret : ''), 15, 24, {size:8, color:[199,210,254]});
-  pdfText(doc, (agentP.telephone||'') + (agentP.email ? '   ' + agentP.email : ''), 15, 30, {size:8, color:[199,210,254]});
-  if (!agentP.tva || agentP.tva === 'non') {
-    pdfText(doc, 'TVA non applicable — art. 293 B du CGI', 15, 36, {size:7, color:[199,210,254]});
-  }
-  pdfText(doc, 'FACTURE', 195, 16, {bold:true, size:20, color:[255,255,255], align:'right'});
-  pdfText(doc, 'N° ' + facture.numero, 195, 26, {bold:true, size:10, color:[199,210,254], align:'right'});
-  pdfText(doc, new Date(facture.date).toLocaleDateString('fr-FR'), 195, 33, {size:9, color:[199,210,254], align:'right'});
-
-  // ── Facturé à ────────────────────────────────
-  var y = 52;
-  pdfRect(doc, 120, y, 75, 38, [245,247,250]);
-  pdfText(doc, 'FACTURÉ À', 122, y + 6, {bold:true, size:9, color:[107,114,128]});
-  pdfText(doc, diagP.nom_societe || profil.nom_affiche || '', 122, y + 13, {bold:true, size:11, color:[30,30,30]});
-  if (diagP.adresse) pdfText(doc, diagP.adresse, 122, y + 20, {size:8, color:[80,80,80]});
-  if (diagP.telephone) pdfText(doc, 'Tél : ' + diagP.telephone, 122, y + 27, {size:8, color:[80,80,80]});
-  if (diagP.email) pdfText(doc, diagP.email, 122, y + 33, {size:8, color:[80,80,80]});
-
-  pdfText(doc, 'Objet :', 15, y + 6, {bold:true, size:9, color:[99,102,241]});
-  pdfText(doc, 'Commission commerciale — 15% des devis signés', 15, y + 13, {size:10, color:[30,30,30]});
-  pdfText(doc, 'Période : ' + new Date(facture.date).toLocaleDateString('fr-FR', {month:'long', year:'numeric'}), 15, y + 20, {size:9, color:[80,80,80]});
-
-  // ── Tableau des devis ─────────────────────────
-  y += 48;
-  pdfRect(doc, 15, y, 180, 8, [99,102,241]);
-  pdfText(doc, 'Réf. Devis',  17, y + 5.5, {bold:true, size:9, color:[255,255,255]});
-  pdfText(doc, 'Client',       55, y + 5.5, {bold:true, size:9, color:[255,255,255]});
-  pdfText(doc, 'Adresse',      100, y + 5.5, {bold:true, size:9, color:[255,255,255]});
-  pdfText(doc, 'Montant HT', 188, y + 5.5, {bold:true, size:9, color:[255,255,255], align:'right'});
-  y += 10;
-
-  var details = facture.devis_details || [];
-  details.forEach(function(d, i) {
-    if (i % 2 === 0) pdfRect(doc, 15, y - 1, 180, 7, [248,249,251]);
-    pdfText(doc, d.numero || '', 17, y + 4, {size:8, color:[30,30,30]});
-    pdfText(doc, (d.client || '').substring(0, 22), 55, y + 4, {size:8, color:[30,30,30]});
-    pdfText(doc, (d.adresse || '').substring(0, 28), 100, y + 4, {size:8, color:[80,80,80]});
-    pdfText(doc, parseFloat(d.montant || 0).toFixed(2) + ' €', 188, y + 4, {size:9, color:[30,30,30], align:'right'});
-    y += 8;
-    if (y > 260) { doc.addPage(); y = 20; }
-  });
-
-  // ── Totaux ───────────────────────────────────
-  y += 6;
-  doc.setDrawColor(200, 200, 200); doc.line(120, y, 195, y);
-  y += 6;
-  pdfText(doc, 'Total HT des devis', 120, y, {size:9, color:[80,80,80]});
-  pdfText(doc, parseFloat(facture.total_devis_ht||0).toFixed(2) + ' €', 193, y, {size:9, color:[30,30,30], align:'right'});
-  y += 8;
-  pdfRect(doc, 120, y - 2, 75, 10, [99,102,241]);
-  pdfText(doc, 'Commission 15% HT', 122, y + 5, {bold:true, size:10, color:[255,255,255]});
-  pdfText(doc, parseFloat(facture.commission_ht||0).toFixed(2) + ' €', 193, y + 5, {bold:true, size:12, color:[255,255,255], align:'right'});
-  y += 14;
-
-  if (assujetti) {
-    pdfText(doc, 'TVA 20%', 120, y, {size:9, color:[80,80,80]});
-    pdfText(doc, (parseFloat(facture.commission_ht||0) * 0.20).toFixed(2) + ' €', 193, y, {size:9, color:[30,30,30], align:'right'});
-    y += 8;
-    pdfRect(doc, 120, y - 2, 75, 10, [30,30,30]);
-    pdfText(doc, 'TOTAL TTC', 122, y + 5, {bold:true, size:10, color:[255,255,255]});
-    pdfText(doc, parseFloat(facture.commission_ttc||0).toFixed(2) + ' €', 193, y + 5, {bold:true, size:12, color:[199,210,254], align:'right'});
-    y += 14;
-  }
-
-  // ── Mention TVA non assujetti ─────────────────
-  if (!assujetti) {
-    y += 4;
-    pdfText(doc, 'TVA non applicable, art. 293 B du CGI', 15, y, {size:8, color:[150,150,150]});
-    y += 6;
-  }
-
-  // ── RIB ──────────────────────────────────────
-  if (agentP.iban) {
-    y += 6;
-    pdfRect(doc, 15, y, 100, 22, [248,249,251]);
-    pdfText(doc, 'Règlement par virement bancaire', 17, y + 6, {bold:true, size:9, color:[99,102,241]});
-    pdfText(doc, 'IBAN : ' + agentP.iban, 17, y + 13, {size:8, color:[30,30,30]});
-    if (agentP.bic) pdfText(doc, 'BIC : ' + agentP.bic + (agentP.banque ? '  —  ' + agentP.banque : ''), 17, y + 19, {size:8, color:[80,80,80]});
-  }
-
-  // ── Pied de page ─────────────────────────────
-  pdfText(doc, agentP.nom + (agentP.siret ? '  —  SIRET : ' + agentP.siret : ''), 105, 287, {size:8, color:[180,180,180], align:'center'});
-
-  var filename = 'Commission_' + facture.numero + '_' + (diagP.nom_societe || '').replace(/\s/g,'_') + '.pdf';
-  if (returnBlob) return { blob: doc.output('blob'), filename: filename };
-  doc.save(filename);
-  return null;
-}
-
-// ─── Télécharger le PDF ───────────────────────
-function telechargerPDFCommission(factureId) {
-  var all    = getAgentCommFactures();
-  var facture = all.find(function(f) { return f.id === factureId; });
+/**
+ * Mail d'envoi de facture — via Netlify Function + Resend (PDF en pièce jointe)
+ */
+function envoyerMailFacture(facture) {
   if (!facture) { alert('Facture introuvable.'); return; }
-  _genPDFCommission(facture, false);
-}
-
-// ─── Envoyer la facture par mail ─────────────
-function envoyerMailCommission(factureId) {
-  var all    = getAgentCommFactures();
-  var facture = all.find(function(f) { return f.id === factureId; });
-  if (!facture) { alert('Facture introuvable.'); return; }
-
-  var profil  = getAgentProfiles().find(function(p) { return p.diag_uid === facture.diag_uid; });
-  if (!profil || !profil.profil.email) {
-    alert('Email du diagnostiqueur introuvable dans son profil.');
+  if (!facture.client_email) {
+    alert('Renseigne d\'abord l\'email du client dans la facture avant d\'envoyer.');
     return;
   }
 
-  var agentP  = getAgentOwnProfil();
-  var diagP   = profil.profil || {};
-  var btn     = document.querySelector('[onclick*="envoyerMailCommission(\'' + factureId + '\')"]');
-  if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+  var btn = document.querySelector('[onclick*="envoyerMailFacture"]');
+  if (btn) { btn.textContent = '⏳ Préparation...'; btn.disabled = true; }
 
-  // Générer le PDF (sans logo pour alléger)
-  var pdfResult = _genPDFCommission(facture, true);
+  var p       = typeof getCompanyProfile === 'function' ? getCompanyProfile() : {};
+  var societe = p.nom_societe || 'DELY DIAG';
+  var htBase  = facture.prix_final && facture.prix_final > 0 ? parseFloat(facture.prix_final) : parseFloat(facture.total_ht || 0);
+  var taux    = (facture.taux_tva || 20) / 100;
+  var montant = facture.statut_fiscal === 'TTC'
+    ? (htBase * (1 + taux)).toFixed(2) + ' € TTC'
+    : htBase.toFixed(2) + ' € HT';
+
+  var subject = 'Facture N°' + (facture.numero_facture || '') + ' — ' + societe;
+
+  // 1. Compresser logo puis générer PDF facture en blob
+  _compressLogoForEmail(p.logo, function(compressedLogo) {
+  var pdfResult = (typeof genererPDFFacture === 'function') ? genererPDFFacture(facture, true, compressedLogo ? { compressedLogo: compressedLogo } : { skipLogo: true }) : null;
   if (!pdfResult || !pdfResult.blob) {
-    if (btn) { btn.textContent = '✉️'; btn.disabled = false; }
+    if (btn) { btn.textContent = '✉️ Envoyer par mail'; btn.disabled = false; }
+    alert('Erreur lors de la génération du PDF facture.');
+    return;
+  }
+
+  // 2. Convertir blob en base64
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var b64 = e.target.result.split(',')[1];
+    var attachments = [{ filename: pdfResult.filename, content: b64 }];
+
+    // 3. Construire HTML email
+    var isPaye = (facture.statut === 'Payé');
+    var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto">'
+      + '<div style="background:#1B4332;padding:24px 32px;border-radius:8px 8px 0 0">'
+      + '<h1 style="color:#fff;margin:0;font-size:20px">' + societe + '</h1>'
+      + (p.telephone ? '<p style="color:#A7F3D0;margin:4px 0;font-size:13px">' + p.telephone + '</p>' : '')
+      + (p.email ? '<p style="color:#A7F3D0;margin:4px 0;font-size:13px">' + p.email + '</p>' : '')
+      + '</div>'
+      + '<div style="background:#F9FAFB;padding:28px 32px;border:1px solid #E5E7EB;border-top:none">'
+      + '<p style="font-size:15px;color:#111827">Bonjour ' + (facture.client_prenom || '') + ',</p>'
+      + '<p style="color:#374151">Veuillez trouver ci-joint votre facture suite à la réalisation '
+      + 'des diagnostics immobiliers au <strong>' + (facture.bien_adresse || '') + '</strong>.</p>'
+      + '<div style="background:#fff;border:2px solid ' + (isPaye ? '#6EE7B7' : '#E5E7EB') + ';border-radius:8px;padding:16px 20px;margin:20px 0">'
+      + '<p style="margin:0 0 6px;font-size:13px;color:#6B7280">N° Facture</p>'
+      + '<p style="margin:0 0 12px;font-size:18px;font-weight:700;color:#1B4332">' + (facture.numero_facture || '') + '</p>'
+      + '<p style="margin:0 0 4px;font-size:13px;color:#6B7280">Montant</p>'
+      + '<p style="margin:0 0 12px;font-size:20px;font-weight:800;color:#1B4332">' + montant + '</p>'
+      + (isPaye
+        ? '<p style="margin:0;padding:8px 12px;background:#D1FAE5;border-radius:6px;color:#065F46;font-weight:700;font-size:14px">✅ PAYÉE'
+          + (facture.date_paiement ? ' le ' + new Date(facture.date_paiement).toLocaleDateString('fr-FR') : '')
+          + (facture.mode_paiement ? ' — ' + facture.mode_paiement : '')
+          + '</p>'
+        : '<p style="margin:0;font-size:13px;color:#374151">Conditions : <strong>' + (p.conditions_paiement || 'Paiement à réception') + '</strong></p>')
+      + '</div>'
+      + ((!isPaye && p.rib_iban) ? '<p style="font-size:13px;color:#374151"><strong>IBAN :</strong> ' + p.rib_iban + '</p>' : '')
+      + ((!isPaye && p.lien_paiement)
+        ? '<a href="' + p.lien_paiement + '" style="display:inline-block;padding:12px 24px;background:#1B4332;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">💳 Payer en ligne</a>'
+        : '')
+      + '<p style="color:#374151;margin-top:24px">Cordialement,<br><strong>' + (p.nom_responsable || societe) + '</strong></p>'
+      + '</div>'
+      + '<div style="padding:12px 32px;font-size:11px;color:#9ca3af;border:1px solid #E5E7EB;border-top:none;border-radius:0 0 8px 8px;background:#fff">'
+      + societe + (p.adresse ? ' — ' + p.adresse : '') + (p.siret ? ' — SIRET : ' + p.siret : '')
+      + '</div>'
+      + '</div>';
+
+    if (btn) btn.textContent = '⏳ Envoi en cours...';
+
+    // 4. Appel Netlify Function send-email
+    fetch('/.netlify/functions/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to:          facture.client_email,
+        subject:     subject,
+        html:        html,
+        attachments: attachments,
+        fromName:    p.nom_societe  || 'Coup 2 Pouce',
+        fromEmail:   'noreply@coup2pouce-pro.fr',
+        replyTo:     p.email || '',
+        cc:          p.email || localStorage.getItem('fb_email') || ''
+      })
+    })
+    .then(function(res) {
+      var status = res.status;
+      return res.text().then(function(text) {
+        if (!text || !text.trim()) throw new Error('Réponse vide (HTTP ' + status + ')');
+        try { return JSON.parse(text); } catch(ex) { throw new Error('HTTP ' + status + ' — ' + text.substring(0, 200)); }
+      });
+    })
+    .then(function(data) {
+      if (btn) { btn.textContent = '✉️ Envoyer par mail'; btn.disabled = false; }
+      if (data && data.success) {
+        alert('✅ Facture envoyée à ' + facture.client_email + ' avec le PDF en pièce jointe !');
+      } else {
+        var msg = (data && data.error) ? data.error : JSON.stringify(data);
+        alert('⚠️ Erreur envoi : ' + msg);
+      }
+    })
+    .catch(function(err) {
+      if (btn) { btn.textContent = '✉️ Envoyer par mail'; btn.disabled = false; }
+      alert('❌ Erreur réseau : ' + err.message);
+    });
+  };
+  reader.readAsDataURL(pdfResult.blob);
+  }); // fin _compressLogoForEmail
+}
+
+/**
+ * Mail confirmation RDV — envoi via Netlify avec PDF infos mission en PJ
+ * + génération automatique d'un lien de consentement ADEME
+ */
+function envoyerMailRDVConfirme(mission) {
+  if (!mission) { alert('Mission introuvable.'); return; }
+  if (!mission.email && !mission.client_email) {
+    alert('Renseigne l\'email du client dans la mission avant d\'envoyer.');
+    return;
+  }
+
+  var btn = document.querySelector('[onclick*="envoyerMailRDVConfirme"]');
+  if (btn) { btn.textContent = '⏳ Envoi...'; btn.disabled = true; }
+
+  var p       = typeof getCompanyProfile === 'function' ? getCompanyProfile() : {};
+  var societe = p.nom_societe || 'DELY DIAG';
+  var prenom  = mission.prenom || mission.client_prenom || '';
+  var adresse = mission.adresse || mission.bien_adresse || '';
+  var date    = mission.date ? new Date(mission.date).toLocaleDateString('fr-FR') : '';
+  var heure   = mission.heure || '';
+  var diags   = (mission.diags || []).join(', ') || 'Diagnostics immobiliers';
+  var to      = mission.email || mission.client_email || '';
+  var subject = 'Confirmation de rendez-vous — ' + societe;
+
+  // ── Génération token consentement ──
+  var consentToken = _genererTokenConsentement();
+  var consentUrl   = window.location.origin + '/consentement.html?token=' + consentToken;
+
+  var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto">'
+    + '<div style="background:#1B4332;padding:24px 32px;border-radius:8px 8px 0 0">'
+    + '<h1 style="color:#fff;margin:0;font-size:20px">' + societe + '</h1>'
+    + (p.telephone ? '<p style="color:#A7F3D0;margin:4px 0;font-size:13px">' + p.telephone + '</p>' : '')
+    + '</div>'
+    + '<div style="background:#F9FAFB;padding:28px 32px;border:1px solid #E5E7EB;border-top:none">'
+    + '<p style="font-size:15px;color:#111827">Bonjour ' + prenom + ',</p>'
+    + '<p style="color:#374151">Votre rendez-vous de diagnostic immobilier est confirmé.</p>'
+    + '<div style="background:#fff;border:2px solid #6EE7B7;border-radius:8px;padding:16px 20px;margin:20px 0">'
+    + '<p style="margin:0 0 8px;font-size:13px;color:#6B7280">📅 Date et heure</p>'
+    + '<p style="margin:0 0 12px;font-size:18px;font-weight:700;color:#1B4332">' + date + (heure ? ' à ' + heure : '') + '</p>'
+    + '<p style="margin:0 0 4px;font-size:13px;color:#6B7280">📍 Bien</p>'
+    + '<p style="margin:0 0 12px;font-size:14px;font-weight:600;color:#374151">' + adresse + '</p>'
+    + '<p style="margin:0 0 4px;font-size:13px;color:#6B7280">🔬 Diagnostics prévus</p>'
+    + '<p style="margin:0;font-size:14px;color:#374151">' + diags + '</p>'
+    + '</div>'
+    + '<p style="color:#374151">Veuillez trouver en pièce jointe la liste des documents et informations à préparer pour le bon déroulement de notre intervention.</p>'
+    // Section consentement ADEME
+    + '<div style="background:#EFF6FF;border:2px solid #BFDBFE;border-radius:10px;padding:18px 20px;margin:20px 0">'
+    + '<p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#1E40AF">📝 Formulaire de consentement ADEME</p>'
+    + '<p style="margin:0 0 12px;font-size:13px;color:#374151;line-height:1.6">Dans le cadre de la réglementation sur les audits énergétiques, nous vous demandons de bien vouloir remplir et signer le formulaire de consentement au traitement de vos données personnelles par l\'Ademe.</p>'
+    + '<p style="margin:0 0 12px;font-size:12px;color:#6B7280">Ce formulaire est obligatoire. Il prend moins d\'une minute à compléter.</p>'
+    + '<a href="' + consentUrl + '" style="display:inline-block;padding:12px 20px;background:#1E40AF;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">✍️ Remplir le formulaire de consentement</a>'
+    + '</div>'
+    // Section paiement CB (si lien configuré dans le profil)
+    + (p.lien_paiement
+      ? '<div style="background:#F0FDF4;border:2px solid #86EFAC;border-radius:10px;padding:18px 20px;margin:20px 0">'
+      + '<p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#166534">💳 Réglez votre prestation à l\'avance</p>'
+      + '<p style="margin:0 0 12px;font-size:13px;color:#374151;line-height:1.6">Vous pouvez régler dès maintenant par carte bancaire, avant même la réception de votre facture. C\'est rapide et sécurisé.</p>'
+      + '<a href="' + p.lien_paiement + '" style="display:inline-block;padding:12px 20px;background:#166534;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">💳 Payer par carte bancaire</a>'
+      + '</div>'
+      : '')
+    + '<p style="color:#374151;margin-top:24px">Cordialement,<br><strong>' + (p.nom_responsable || societe) + '</strong><br>'
+    + (p.telephone ? p.telephone + '<br>' : '') + (p.email || '') + '</p>'
+    + '</div>'
+    + '<div style="padding:12px 32px;font-size:11px;color:#9ca3af;border:1px solid #E5E7EB;border-top:none;border-radius:0 0 8px 8px;background:#fff">'
+    + societe + (p.siret ? ' — SIRET : ' + p.siret : '') + '</div></div>';
+
+  // Pièce jointe : doc infos mission si disponible
+  var attachments = [];
+  try {
+    var docs = JSON.parse(localStorage.getItem('dd_docs_reglementaires') || '{}');
+    if (docs.doc_mission && docs.doc_mission.data) {
+      attachments.push({ filename: docs.doc_mission.name || 'Infos_mission.pdf', content: docs.doc_mission.data.split(',')[1] });
+    }
+  } catch(e) {}
+
+  // Vérifier taille de la PJ avant envoi
+  var _attachSizeRDV = attachments.reduce(function(s, a) { return s + (a.content ? a.content.length : 0); }, 0);
+  if (_attachSizeRDV > 4 * 1024 * 1024) {
+    if (btn) { btn.textContent = '✅ RDV Confirmé'; btn.disabled = false; }
+    alert('⚠️ Le "Doc mission" est trop volumineux (' + Math.round(_attachSizeRDV / 1024 / 1024) + ' Mo).\nRéduis le PDF à moins de 3 Mo dans Profil → Documents, puis réessaie.');
+    return;
+  }
+
+  // ── Sauvegarder le token en Firestore (signatures/{token}) ──
+  var uid      = localStorage.getItem('fb_uid')   || '';
+  var fbToken  = localStorage.getItem('fb_token') || '';
+  var nomDiag  = (p.nom_responsable || societe) + (p.nom_societe && p.nom_societe !== p.nom_responsable ? ' — ' + p.nom_societe : '');
+  var FS_BASE  = 'https://firestore.googleapis.com/v1/projects/coup2pouce-by-delydiag/databases/(default)/documents';
+
+  var fsBody = {
+    fields: {
+      type:          { stringValue: 'consentement' },
+      uid:           { stringValue: uid },
+      email_diag:    { stringValue: p.email || localStorage.getItem('fb_email') || '' },
+      nom_diag:      { stringValue: nomDiag },
+      email_client:  { stringValue: to },
+      nom_client:    { stringValue: mission.nom  || mission.client_nom  || '' },
+      prenom_client: { stringValue: prenom },
+      tel_client:    { stringValue: mission.tel  || mission.client_tel  || '' },
+      adresse_bien:  { stringValue: adresse },
+      date_rdv:      { stringValue: mission.date || '' },
+      actif:         { booleanValue: true },
+      signe:         { booleanValue: false },
+      created_at:    { stringValue: new Date().toISOString() }
+    }
+  };
+
+  fetch(FS_BASE + '/signatures/' + consentToken, {
+    method:  'PATCH',
+    headers: { 'Authorization': 'Bearer ' + fbToken, 'Content-Type': 'application/json' },
+    body:    JSON.stringify(fsBody)
+  }).then(function() {
+    // Sauvegarder le token dans la mission locale
+    mission.consentement_token = consentToken;
+    if (typeof missions !== 'undefined') {
+      localStorage.setItem('dd_missions', JSON.stringify(missions));
+    }
+  }).catch(function(e) {
+    console.warn('[Consentement] Erreur Firestore :', e);
+  });
+
+  // ── Envoi du mail ──
+  fetch('/.netlify/functions/send-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      to: to, subject: subject, html: html, attachments: attachments,
+      fromName: societe, fromEmail: 'noreply@coup2pouce-pro.fr', replyTo: p.email || '',
+      cc: p.email || localStorage.getItem('fb_email') || ''
+    })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (btn) { btn.textContent = '✅ RDV Confirmé'; btn.disabled = false; }
+    if (data && data.success) alert('✅ Mail de confirmation envoyé à ' + to + ' !\n📝 Formulaire de consentement ADEME inclus dans le mail.' + (attachments.length > 0 ? '\n📎 Document préalable joint.' : ''));
+    else alert('⚠️ Erreur : ' + (data && data.error ? data.error : JSON.stringify(data)));
+  })
+  .catch(function(err) {
+    if (btn) { btn.textContent = '✅ RDV Confirmé'; btn.disabled = false; }
+    alert('❌ Erreur réseau : ' + err.message);
+  });
+}
+
+/**
+ * Génère un token unique pour le formulaire de consentement
+ */
+function _genererTokenConsentement() {
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var token = 'C'; // préfixe pour identifier les tokens de consentement
+  for (var i = 0; i < 9; i++) {
+    token += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return token;
+}
+
+/**
+ * Mail envoi rapport — ouvre la boite mail + télécharge la facture PAYÉE
+ */
+function envoyerMailRapport(mission) {
+  if (!mission) { alert('Mission introuvable.'); return; }
+
+  var p       = typeof getCompanyProfile === 'function' ? getCompanyProfile() : {};
+  var societe = p.nom_societe || 'DELY DIAG';
+  var prenom  = mission.prenom || mission.client_prenom || '';
+  var adresse = mission.adresse || mission.bien_adresse || '';
+  var to      = mission.email || mission.client_email || '';
+  var diags   = (mission.diags || []).join(', ') || 'diagnostics immobiliers';
+
+  // Télécharger la facture PAYÉE si disponible
+  if (mission.facture_id !== undefined || mission.numero_facture) {
+    var allFact = typeof getAllFactures === 'function' ? getAllFactures() : [];
+    var facture = allFact.find(function(f) {
+      return f.statut === 'Payé' && (f.numero_facture === mission.numero_facture ||
+        (f.client_nom||'').toLowerCase() === (mission.nom||mission.client_nom||'').toLowerCase());
+    });
+    if (facture) {
+      if (typeof genererPDFFacture === 'function') genererPDFFacture(facture);
+    }
+  }
+
+  // Ouvrir la boite mail pré-remplie
+  var subject = 'Vos rapports de diagnostic — ' + adresse;
+  var body = 'Bonjour ' + prenom + ',\n\n'
+    + 'Veuillez trouver ci-joint vos rapports de diagnostic immobilier '
+    + 'relatifs au bien situé au ' + adresse + '.\n\n'
+    + 'Diagnostics réalisés : ' + diags + '\n\n'
+    + 'Vous trouverez également en pièce jointe votre facture acquittée.\n\n'
+    + 'Nous restons disponibles pour toute question.\n\n'
+    + 'Cordialement,\n'
+    + (p.nom_responsable || societe) + '\n'
+    + (p.telephone || '') + '\n'
+    + (p.email || '');
+
+  ouvrirMail({ to: to, subject: subject, body: body });
+}
+
+/**
+ * Relance client pour paiement d'une facture en attente — avec PDF en pièce jointe
+ */
+function envoyerRelanceFacture(facture) {
+  if (!facture) { alert('Facture introuvable.'); return; }
+  if (!facture.client_email) {
+    alert('Renseigne d\'abord l\'email du client dans la facture.');
+    return;
+  }
+
+  var btn = document.querySelector('[onclick*="envoyerRelanceFacture"]');
+  if (btn) { btn.textContent = '⏳ Préparation...'; btn.disabled = true; }
+
+  var p       = typeof getCompanyProfile === 'function' ? getCompanyProfile() : {};
+  var societe = p.nom_societe || 'DELY DIAG';
+  var prenom  = facture.client_prenom || '';
+  var to      = facture.client_email  || '';
+  var ht      = parseFloat(facture.prix_final && facture.prix_final > 0 ? facture.prix_final : (facture.total_ht || 0));
+  var montant = ht.toFixed(2) + ' € HT';
+
+  var subject = 'Relance — Facture N°' + (facture.numero_facture || '') + ' — ' + societe;
+
+  var html = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto">'
+    + '<div style="background:#1B4332;padding:24px 32px;border-radius:8px 8px 0 0">'
+    + '<h1 style="color:#fff;margin:0;font-size:20px">' + societe + '</h1>'
+    + (p.telephone ? '<p style="color:#A7F3D0;margin:4px 0;font-size:13px">' + p.telephone + '</p>' : '')
+    + '</div>'
+    + '<div style="background:#F9FAFB;padding:28px 32px;border:1px solid #E5E7EB;border-top:none">'
+    + '<p style="font-size:15px;color:#111827">Bonjour ' + prenom + ',</p>'
+    + '<p style="color:#374151">Sauf erreur de notre part, nous n\'avons pas encore reçu le règlement correspondant à la facture ci-jointe.</p>'
+    + '<div style="background:#FEF3C7;border:2px solid #F59E0B;border-radius:8px;padding:16px 20px;margin:20px 0">'
+    + '<p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#92400E">📄 Facture N° ' + (facture.numero_facture || '') + '</p>'
+    + '<p style="margin:0 0 6px;font-size:16px;font-weight:800;color:#92400E">💶 ' + montant + '</p>'
+    + (facture.date_facture ? '<p style="margin:0;font-size:12px;color:#B45309">Date : ' + new Date(facture.date_facture).toLocaleDateString('fr-FR') + '</p>' : '')
+    + '</div>'
+    + (p.iban ? '<p style="color:#374151;font-size:13px">🏦 <strong>Virement bancaire :</strong><br/>IBAN : ' + p.iban + '</p>' : '')
+    + (p.lien_paiement ? '<p style="color:#374151;font-size:13px">💳 <strong>Paiement en ligne :</strong> <a href="' + p.lien_paiement + '">' + p.lien_paiement + '</a></p>' : '')
+    + '<p style="color:#6B7280;font-size:13px;margin-top:20px">N\'hésitez pas à nous contacter si vous avez la moindre question.</p>'
+    + '<p style="color:#374151;margin-top:20px">Cordialement,<br/><strong>' + (p.nom_responsable || societe) + '</strong><br/>'
+    + (p.telephone || '') + '<br/>' + (p.email || '') + '</p>'
+    + '</div></div>';
+
+  // Compresser logo puis générer PDF facture
+  _compressLogoForEmail(p.logo, function(compressedLogo) {
+  var pdfResult = typeof genererPDFFacture === 'function' ? genererPDFFacture(facture, true, compressedLogo ? { compressedLogo: compressedLogo } : { skipLogo: true }) : null;
+  if (!pdfResult || !pdfResult.blob) {
+    if (btn) { btn.textContent = '🔔 Relancer le client'; btn.disabled = false; }
     alert('Erreur lors de la génération du PDF.');
     return;
   }
 
   var reader = new FileReader();
   reader.onload = function(e) {
-    var b64    = e.target.result.split(',')[1];
-    var montant = parseFloat(facture.commission_ht || 0).toFixed(2);
-    var subject = 'Facture de commission N° ' + facture.numero + ' — ' + (agentP.nom || 'Agent Commercial');
-    var html = '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff">'
-      + '<div style="background:linear-gradient(135deg,#6366F1,#4F46E5);padding:24px 32px;border-radius:12px 12px 0 0">'
-      + '<h1 style="color:#fff;margin:0;font-size:20px">' + (agentP.nom || 'Agent Commercial') + '</h1>'
-      + (agentP.email ? '<p style="color:#C7D2FE;margin:4px 0;font-size:13px">' + agentP.email + '</p>' : '')
-      + '</div>'
-      + '<div style="background:#F9FAFB;padding:28px 32px;border:1px solid #E5E7EB;border-top:none">'
-      + '<p style="font-size:15px;color:#111827">Bonjour ' + (diagP.nom_responsable || diagP.nom_societe || '') + ',</p>'
-      + '<p style="color:#374151">Veuillez trouver ci-joint ma facture de commission pour les devis signés '
-      + 'ce mois-ci au nom de <strong>' + (diagP.nom_societe || '') + '</strong>.</p>'
-      + '<div style="background:#fff;border:2px solid #E5E7EB;border-radius:10px;padding:16px 20px;margin:20px 0">'
-      + '<p style="margin:0 0 6px;font-size:13px;color:#6B7280">N° Facture</p>'
-      + '<p style="margin:0 0 12px;font-size:18px;font-weight:700;color:#4F46E5">' + facture.numero + '</p>'
-      + '<p style="margin:0 0 4px;font-size:13px;color:#6B7280">Commission HT (15%)</p>'
-      + '<p style="margin:0 0 8px;font-size:22px;font-weight:800;color:#4F46E5">' + montant + ' €</p>'
-      + '<p style="margin:0;font-size:12px;color:#9CA3AF">'
-      + (facture.devis_ids||[]).length + ' devis inclus</p>'
-      + '</div>'
-      + (agentP.iban ? '<p style="font-size:13px;color:#374151"><strong>IBAN :</strong> ' + agentP.iban + '</p>' : '')
-      + (!agentP.tva || agentP.tva === 'non'
-        ? '<p style="font-size:11px;color:#9CA3AF">TVA non applicable, art. 293 B du CGI</p>'
-        : '')
-      + '<p style="color:#374151;margin-top:20px">Cordialement,<br><strong>' + (agentP.nom || '') + '</strong></p>'
-      + '</div>'
-      + '<div style="padding:10px 32px;font-size:11px;color:#9ca3af;border:1px solid #E5E7EB;border-top:none;border-radius:0 0 8px 8px;background:#fff">'
-      + (agentP.nom || '') + (agentP.siret ? '  —  SIRET : ' + agentP.siret : '')
-      + '</div>'
-      + '</div>';
+    var base64 = e.target.result.split(',')[1];
+    var attachments = [{ filename: 'Facture_' + (facture.numero_facture || '') + '.pdf', content: base64 }];
 
     fetch('/.netlify/functions/send-email', {
-      method:  'POST',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        to:          diagP.email,
-        subject:     subject,
-        html:        html,
-        attachments: [{ filename: pdfResult.filename, content: b64 }],
-        fromName:    agentP.nom || 'Agent Commercial',
-        fromEmail:   'noreply@coup2pouce-pro.fr',
-        replyTo:     agentP.email || '',
-        cc:          agentP.email || ''
+        to: to, subject: subject, html: html, attachments: attachments,
+        fromName: societe, fromEmail: 'noreply@coup2pouce-pro.fr',
+        replyTo: p.email || '', cc: p.email || localStorage.getItem('fb_email') || ''
       })
     })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (btn) { btn.textContent = '✉️'; btn.disabled = false; }
-      if (data.success || data.id) {
-        alert('✅ Facture envoyée à ' + diagP.email + ' !');
-      } else {
-        alert('⚠️ Erreur : ' + (data.error || JSON.stringify(data)));
-      }
+    .then(function(res) { return res.text().then(function(t) { return { status: res.status, text: t }; }); })
+    .then(function(r) {
+      if (btn) { btn.textContent = '🔔 Relancer le client'; btn.disabled = false; }
+      var data = JSON.parse(r.text);
+      if (data && data.success) alert('✅ Relance envoyée à ' + to + ' avec la facture en pièce jointe !');
+      else alert('⚠️ Erreur : ' + (data && data.error ? data.error : r.text));
     })
     .catch(function(err) {
-      if (btn) { btn.textContent = '✉️'; btn.disabled = false; }
+      if (btn) { btn.textContent = '🔔 Relancer le client'; btn.disabled = false; }
       alert('❌ Erreur réseau : ' + err.message);
     });
   };
   reader.readAsDataURL(pdfResult.blob);
+  }); // fin _compressLogoForEmail
+}
+
+// Utilitaire : date d'expiration devis (30 jours)
+function getDevisExpiry(dateStr) {
+  if (!dateStr) return '';
+  var d = new Date(dateStr);
+  d.setDate(d.getDate() + 30);
+  return d.toLocaleDateString('fr-FR');
 }
