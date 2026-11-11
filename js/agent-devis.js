@@ -567,10 +567,15 @@ function agentEnvoyerDevis(devisId) {
         var reader  = new FileReader();
         reader.onload = function(e) {
           var attachments = [{ filename: pdfResult.filename, content: e.target.result.split(',')[1] }];
-          // Ajouter les docs réglementaires du diagnostiqueur
-          // (ils sont dans le profil du diagnostiqueur importé via .c2p)
-          // Note : les docs réglementaires ne sont pas exportés dans le .c2p pour l'instant,
-          // mais si le diagnostiqueur les a fournis, on les ajoute.
+          // Ajouter les docs réglementaires depuis le profil de l'agent (localStorage)
+          try {
+            var _agentDocs = JSON.parse(localStorage.getItem('dd_docs_reglementaires') || '{}');
+            ['consentement', 'cgv', 'cgi'].forEach(function(id) {
+              if (_agentDocs[id] && _agentDocs[id].data) {
+                attachments.push({ filename: _agentDocs[id].name || (id + '.pdf'), content: _agentDocs[id].data.split(',')[1] });
+              }
+            });
+          } catch(e) {}
           resolve(attachments);
         };
         reader.readAsDataURL(pdfResult.blob);
@@ -638,7 +643,7 @@ function agentEnvoyerDevis(devisId) {
         fromName:    societe,
         fromEmail:   'noreply@coup2pouce-pro.fr',
         replyTo:     p.email || '',
-        cc:          p.email || ''   // copie au diagnostiqueur
+        cc:          p.email || localStorage.getItem('fb_email') || ''   // copie au diagnostiqueur
       })
     });
   })
