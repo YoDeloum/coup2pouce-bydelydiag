@@ -423,7 +423,7 @@ async function sendIanMsg() {
       }
       if (!replyText) replyText = "Je n'ai pas pu analyser. Essaie de renvoyer la photo.";
       addMsgRaw(replyText, 'bot');
-      _speakMiia(replyText); // IAN utilise aussi la synthèse vocale si activée
+      _speakIAN(replyText); // Voix masculine pour IAN
       ianChatHistory.push({ role: 'assistant', content: data.content });
     }
   } catch (err) {
