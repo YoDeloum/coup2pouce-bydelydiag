@@ -267,6 +267,14 @@ function envoyerMailRDVConfirme(mission) {
     }
   } catch(e) {}
 
+  // Vérifier taille de la PJ avant envoi
+  var _attachSizeRDV = attachments.reduce(function(s, a) { return s + (a.content ? a.content.length : 0); }, 0);
+  if (_attachSizeRDV > 4 * 1024 * 1024) {
+    if (btn) { btn.textContent = '✅ RDV Confirmé'; btn.disabled = false; }
+    alert('⚠️ Le "Doc mission" est trop volumineux (' + Math.round(_attachSizeRDV / 1024 / 1024) + ' Mo).\nRéduis le PDF à moins de 3 Mo dans Profil → Documents, puis réessaie.');
+    return;
+  }
+
   // ── Sauvegarder le token en Firestore (signatures/{token}) ──
   var uid      = localStorage.getItem('fb_uid')   || '';
   var fbToken  = localStorage.getItem('fb_token') || '';
@@ -312,13 +320,13 @@ function envoyerMailRDVConfirme(mission) {
     body: JSON.stringify({
       to: to, subject: subject, html: html, attachments: attachments,
       fromName: societe, fromEmail: 'noreply@coup2pouce-pro.fr', replyTo: p.email || '',
-      cc: p.email || ''
+      cc: p.email || localStorage.getItem('fb_email') || ''
     })
   })
   .then(function(res) { return res.json(); })
   .then(function(data) {
     if (btn) { btn.textContent = '✅ RDV Confirmé'; btn.disabled = false; }
-    if (data && data.success) alert('✅ Mail de confirmation envoyé à ' + to + ' !\n📝 Formulaire de consentement ADEME inclus dans le mail.');
+    if (data && data.success) alert('✅ Mail de confirmation envoyé à ' + to + ' !\n📝 Formulaire de consentement ADEME inclus dans le mail.' + (attachments.length > 0 ? '\n📎 Document préalable joint.' : ''));
     else alert('⚠️ Erreur : ' + (data && data.error ? data.error : JSON.stringify(data)));
   })
   .catch(function(err) {
@@ -442,7 +450,7 @@ function envoyerRelanceFacture(facture) {
       body: JSON.stringify({
         to: to, subject: subject, html: html, attachments: attachments,
         fromName: societe, fromEmail: 'noreply@coup2pouce-pro.fr',
-        replyTo: p.email || '', cc: p.email || ''
+        replyTo: p.email || '', cc: p.email || localStorage.getItem('fb_email') || ''
       })
     })
     .then(function(res) { return res.text().then(function(t) { return { status: res.status, text: t }; }); })
