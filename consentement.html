@@ -83,6 +83,46 @@
     .footnotes{font-size:10px;color:#9CA3AF;line-height:1.7;background:#fff;border-radius:14px;padding:14px;border:1px solid #E2E5F0;margin-top:16px}
     .footnotes p{margin-bottom:6px}
     .footnotes p:last-child{margin-bottom:0}
+
+    /* ─── IMPRESSION 1 PAGE A4 ─── */
+    @media print {
+      *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      body{background:#fff !important;min-height:0}
+      .container{max-width:100%;padding:6px 10px 0}
+      /* Masquer les éléments non nécessaires à l'impression */
+      #btn-submit,.signature-actions,.spinner,
+      #screen-loading,#screen-sending,#screen-success,#screen-error{display:none !important}
+      /* Compresser le header */
+      .header{padding:7px 10px;margin-bottom:6px;border-radius:6px}
+      .header h1{font-size:12px;margin-bottom:2px}
+      .header p,.header-logo{font-size:9px}
+      /* Compresser le bloc légal */
+      .legal-block{padding:7px 10px;margin-bottom:6px;border-radius:6px;font-size:9.5px;line-height:1.45}
+      .legal-block p{margin-bottom:5px}
+      .legal-note{font-size:8.5px;padding-top:5px;margin-top:5px}
+      /* Choix OUI/NON */
+      .choices{gap:5px;margin-bottom:6px}
+      .choice-btn{padding:6px 8px;border-radius:6px}
+      .choice-label{font-size:11px}
+      .choice-sublabel{font-size:9px}
+      .choice-checkbox{width:16px;height:16px}
+      /* Infos client si remplies */
+      .info-section{padding:7px 10px;margin-bottom:6px;border-radius:6px}
+      .info-section h3{font-size:9px;margin-bottom:7px}
+      .field-input{padding:5px 7px;font-size:11px;border-radius:5px}
+      .field-label{font-size:9px}
+      .field-row{gap:6px;margin-bottom:6px}
+      /* Date et lieu */
+      .date-lieu{padding:7px 10px;margin-bottom:6px;border-radius:6px}
+      .date-lieu h3{font-size:9px;margin-bottom:7px}
+      /* Signature */
+      .signature-section{padding:7px 10px;margin-bottom:6px;border-radius:6px}
+      .signature-section h3{font-size:9px;margin-bottom:2px}
+      .signature-note{font-size:8.5px;margin-bottom:5px}
+      #signature-canvas{height:90px !important;border:1px solid #aaa}
+      /* Notes légales */
+      .footnotes{padding:5px 8px;margin-top:4px;border-radius:5px;font-size:8px;line-height:1.5}
+    }
   </style>
 </head>
 <body>
