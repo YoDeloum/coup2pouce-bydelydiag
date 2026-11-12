@@ -466,7 +466,7 @@ function renderDevisForm(body) {
     <button class="devis-btn-primary" onclick="saveDevisForm()">💾 Enregistrer le devis</button>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
       <button onclick="if(_devisEdit!==null && getAllDevis()[_devisEdit]) genererPDFDevis(getAllDevis()[_devisEdit])" style="padding:12px;border-radius:10px;border:2px solid #059669;background:#fff;color:#059669;font-size:13px;font-weight:700;font-family:inherit;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>📄 Générer PDF</button>
-      <button onclick="if(_devisEdit!==null && getAllDevis()[_devisEdit]) envoyerMailDevis(getAllDevis()[_devisEdit])" style="padding:12px;border-radius:10px;border:2px solid #0891B2;background:#fff;color:#0891B2;font-size:13px;font-weight:700;font-family:inherit;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>✉️ Envoyer mail</button>
+      <button onclick="if(_devisEdit!==null && getAllDevis()[_devisEdit]) _envoyerDevisNetlify(getAllDevis()[_devisEdit])" style="padding:12px;border-radius:10px;border:2px solid #0891B2;background:#fff;color:#0891B2;font-size:13px;font-weight:700;font-family:inherit;cursor:${_devisEdit===null?'not-allowed':'pointer'};opacity:${_devisEdit===null?.4:1}" ${_devisEdit===null?'disabled':''}>✉️ Envoyer mail</button>
     </div>
     ${!(devis.signature && devis.signature.accepte) ? '<button id="btn-verif-sig" onclick="verifierSignatureDistante()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #059669;background:#F0FDF4;color:#059669;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:pointer">🔄 Vérifier si le client a signé</button>' : ''}
     ${devis.signature && devis.signature.accepte && devis.signature.signature_img ? '<button onclick="genererPDFSigne(getAllDevis()[_devisEdit])" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#059669,#2D6A4F);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">📄 Télécharger le devis signé</button>' : ''}
@@ -873,14 +873,14 @@ function _buildEmailHtml(devis, p, signUrl) {
 }
 
 // ─── ENVOI MAIL DEVIS via Netlify Function + Resend ───
-function envoyerMailDevis(devis) {
+function _envoyerDevisNetlify(devis) {
   if (!devis) { alert('Devis introuvable.'); return; }
   if (!devis.client_email) {
     alert('Renseigne d\'abord l\'email du client dans le devis avant d\'envoyer.');
     return;
   }
 
-  var btn = document.querySelector('[onclick*="envoyerMailDevis"]');
+  var btn = document.querySelector('[onclick*="_envoyerDevisNetlify"]');
   if (btn) { btn.textContent = '⏳ Préparation...'; btn.disabled = true; }
 
   var p = typeof getCompanyProfile === 'function' ? getCompanyProfile() : {};
@@ -1523,7 +1523,7 @@ function renderDevisSpecialForm(body) {
     +'<button class="devis-btn-primary" onclick="saveDevisSpecialForm()">💾 Enregistrer le devis</button>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
     +'<button onclick="if(_devisEdit!==null&&getAllDevis()[_devisEdit])genererPDFDevisSpecial(getAllDevis()[_devisEdit])" style="padding:12px;border-radius:10px;border:2px solid #059669;background:#fff;color:#059669;font-size:13px;font-weight:700;font-family:inherit;cursor:'+(_devisEdit===null?'not-allowed':'pointer')+';opacity:'+(_devisEdit===null?.4:1)+'" '+(_devisEdit===null?'disabled':'')+'>📄 Générer PDF</button>'
-    +'<button onclick="if(_devisEdit!==null&&getAllDevis()[_devisEdit])envoyerMailDevis(getAllDevis()[_devisEdit])" style="padding:12px;border-radius:10px;border:2px solid #0891B2;background:#fff;color:#0891B2;font-size:13px;font-weight:700;font-family:inherit;cursor:'+(_devisEdit===null?'not-allowed':'pointer')+';opacity:'+(_devisEdit===null?.4:1)+'" '+(_devisEdit===null?'disabled':'')+'>✉️ Envoyer mail</button>'
+    +'<button onclick="if(_devisEdit!==null&&getAllDevis()[_devisEdit])_envoyerDevisNetlify(getAllDevis()[_devisEdit])" style="padding:12px;border-radius:10px;border:2px solid #0891B2;background:#fff;color:#0891B2;font-size:13px;font-weight:700;font-family:inherit;cursor:'+(_devisEdit===null?'not-allowed':'pointer')+';opacity:'+(_devisEdit===null?.4:1)+'" '+(_devisEdit===null?'disabled':'')+'>✉️ Envoyer mail</button>'
     +'</div>'
     +(_devisEdit !== null && getAllDevis()[_devisEdit] && !(getAllDevis()[_devisEdit].signature && getAllDevis()[_devisEdit].signature.accepte) ? '<button id="btn-verif-sig" onclick="verifierSignatureDistante()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #059669;background:#F0FDF4;color:#059669;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:pointer">🔄 Vérifier si le client a signé</button>' : '')
     +(_devisEdit !== null && getAllDevis()[_devisEdit] && getAllDevis()[_devisEdit].signature && getAllDevis()[_devisEdit].signature.accepte && getAllDevis()[_devisEdit].signature.signature_img ? '<button onclick="genererPDFSigne(getAllDevis()[_devisEdit])" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#059669,#2D6A4F);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px">📄 Télécharger le devis signé</button>' : '')
