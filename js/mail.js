@@ -47,35 +47,7 @@ function envoyerMailMission(mission) {
   ouvrirMail({ to: mission.email || '', subject: subject, body: body });
 }
 
-/**
- * Mail d'envoi de devis
- */
-function envoyerMailDevis(devis) {
-  if (!devis) return;
-  var p       = getCompanyProfile();
-  var societe = p.nom_societe || 'DELY DIAG';
-
-  var subject = 'Devis N°' + (devis.numero || '') + ' — ' + societe;
-  var body    = 'Bonjour ' + (devis.client_prenom || '') + ',\n\n'
-    + 'Veuillez trouver ci-joint votre devis pour la réalisation des diagnostics immobiliers '
-    + 'relatifs au bien situé au ' + (devis.bien_adresse || '') + '.\n\n'
-    + 'Montant : ' + (function() {
-        var htBase = devis.prix_final && devis.prix_final > 0 ? parseFloat(devis.prix_final) : parseFloat(devis.total_ht || 0);
-        var taux = (devis.taux_tva || 20) / 100;
-        return devis.statut_fiscal === 'TTC'
-          ? (htBase * (1 + taux)).toFixed(2) + ' EUR TTC'
-          : htBase.toFixed(2) + ' EUR HT';
-      })() + '\n'
-    + 'Valable jusqu\'au : ' + getDevisExpiry(devis.date) + '\n\n'
-    + 'Pour accepter ce devis, il vous suffit de nous répondre à ce mail ou de nous contacter.\n\n'
-    + (p.lien_paiement ? 'Payer en ligne : ' + p.lien_paiement + '\n\n' : '')
-    + 'Cordialement,\n'
-    + (p.nom_responsable || societe) + '\n'
-    + (p.telephone || '') + '\n'
-    + (p.email || '');
-
-  ouvrirMail({ to: devis.client_email || '', subject: subject, body: body });
-}
+// envoyerMailDevis — défini dans js/devis.js (version complète Netlify avec PDF + signature)
 
 /**
  * Mail d'envoi de facture — via Netlify Function + Resend (PDF en pièce jointe)
